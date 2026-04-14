@@ -1,8 +1,14 @@
 import { NextResponse } from 'next/server'
-import { createServiceRoleClient } from '@/lib/supabase'
+import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
+import { isRoomAvailable } from '@/lib/availability'
+import type { BookingType } from '@/types'
 
 export async function POST(request: Request) {
-  const supabase = createServiceRoleClient()
+  const serverClient = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await serverClient.auth.getUser()
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   let body: Record<string, unknown>
   try {
@@ -28,13 +34,51 @@ export async function POST(request: Request) {
     }
   }
 
+  const supabase = createServiceRoleClient()
+
+  // Fetch authoritative room rates — never trust client-supplied prices
+  const { data: room, error: roomError } = await supabase
+    .from('rooms')
+    .select('nightly_rate, monthly_rate')
+    .eq('id', body.room_id as string)
+    .eq('is_active', true)
+    .single()
+
+  if (roomError || !room) {
+    return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+  }
+
+  // Check availability before creating booking
+  const available = await isRoomAvailable(
+    body.room_id as string,
+    body.check_in as string,
+    body.check_out as string,
+  )
+  if (!available) {
+    return NextResponse.json({ error: 'Room is not available for the selected dates' }, { status: 409 })
+  }
+
+  // Compute amounts server-side
+  const bookingType = body.booking_type as BookingType
+  const totalNights = Number(body.total_nights ?? 1)
+  let total_amount: number
+  let amount_due_at_checkin: number
+
+  if (bookingType === 'short_term') {
+    total_amount = totalNights * room.nightly_rate
+    amount_due_at_checkin = 0
+  } else {
+    total_amount = room.monthly_rate * 2
+    amount_due_at_checkin = room.monthly_rate
+  }
+
   const now = new Date().toISOString()
 
   const { data, error } = await supabase
     .from('bookings')
     .insert({
       room_id: body.room_id,
-      booking_type: body.booking_type,
+      booking_type: bookingType,
       guest_first_name: body.guest_first_name,
       guest_last_name: body.guest_last_name,
       guest_email: body.guest_email,
@@ -43,12 +87,12 @@ export async function POST(request: Request) {
       marketing_consent: body.marketing_consent ?? false,
       check_in: body.check_in,
       check_out: body.check_out,
-      total_nights: body.total_nights ?? 0,
-      nightly_rate: body.nightly_rate ?? 0,
-      monthly_rate: body.monthly_rate ?? 0,
-      total_amount: body.total_amount ?? 0,
+      total_nights: totalNights,
+      nightly_rate: room.nightly_rate,
+      monthly_rate: room.monthly_rate,
+      total_amount,
       amount_paid: 0,
-      amount_due_at_checkin: body.amount_due_at_checkin ?? 0,
+      amount_due_at_checkin,
       stripe_payment_intent_id: null,
       stripe_session_id: null,
       status: 'confirmed',
