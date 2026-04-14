@@ -11,6 +11,7 @@ import {
   parseISO,
   isToday,
   isWithinInterval,
+  isSunday,
 } from 'date-fns'
 import clsx from 'clsx'
 import type { Room, Property, Booking, ICalBlock } from '@/types'
@@ -27,7 +28,6 @@ type DayStatus = 'available' | 'booking' | 'ical'
 interface DayInfo {
   status: DayStatus
   tooltip: string
-  /** First letter of guest last name, populated for booking cells */
   initial?: string
 }
 
@@ -55,7 +55,7 @@ function getDayInfo(
         }
       }
     } catch {
-      // ignore malformed ISO dates from external sources
+      // ignore malformed ISO dates
     }
   }
 
@@ -74,7 +74,7 @@ function getDayInfo(
         }
       }
     } catch {
-      // ignore malformed ISO dates from external sources
+      // ignore malformed ISO dates
     }
   }
 
@@ -90,141 +90,181 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
   })
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between px-1">
+    <div className="space-y-5">
+      {/* Month navigation */}
+      <div className="flex items-center justify-between">
         <button
           onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
-          className="p-1.5 rounded-lg bg-surface-highest/40 hover:bg-surface-high text-primary transition-colors"
+          className="flex items-center justify-center w-9 h-9 rounded-xl bg-surface-highest/40 hover:bg-surface-high text-on-surface-variant hover:text-on-surface transition-colors"
           aria-label="Previous month"
         >
           <ChevronLeftIcon className="h-4 w-4" />
         </button>
 
-        <span className="font-display text-sm font-semibold text-primary">
+        <h2 className="font-display text-lg font-semibold text-on-surface">
           {format(currentMonth, 'MMMM yyyy')}
-          {' – '}
+          <span className="text-on-surface-variant font-normal mx-2">–</span>
           {format(addMonths(currentMonth, 1), 'MMMM yyyy')}
-        </span>
+        </h2>
 
         <button
           onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
-          className="p-1.5 rounded-lg bg-surface-highest/40 hover:bg-surface-high text-primary transition-colors"
+          className="flex items-center justify-center w-9 h-9 rounded-xl bg-surface-highest/40 hover:bg-surface-high text-on-surface-variant hover:text-on-surface transition-colors"
           aria-label="Next month"
         >
           <ChevronRightIcon className="h-4 w-4" />
         </button>
       </div>
 
-      <div className="overflow-x-auto overflow-y-auto max-h-[70vh] rounded-2xl border border-outline-variant">
-        <table className="border-collapse table-fixed min-w-max">
-          <thead>
-            <tr>
-              <th
-                className="sticky left-0 z-20 bg-surface-container px-3 py-2 text-left text-xs font-semibold text-on-surface-variant border-b border-r border-outline-variant min-w-[140px] max-w-[160px]"
-              >
-                Room
-              </th>
-
-              {days.map((day) => {
-                const today = isToday(day)
-                const isFirstOfMonth = day.getDate() === 1
-                return (
-                  <th
-                    key={format(day, 'yyyy-MM-dd')}
-                    className={clsx(
-                      'sticky top-0 z-10 bg-surface-container w-7 min-w-[28px] text-center py-1 border-b border-outline-variant text-[10px] font-medium',
-                      today ? 'text-secondary' : 'text-on-surface-variant',
-                      isFirstOfMonth && 'border-l-2 border-l-secondary/30',
-                    )}
-                  >
-                    <div className="flex flex-col items-center leading-tight">
-                      {isFirstOfMonth && (
-                        <span className="text-[9px] text-secondary/70 font-semibold">
-                          {format(day, 'MMM')}
-                        </span>
-                      )}
-                      <span>{format(day, 'd')}</span>
-                    </div>
-                  </th>
-                )
-              })}
-            </tr>
-          </thead>
-
-          <tbody>
-            {rooms.map((room) => (
-              <tr key={room.id} className="group">
-                <td
-                  className="sticky left-0 z-10 bg-surface-container px-3 py-1.5 border-b border-r border-outline-variant min-w-[140px] max-w-[160px]"
-                >
-                  <div className="text-xs font-medium text-primary truncate">{room.name}</div>
-                  {room.property && (
-                    <div className="text-[10px] text-on-surface-variant truncate">{room.property.name}</div>
-                  )}
-                </td>
+      {/* Calendar card */}
+      <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl overflow-hidden">
+        <div className="overflow-x-auto overflow-y-auto max-h-[68vh]">
+          <table className="border-collapse table-fixed min-w-max w-full">
+            <thead>
+              <tr>
+                {/* Room column header */}
+                <th className="sticky left-0 top-0 z-30 bg-surface-container/95 backdrop-blur-sm px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant border-b border-r border-outline-variant/60 min-w-[160px] max-w-[180px]">
+                  Room
+                </th>
 
                 {days.map((day) => {
-                  const dateStr = format(day, 'yyyy-MM-dd')
-                  const { status, tooltip, initial } = getDayInfo(dateStr, room.id, bookings, icalBlocks)
-                  const today = isToday(day)
-                  const isFirstOfMonth = day.getDate() === 1
-
+                  const todayDay = isToday(day)
+                  const isFirst = day.getDate() === 1
+                  const isSun = isSunday(day)
                   return (
-                    <td
-                      key={dateStr}
-                      title={tooltip}
+                    <th
+                      key={format(day, 'yyyy-MM-dd')}
                       className={clsx(
-                        'w-7 h-7 min-w-[28px] border-b border-outline-variant p-0 text-center text-xs cursor-default',
-                        isFirstOfMonth && 'border-l-2 border-l-secondary/30',
-                        status === 'booking' && 'bg-secondary/30',
-                        status === 'ical' && 'bg-primary/20',
-                        status === 'available' && 'bg-surface-container hover:bg-surface-high',
-                        today && 'ring-1 ring-inset ring-secondary/50 rounded',
+                        'sticky top-0 z-20 bg-surface-container/95 backdrop-blur-sm w-8 min-w-[32px] py-2 border-b border-outline-variant/60 text-center',
+                        isFirst && 'border-l-2 border-l-primary/25',
+                        isSun && !isFirst && 'border-l border-l-outline-variant/40',
                       )}
                     >
-                      {status === 'booking' && initial && (
-                        <span className="text-secondary text-[9px] font-medium leading-none select-none">
-                          {initial}
+                      <div className="flex flex-col items-center gap-0.5">
+                        {isFirst && (
+                          <span className="text-[9px] font-semibold text-primary/70 uppercase tracking-wide leading-none">
+                            {format(day, 'MMM')}
+                          </span>
+                        )}
+                        <span
+                          className={clsx(
+                            'text-[10px] font-medium leading-none',
+                            todayDay
+                              ? 'w-5 h-5 flex items-center justify-center rounded-full bg-primary text-white font-bold'
+                              : 'text-on-surface-variant',
+                          )}
+                        >
+                          {format(day, 'd')}
                         </span>
-                      )}
-                    </td>
+                      </div>
+                    </th>
                   )
                 })}
               </tr>
-            ))}
+            </thead>
 
-            {rooms.length === 0 && (
-              <tr>
-                <td
-                  colSpan={days.length + 1}
-                  className="py-12 text-center text-on-surface-variant text-sm"
+            <tbody className="divide-y divide-outline-variant/40">
+              {rooms.map((room, roomIdx) => (
+                <tr
+                  key={room.id}
+                  className={clsx(
+                    'group',
+                    roomIdx % 2 === 0 ? 'bg-background/30' : 'bg-surface-highest/20',
+                  )}
                 >
-                  No active rooms found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  {/* Room label */}
+                  <td className="sticky left-0 z-10 bg-surface-container/90 backdrop-blur-sm px-4 py-2.5 border-r border-outline-variant/60 min-w-[160px] max-w-[180px]">
+                    <div className="text-xs font-semibold text-on-surface truncate">{room.name}</div>
+                    {room.property && (
+                      <div className="text-[10px] text-on-surface-variant/70 truncate mt-0.5">
+                        {room.property.name}
+                      </div>
+                    )}
+                  </td>
+
+                  {/* Day cells */}
+                  {days.map((day) => {
+                    const dateStr = format(day, 'yyyy-MM-dd')
+                    const { status, tooltip, initial } = getDayInfo(dateStr, room.id, bookings, icalBlocks)
+                    const todayDay = isToday(day)
+                    const isFirst = day.getDate() === 1
+                    const isSun = isSundayFn(day)
+
+                    return (
+                      <td
+                        key={dateStr}
+                        title={tooltip}
+                        className={clsx(
+                          'w-8 h-8 min-w-[32px] p-0 text-center cursor-default transition-colors',
+                          isFirst && 'border-l-2 border-l-primary/25',
+                          isSun && !isFirst && 'border-l border-l-outline-variant/40',
+                          status === 'booking' &&
+                            'bg-secondary/25 hover:bg-secondary/35',
+                          status === 'ical' &&
+                            'bg-primary/15 hover:bg-primary/25',
+                          status === 'available' &&
+                            'hover:bg-surface-high',
+                          todayDay && status === 'available' && 'ring-1 ring-inset ring-primary/40',
+                        )}
+                      >
+                        {status === 'booking' && initial && (
+                          <span className="text-secondary text-[9px] font-bold leading-none select-none">
+                            {initial}
+                          </span>
+                        )}
+                        {status === 'ical' && (
+                          <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/60" />
+                        )}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+
+              {rooms.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={days.length + 1}
+                    className="py-16 text-center text-on-surface-variant text-sm"
+                  >
+                    No active rooms found.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div className="flex flex-wrap gap-3 px-1" aria-label="Legend">
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-sm bg-secondary/30" />
-          <span className="text-xs text-on-surface-variant">Confirmed / Pending Booking</span>
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-3 px-1">
+        <span className="text-xs font-medium text-on-surface-variant uppercase tracking-wider mr-1">Legend:</span>
+
+        <div className="flex items-center gap-2 bg-secondary/15 rounded-full px-3 py-1">
+          <div className="w-2 h-2 rounded-full bg-secondary" />
+          <span className="text-xs text-on-surface-variant">Booking</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-sm bg-primary/20" />
+
+        <div className="flex items-center gap-2 bg-primary/10 rounded-full px-3 py-1">
+          <div className="w-2 h-2 rounded-full bg-primary/60" />
           <span className="text-xs text-on-surface-variant">iCal Block</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-sm bg-surface-container border border-outline-variant" />
+
+        <div className="flex items-center gap-2 bg-surface-container rounded-full px-3 py-1 border border-outline-variant/60">
+          <div className="w-2 h-2 rounded-full bg-surface-high" />
           <span className="text-xs text-on-surface-variant">Available</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 rounded-sm ring-1 ring-secondary/50" />
+
+        <div className="flex items-center gap-2 bg-surface-container rounded-full px-3 py-1 ring-1 ring-primary/40">
+          <div className="w-2 h-2 rounded-full bg-primary" />
           <span className="text-xs text-on-surface-variant">Today</span>
         </div>
       </div>
     </div>
   )
+}
+
+// named alias so it doesn't shadow the import inside JSX
+function isSundayFn(d: Date) {
+  return isSunday(d)
 }

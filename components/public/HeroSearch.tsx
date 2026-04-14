@@ -3,12 +3,16 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
+import { format } from 'date-fns'
+import DatePicker from './DatePicker'
 
 export default function HeroSearch() {
   const router = useRouter()
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [guests, setGuests] = useState('1')
+
+  const today = format(new Date(), 'yyyy-MM-dd')
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
@@ -24,15 +28,18 @@ export default function HeroSearch() {
       onSubmit={handleSearch}
       className="bg-background rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.18)] p-2 flex flex-col md:flex-row items-stretch md:items-center gap-1"
     >
-
       {/* Check In */}
       <div className="flex-1 px-4 py-3 min-w-0">
-        <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Check In</p>
-        <input
-          type="date"
+        <DatePicker
+          label="Check In"
           value={checkIn}
-          onChange={(e) => setCheckIn(e.target.value)}
-          className="w-full font-body text-sm text-on-surface outline-none bg-transparent [color-scheme:light]"
+          onChange={(d) => {
+            setCheckIn(d)
+            // Clear check-out if it's now before check-in
+            if (checkOut && d && checkOut <= d) setCheckOut('')
+          }}
+          min={today}
+          placeholder="Add date"
         />
       </div>
 
@@ -40,12 +47,12 @@ export default function HeroSearch() {
 
       {/* Check Out */}
       <div className="flex-1 px-4 py-3 min-w-0">
-        <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Check Out</p>
-        <input
-          type="date"
+        <DatePicker
+          label="Check Out"
           value={checkOut}
-          onChange={(e) => setCheckOut(e.target.value)}
-          className="w-full font-body text-sm text-on-surface outline-none bg-transparent [color-scheme:light]"
+          onChange={setCheckOut}
+          min={checkIn || today}
+          placeholder="Add date"
         />
       </div>
 
