@@ -12,7 +12,11 @@ const navLinks = [
   { label: 'Contact', href: '/contact' },
 ]
 
-export default function Navbar() {
+interface NavbarProps {
+  logoUrl?: string
+}
+
+export default function Navbar({ logoUrl }: NavbarProps) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -22,11 +26,12 @@ export default function Navbar() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg">
             <Image
-              src="/logo.png"
+              src={logoUrl ?? '/logo.png'}
               alt="Top of the Hill Rooms"
               width={52}
               height={52}
               className="rounded-xl"
+              unoptimized={!!logoUrl}
             />
             <span className="font-display font-bold text-on-surface text-lg tracking-tight">
               Top of the Hill <span className="text-primary">Rooms</span>

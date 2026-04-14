@@ -11,7 +11,7 @@ export async function PATCH(request: Request) {
   const supabase = createServiceRoleClient()
   const body = await request.json()
 
-  const fields = {
+  const fields: Record<string, unknown> = {
     about_text: body.about_text,
     contact_phone: body.contact_phone,
     contact_email: body.contact_email,
@@ -19,6 +19,7 @@ export async function PATCH(request: Request) {
     business_name: body.business_name,
     updated_at: new Date().toISOString(),
   }
+  if (body.logo_url !== undefined) fields.logo_url = body.logo_url
 
   let error
   if (body.id) {

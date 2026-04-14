@@ -1,7 +1,11 @@
 import Link from 'next/link'
 import Image from 'next/image'
 
-export default function Footer() {
+interface FooterProps {
+  logoUrl?: string
+}
+
+export default function Footer({ logoUrl }: FooterProps) {
   return (
     <footer className="bg-background border-t border-surface">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
@@ -9,11 +13,12 @@ export default function Footer() {
           <div>
             <div className="flex items-center gap-2.5 mb-4">
               <Image
-                src="/logo.png"
+                src={logoUrl ?? '/logo.png'}
                 alt="Top of the Hill Rooms"
                 width={32}
                 height={32}
                 className="rounded-lg"
+                unoptimized={!!logoUrl}
               />
               <span className="font-display font-bold text-on-surface text-base">
                 Top of the Hill <span className="text-primary">Rooms</span>

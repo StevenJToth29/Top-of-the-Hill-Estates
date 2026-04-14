@@ -101,6 +101,7 @@ export interface SiteSettings {
   contact_email: string
   contact_address: string
   business_name: string
+  logo_url?: string
   updated_at: string
 }
 

@@ -30,7 +30,11 @@ export const NAV_ITEMS = [
 
 const supabase = createClient()
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+  logoUrl?: string
+}
+
+export default function AdminSidebar({ logoUrl }: AdminSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -48,11 +52,12 @@ export default function AdminSidebar() {
     <div className="flex h-full flex-col">
       <div className="px-6 py-5 flex items-center gap-3">
         <Image
-          src="/logo.png"
+          src={logoUrl ?? '/logo.png'}
           alt="Top of the Hill Rooms"
           width={36}
           height={36}
           className="rounded-lg shrink-0"
+          unoptimized={!!logoUrl}
         />
         <span className="font-display text-base font-bold text-primary tracking-tight leading-tight">
           TOTH Admin
