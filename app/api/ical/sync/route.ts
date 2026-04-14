@@ -5,7 +5,12 @@ import { format } from 'date-fns'
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
-  const cronSecret = process.env.CRON_SECRET ?? ''
+  const cronSecret = process.env.CRON_SECRET
+
+  if (!cronSecret) {
+    console.error('CRON_SECRET env var is not set')
+    return Response.json({ error: 'Server misconfiguration' }, { status: 500 })
+  }
 
   if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
