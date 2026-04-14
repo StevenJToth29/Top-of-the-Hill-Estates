@@ -40,13 +40,8 @@ export async function POST(
     const now = new Date()
     const refundResult = calculateRefund(booking as Booking, now)
 
-    if (refundResult.refund_amount > 0 && booking.stripe_payment_intent_id) {
-      await stripe.refunds.create({
-        payment_intent: booking.stripe_payment_intent_id,
-        amount: Math.round(refundResult.refund_amount * 100),
-      })
-    }
-
+    // Update DB first — if the Stripe refund fails we can retry, but we can't
+    // un-issue a refund if the DB update fails after the refund is already sent.
     const { error: updateError } = await supabase
       .from('bookings')
       .update({
@@ -60,6 +55,13 @@ export async function POST(
     if (updateError) {
       console.error('Failed to update booking cancellation:', updateError)
       return NextResponse.json({ error: 'Failed to cancel booking' }, { status: 500 })
+    }
+
+    if (refundResult.refund_amount > 0 && booking.stripe_payment_intent_id) {
+      await stripe.refunds.create({
+        payment_intent: booking.stripe_payment_intent_id,
+        amount: Math.round(refundResult.refund_amount * 100),
+      })
     }
 
     return NextResponse.json({ success: true, refund_amount: refundResult.refund_amount })

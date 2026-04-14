@@ -6,7 +6,6 @@ import type { BookingType } from '@/types'
 
 interface CreateBookingBody {
   room_id: string
-  room_slug: string
   booking_type: BookingType
   guest_first_name: string
   guest_last_name: string
@@ -15,12 +14,7 @@ interface CreateBookingBody {
   check_in: string
   check_out: string
   guests: number
-  nightly_rate: number
-  monthly_rate: number
   total_nights: number
-  total_amount: number
-  amount_to_pay: number
-  amount_due_at_checkin: number
   sms_consent: boolean
   marketing_consent: boolean
 }
@@ -39,18 +33,45 @@ export async function POST(request: NextRequest) {
       check_in,
       check_out,
       total_nights,
-      nightly_rate,
-      monthly_rate,
-      total_amount,
-      amount_to_pay,
-      amount_due_at_checkin,
       sms_consent,
       marketing_consent,
     } = body
 
+    const supabase = createServiceRoleClient()
+
+    // Fetch authoritative room rates — never trust client-supplied prices
+    const { data: room, error: roomError } = await supabase
+      .from('rooms')
+      .select('nightly_rate, monthly_rate')
+      .eq('id', room_id)
+      .eq('is_active', true)
+      .single()
+
+    if (roomError || !room) {
+      return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+    }
+
     const available = await isRoomAvailable(room_id, check_in, check_out)
     if (!available) {
       return NextResponse.json({ error: 'Room is not available for the selected dates' }, { status: 409 })
+    }
+
+    // Compute all amounts server-side from authoritative room data
+    const nightly_rate = room.nightly_rate
+    const monthly_rate = room.monthly_rate
+    let total_amount: number
+    let amount_to_pay: number
+    let amount_due_at_checkin: number
+
+    if (booking_type === 'short_term') {
+      total_amount = total_nights * nightly_rate
+      amount_to_pay = total_amount
+      amount_due_at_checkin = 0
+    } else {
+      // Long-term: collect first month's rent as deposit; balance due at check-in
+      amount_to_pay = monthly_rate
+      amount_due_at_checkin = monthly_rate
+      total_amount = amount_to_pay + amount_due_at_checkin
     }
 
     const paymentIntent = await stripe.paymentIntents.create({
@@ -59,7 +80,6 @@ export async function POST(request: NextRequest) {
       metadata: { room_id, booking_type, guest_email },
     })
 
-    const supabase = createServiceRoleClient()
     const { data: booking, error } = await supabase
       .from('bookings')
       .insert({
@@ -93,6 +113,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       bookingId: booking.id,
       clientSecret: paymentIntent.client_secret,
+      total_amount,
+      amount_due_at_checkin,
     })
   } catch (err) {
     console.error('POST /api/bookings error:', err)
@@ -104,9 +126,10 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const booking_id = searchParams.get('booking_id')
+    const guest_email = searchParams.get('guest_email')
 
-    if (!booking_id) {
-      return NextResponse.json({ error: 'booking_id is required' }, { status: 400 })
+    if (!booking_id || !guest_email) {
+      return NextResponse.json({ error: 'booking_id and guest_email are required' }, { status: 400 })
     }
 
     const supabase = createServiceRoleClient()
@@ -114,6 +137,7 @@ export async function GET(request: NextRequest) {
       .from('bookings')
       .select('*, room:rooms(*, property:properties(*))')
       .eq('id', booking_id)
+      .ilike('guest_email', guest_email)
       .single()
 
     if (error || !booking) {
