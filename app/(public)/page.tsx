@@ -54,8 +54,8 @@ export default async function HomePage() {
       <AboutSection aboutText={aboutText} />
       <PropertiesSection properties={properties} />
       <ReviewsSection />
-      <section id="contact" className="bg-background py-16 px-4">
-        <div className="mx-auto max-w-xl">
+      <section id="contact" className="bg-background py-16 px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-5xl">
           <h2 className="font-display text-3xl font-bold text-primary mb-2">Get in Touch</h2>
           <p className="text-on-surface-variant font-body mb-8">
             Questions about availability or pricing? We&apos;d love to hear from you.
