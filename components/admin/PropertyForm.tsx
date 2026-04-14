@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import type { Property } from '@/types'
 import AmenitiesTagInput from './AmenitiesTagInput'
 import ImageUploader from './ImageUploader'
@@ -8,10 +9,10 @@ import ImageUploader from './ImageUploader'
 interface PropertyFormProps {
   property?: Property
   propertyId?: string
-  onSave: (formData: FormData) => Promise<void>
 }
 
-export default function PropertyForm({ property, propertyId, onSave }: PropertyFormProps) {
+export default function PropertyForm({ property, propertyId }: PropertyFormProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [name, setName] = useState(property?.name ?? '')
   const [address, setAddress] = useState(property?.address ?? '')
@@ -31,21 +32,40 @@ export default function PropertyForm({ property, propertyId, onSave }: PropertyF
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
-    const fd = new FormData()
-    fd.set('name', name)
-    fd.set('address', address)
-    fd.set('city', city)
-    fd.set('state', state)
-    fd.set('description', description)
-    fd.set('bedrooms', String(bedrooms))
-    fd.set('bathrooms', String(bathrooms))
-    fd.set('amenities', JSON.stringify(amenities))
-    fd.set('images', JSON.stringify(images))
-    if (propertyId) fd.set('id', propertyId)
+
+    const payload = {
+      id: propertyId,
+      name,
+      address,
+      city,
+      state,
+      description,
+      bedrooms,
+      bathrooms,
+      amenities,
+      images,
+    }
 
     startTransition(async () => {
       try {
-        await onSave(fd)
+        const res = await fetch('/api/admin/properties', {
+          method: propertyId ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+
+        const data = await res.json()
+
+        if (!res.ok) {
+          throw new Error(data.error ?? 'Save failed')
+        }
+
+        if (propertyId) {
+          router.push('/admin/properties')
+        } else {
+          // Redirect to edit page so images can be uploaded against the real ID
+          router.push(`/admin/properties/${data.id}/edit`)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Save failed')
       }
