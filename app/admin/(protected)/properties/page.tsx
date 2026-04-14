@@ -88,6 +88,7 @@ export default async function AdminPropertiesPage() {
                     </Link>
                     <DeletePropertyButton
                       propertyId={property.id}
+                      propertyName={property.name}
                       hasRooms={roomCount > 0}
                     />
                   </div>
