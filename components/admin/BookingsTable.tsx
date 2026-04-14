@@ -1,10 +1,11 @@
 'use client'
 
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import type { Booking, Room, Property } from '@/types'
 import { formatCurrency, formatDate, STATUS_BADGE } from '@/lib/format'
 import clsx from 'clsx'
+import DatePicker from '@/components/public/DatePicker'
 
 type BookingRow = Booking & { room: Room & { property: Property } }
 
@@ -20,9 +21,9 @@ export default function BookingsTable({
   const searchParams = useSearchParams()
 
   const statusRef = useRef<HTMLSelectElement>(null)
-  const fromRef = useRef<HTMLInputElement>(null)
-  const toRef = useRef<HTMLInputElement>(null)
   const propertyRef = useRef<HTMLInputElement>(null)
+  const [from, setFrom] = useState(searchParams.get('from') ?? '')
+  const [to, setTo] = useState(searchParams.get('to') ?? '')
 
   function pushParams(params: Record<string, string>) {
     const next = new URLSearchParams(searchParams.toString())
@@ -37,13 +38,15 @@ export default function BookingsTable({
   function applyFilters() {
     pushParams({
       status: statusRef.current?.value ?? '',
-      from: fromRef.current?.value ?? '',
-      to: toRef.current?.value ?? '',
+      from,
+      to,
       property: propertyRef.current?.value ?? '',
     })
   }
 
   function clearFilters() {
+    setFrom('')
+    setTo('')
     router.push(pathname)
   }
 
@@ -75,24 +78,12 @@ export default function BookingsTable({
           </select>
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-on-surface-variant">From</label>
-          <input
-            ref={fromRef}
-            type="date"
-            defaultValue={searchParams.get('from') ?? ''}
-            className="bg-surface-highest/40 rounded-xl px-4 py-2 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 outline-none"
-          />
+        <div className="bg-surface-highest/40 rounded-xl px-4 py-2">
+          <DatePicker label="From" value={from} onChange={setFrom} placeholder="Any date" />
         </div>
 
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-on-surface-variant">To</label>
-          <input
-            ref={toRef}
-            type="date"
-            defaultValue={searchParams.get('to') ?? ''}
-            className="bg-surface-highest/40 rounded-xl px-4 py-2 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 outline-none"
-          />
+        <div className="bg-surface-highest/40 rounded-xl px-4 py-2">
+          <DatePicker label="To" value={to} onChange={setTo} min={from} placeholder="Any date" />
         </div>
 
         <div className="flex flex-col gap-1">

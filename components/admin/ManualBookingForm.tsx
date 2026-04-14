@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { differenceInCalendarDays, parseISO } from 'date-fns'
+import { differenceInCalendarDays, parseISO, format } from 'date-fns'
 import type { Room, BookingType } from '@/types'
 import { createClient } from '@/lib/supabase-browser'
 import { formatCurrency } from '@/lib/format'
+import DatePicker from '@/components/public/DatePicker'
+
+const today = format(new Date(), 'yyyy-MM-dd')
 
 type Props = {
   onSuccess: () => void
@@ -231,28 +234,22 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
       </div>
 
       <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1">
-          <label className="text-xs text-on-surface-variant">
-            Check-in <span className="text-error">*</span>
-          </label>
-          <input
-            type="date"
+        <div className="bg-surface-highest/40 rounded-xl px-4 py-3">
+          <DatePicker
+            label="Check-in"
             value={checkIn}
-            onChange={(e) => setCheckIn(e.target.value)}
-            required
-            className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 outline-none"
+            onChange={(d) => { setCheckIn(d); if (checkOut && checkOut <= d) setCheckOut('') }}
+            min={today}
+            placeholder="Select date"
           />
         </div>
-        <div className="space-y-1">
-          <label className="text-xs text-on-surface-variant">
-            Check-out <span className="text-error">*</span>
-          </label>
-          <input
-            type="date"
+        <div className="bg-surface-highest/40 rounded-xl px-4 py-3">
+          <DatePicker
+            label="Check-out"
             value={checkOut}
-            onChange={(e) => setCheckOut(e.target.value)}
-            required
-            className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 outline-none"
+            onChange={setCheckOut}
+            min={checkIn || today}
+            placeholder="Select date"
           />
         </div>
       </div>

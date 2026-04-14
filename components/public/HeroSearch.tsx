@@ -26,7 +26,7 @@ export default function HeroSearch() {
   return (
     <form
       onSubmit={handleSearch}
-      className="bg-background rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.18)] p-2 flex flex-col md:flex-row items-stretch md:items-center gap-1"
+      className="w-full bg-background rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.18)] p-2 flex flex-col md:flex-row items-stretch md:items-center gap-1"
     >
       {/* Check In */}
       <div className="flex-1 px-4 py-3 min-w-0">
@@ -59,19 +59,25 @@ export default function HeroSearch() {
       <div className="hidden md:block w-px bg-surface self-stretch my-2" />
 
       {/* Guests */}
-      <div className="flex-1 px-4 py-3 min-w-0">
-        <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Guests</p>
-        <select
-          value={guests}
-          onChange={(e) => setGuests(e.target.value)}
-          className="w-full font-body text-sm text-on-surface outline-none bg-transparent"
-        >
+      <div className="px-4 py-3 shrink-0">
+        <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Guests</p>
+        <div className="flex gap-1.5">
           {[1, 2].map((n) => (
-            <option key={n} value={String(n)}>
-              {n} {n === 1 ? 'Guest' : 'Guests'}
-            </option>
+            <button
+              key={n}
+              type="button"
+              onClick={() => setGuests(String(n))}
+              className={[
+                'px-3 py-1 rounded-lg text-sm font-medium transition-colors',
+                guests === String(n)
+                  ? 'bg-primary text-white'
+                  : 'bg-surface text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
+              ].join(' ')}
+            >
+              {n}
+            </button>
           ))}
-        </select>
+        </div>
       </div>
 
       {/* Search button */}

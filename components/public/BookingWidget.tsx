@@ -4,6 +4,7 @@ import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, differenceInDays, parseISO, addDays } from 'date-fns'
 import type { Room, BookingType } from '@/types'
+import DatePicker from './DatePicker'
 
 interface Props {
   room: Room
@@ -94,22 +95,30 @@ export default function BookingWidget({ room, blockedDates }: Props) {
     router.push(`/checkout?${params.toString()}`)
   }, [validate, room, bookingType, guests, checkIn, checkOut, moveIn, nights, subtotal, router])
 
-  const guestOptions = Array.from({ length: room.guest_capacity }, (_, i) => i + 1)
+  const guestOptions = Array.from({ length: Math.min(room.guest_capacity, 2) }, (_, i) => i + 1)
 
   const GuestSelector = (
     <div>
-      <label className="block text-xs uppercase tracking-widest text-on-surface-variant mb-1">
+      <label className="block text-xs uppercase tracking-widest text-on-surface-variant mb-2">
         Guests
       </label>
-      <select
-        value={guests}
-        onChange={(e) => setGuests(Number(e.target.value))}
-        className="w-full bg-surface-highest/40 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 appearance-none"
-      >
+      <div className="flex gap-2">
         {guestOptions.map((n) => (
-          <option key={n} value={n}>{n} guest{n !== 1 ? 's' : ''}</option>
+          <button
+            key={n}
+            type="button"
+            onClick={() => setGuests(n)}
+            className={[
+              'flex-1 py-2 rounded-xl text-sm font-medium transition-colors',
+              guests === n
+                ? 'bg-primary text-white'
+                : 'bg-surface-container text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
+            ].join(' ')}
+          >
+            {n} {n === 1 ? 'Guest' : 'Guests'}
+          </button>
         ))}
-      </select>
+      </div>
     </div>
   )
 
@@ -133,28 +142,22 @@ export default function BookingWidget({ room, blockedDates }: Props) {
       {bookingType === 'short_term' && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs uppercase tracking-widest text-on-surface-variant mb-1">
-                Check-in
-              </label>
-              <input
-                type="date"
-                min={today}
+            <div className="bg-surface-highest/40 rounded-xl px-3 py-2.5">
+              <DatePicker
+                label="Check-in"
                 value={checkIn}
-                onChange={(e) => { setCheckIn(e.target.value); setCheckOut(''); setError('') }}
-                className="w-full bg-surface-highest/40 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                onChange={(d) => { setCheckIn(d); setCheckOut(''); setError('') }}
+                min={today}
+                placeholder="Add date"
               />
             </div>
-            <div>
-              <label className="block text-xs uppercase tracking-widest text-on-surface-variant mb-1">
-                Check-out
-              </label>
-              <input
-                type="date"
-                min={checkIn ? format(addDays(parseISO(checkIn), room.minimum_nights_short_term), 'yyyy-MM-dd') : today}
+            <div className="bg-surface-highest/40 rounded-xl px-3 py-2.5">
+              <DatePicker
+                label="Check-out"
                 value={checkOut}
-                onChange={(e) => { setCheckOut(e.target.value); setError('') }}
-                className="w-full bg-surface-highest/40 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                onChange={(d) => { setCheckOut(d); setError('') }}
+                min={checkIn ? format(addDays(parseISO(checkIn), room.minimum_nights_short_term), 'yyyy-MM-dd') : today}
+                placeholder="Add date"
               />
             </div>
           </div>
@@ -182,16 +185,13 @@ export default function BookingWidget({ room, blockedDates }: Props) {
 
       {bookingType === 'long_term' && (
         <div className="space-y-3">
-          <div>
-            <label className="block text-xs uppercase tracking-widest text-on-surface-variant mb-1">
-              Move-in Date
-            </label>
-            <input
-              type="date"
-              min={today}
+          <div className="bg-surface-highest/40 rounded-xl px-3 py-2.5">
+            <DatePicker
+              label="Move-in Date"
               value={moveIn}
-              onChange={(e) => { setMoveIn(e.target.value); setError('') }}
-              className="w-full bg-surface-highest/40 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50"
+              onChange={(d) => { setMoveIn(d); setError('') }}
+              min={today}
+              placeholder="Add date"
             />
           </div>
 

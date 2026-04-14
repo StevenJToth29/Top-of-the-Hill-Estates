@@ -3,9 +3,12 @@ import Image from 'next/image'
 
 interface FooterProps {
   logoUrl?: string
+  phone?: string
+  email?: string
+  address?: string
 }
 
-export default function Footer({ logoUrl }: FooterProps) {
+export default function Footer({ logoUrl, phone, email, address }: FooterProps) {
   return (
     <footer className="bg-background border-t border-surface">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
@@ -25,20 +28,28 @@ export default function Footer({ logoUrl }: FooterProps) {
               </span>
             </div>
             <address className="not-italic text-on-surface-variant font-body text-sm space-y-1">
-              <p>Mesa / Tempe, Arizona</p>
-              <p>
-                <a href="tel:+14805550000" className="hover:text-primary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
-                  (480) 555-0000
-                </a>
-              </p>
-              <p>
-                <a
-                  href="mailto:hello@topofthehillestates.com"
-                  className="hover:text-primary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
-                >
-                  hello@topofthehillestates.com
-                </a>
-              </p>
+              {address ? (
+                <p>{address}</p>
+              ) : (
+                <p>Mesa / Tempe, Arizona</p>
+              )}
+              {phone && (
+                <p>
+                  <a href={`tel:${phone.replace(/\D/g, '')}`} className="hover:text-primary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
+                    {phone}
+                  </a>
+                </p>
+              )}
+              {email && (
+                <p>
+                  <a
+                    href={`mailto:${email}`}
+                    className="hover:text-primary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+                  >
+                    {email}
+                  </a>
+                </p>
+              )}
             </address>
           </div>
 

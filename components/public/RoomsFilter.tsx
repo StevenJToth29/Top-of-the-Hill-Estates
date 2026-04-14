@@ -1,7 +1,12 @@
 'use client'
 
+'use client'
+
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { format } from 'date-fns'
 import type { SearchParams } from '@/app/(public)/rooms/page'
+import DatePicker from './DatePicker'
 
 const PROPERTIES = [
   { value: 'all', label: 'All Properties' },
@@ -10,12 +15,17 @@ const PROPERTIES = [
   { value: 'mesa downtown', label: 'Mesa Downtown' },
 ]
 
+const today = format(new Date(), 'yyyy-MM-dd')
+
 export default function RoomsFilter({
   currentFilters,
 }: {
   currentFilters: SearchParams
 }) {
   const router = useRouter()
+  const [checkin, setCheckin] = useState(currentFilters.checkin ?? '')
+  const [checkout, setCheckout] = useState(currentFilters.checkout ?? '')
+  const [guests, setGuests] = useState(currentFilters.guests ?? '')
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -23,10 +33,7 @@ export default function RoomsFilter({
     const params = new URLSearchParams()
 
     const property = data.get('property') as string
-    const guests = data.get('guests') as string
     const type = data.get('type') as string
-    const checkin = data.get('checkin') as string
-    const checkout = data.get('checkout') as string
 
     if (property && property !== 'all') params.set('property', property)
     if (guests && parseInt(guests, 10) > 0) params.set('guests', guests)
@@ -68,52 +75,46 @@ export default function RoomsFilter({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="filter-guests"
-            className="uppercase tracking-widest text-xs text-secondary font-body"
-          >
-            Guests
-          </label>
-          <input
-            id="filter-guests"
-            type="number"
-            name="guests"
-            min={1}
-            defaultValue={currentFilters.guests ?? ''}
-            placeholder="Any"
-            className="bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface font-body text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50 placeholder:text-on-surface-variant/50"
+          <span className="uppercase tracking-widest text-xs text-secondary font-body">Guests</span>
+          <div className="flex gap-2">
+            {(['', '1', '2'] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setGuests(v)}
+                className={[
+                  'flex-1 py-2.5 rounded-xl text-sm font-body font-medium transition-colors',
+                  guests === v
+                    ? 'bg-secondary text-background'
+                    : 'bg-surface-highest/40 text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
+                ].join(' ')}
+              >
+                {v === '' ? 'Any' : v === '1' ? '1 Guest' : '2 Guests'}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-surface-highest/40 rounded-xl px-4 py-3">
+          <DatePicker
+            label="Check-in"
+            value={checkin}
+            onChange={(d) => {
+              setCheckin(d)
+              if (checkout && checkout <= d) setCheckout('')
+            }}
+            min={today}
+            placeholder="Any date"
           />
         </div>
 
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="filter-checkin"
-            className="uppercase tracking-widest text-xs text-secondary font-body"
-          >
-            Check-in
-          </label>
-          <input
-            id="filter-checkin"
-            type="date"
-            name="checkin"
-            defaultValue={currentFilters.checkin ?? ''}
-            className="bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface font-body text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:dark]"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="filter-checkout"
-            className="uppercase tracking-widest text-xs text-secondary font-body"
-          >
-            Check-out
-          </label>
-          <input
-            id="filter-checkout"
-            type="date"
-            name="checkout"
-            defaultValue={currentFilters.checkout ?? ''}
-            className="bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface font-body text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:dark]"
+        <div className="bg-surface-highest/40 rounded-xl px-4 py-3">
+          <DatePicker
+            label="Check-out"
+            value={checkout}
+            onChange={setCheckout}
+            min={checkin || today}
+            placeholder="Any date"
           />
         </div>
       </div>
@@ -146,7 +147,7 @@ export default function RoomsFilter({
         </button>
         <button
           type="button"
-          onClick={() => router.push('/rooms')}
+          onClick={() => { setCheckin(''); setCheckout(''); setGuests(''); router.push('/rooms') }}
           className="text-on-surface-variant font-body text-sm underline underline-offset-2 hover:text-on-surface transition-colors"
         >
           Clear filters
