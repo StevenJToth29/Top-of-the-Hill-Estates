@@ -67,6 +67,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
     if (!validate()) return
 
     const params = new URLSearchParams({
+      room_id: room.id,
       room: room.slug,
       type: bookingType,
       guests: String(guests),
