@@ -1,4 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { isRoomAvailable } from '@/lib/availability'
 import RoomsFilter from '@/components/public/RoomsFilter'
 import RoomsGrid, { type RoomWithProperty } from '@/components/public/RoomsGrid'
 
@@ -30,7 +31,7 @@ export default async function RoomsPage({
 
   const rooms = (allRooms ?? []) as RoomWithProperty[]
 
-  const filtered = rooms.filter((room) => {
+  let filtered = rooms.filter((room) => {
     if (searchParams.property && searchParams.property !== 'all') {
       const needle = searchParams.property.toLowerCase()
       const haystack = (room.property?.name ?? '').toLowerCase()
@@ -44,6 +45,16 @@ export default async function RoomsPage({
     if (searchParams.type === 'long_term' && !room.monthly_rate) return false
     return true
   })
+
+  // Filter by date availability when both dates are provided
+  if (searchParams.checkin && searchParams.checkout) {
+    const availabilityResults = await Promise.all(
+      filtered.map((room) =>
+        isRoomAvailable(room.id, searchParams.checkin!, searchParams.checkout!),
+      ),
+    )
+    filtered = filtered.filter((_, i) => availabilityResults[i])
+  }
 
   return (
     <main className="min-h-screen bg-background py-16 px-4">
