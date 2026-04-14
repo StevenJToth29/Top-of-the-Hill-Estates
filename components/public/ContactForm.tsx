@@ -53,7 +53,7 @@ export default function ContactForm() {
 
   if (status === 'sent') {
     return (
-      <div className="rounded-2xl bg-surface-container p-8 text-center shadow-[0_8px_40px_rgba(78,205,196,0.06)]">
+      <div className="rounded-2xl bg-surface-container p-8 text-center shadow-[0_8px_40px_rgba(45,212,191,0.06)]">
         <p className="font-display text-xl font-semibold text-primary mb-2">Message Sent!</p>
         <p className="font-body text-on-surface-variant">
           Thanks for reaching out. We&apos;ll get back to you as soon as possible.
@@ -65,7 +65,7 @@ export default function ContactForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-2xl bg-surface-container p-8 shadow-[0_8px_40px_rgba(78,205,196,0.06)] space-y-5"
+      className="rounded-2xl bg-surface-container p-8 shadow-[0_8px_40px_rgba(45,212,191,0.06)] space-y-5"
     >
       <div>
         <label htmlFor="name" className="block font-body text-sm text-on-surface-variant mb-1.5">

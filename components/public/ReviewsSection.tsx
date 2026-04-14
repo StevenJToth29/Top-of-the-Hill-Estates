@@ -42,7 +42,7 @@ function StarRating({ count }: { count: number }) {
       {Array.from({ length: 5 }).map((_, i) => (
         <svg
           key={i}
-          className={`h-4 w-4 ${i < count ? 'text-secondary' : 'text-on-surface-variant/20'}`}
+          className={`h-4 w-4 ${i < count ? 'text-primary' : 'text-gray-200'}`}
           fill="currentColor"
           viewBox="0 0 20 20"
           aria-hidden
@@ -56,25 +56,30 @@ function StarRating({ count }: { count: number }) {
 
 export default function ReviewsSection() {
   return (
-    <section className="bg-surface-low py-16 sm:py-24">
+    <section className="bg-white py-16 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <p className="text-xs uppercase tracking-widest text-secondary font-medium mb-3 text-center">
-          What Our Guests Say
-        </p>
-        <h2 className="font-display font-bold text-primary text-4xl text-center mb-12 leading-tight">
-          Stories from the Hill
-        </h2>
+        <div className="text-center mb-12">
+          <p className="text-xs uppercase tracking-widest text-primary font-semibold mb-3">
+            What Our Guests Say
+          </p>
+          <h2 className="font-display font-extrabold text-slate-900 text-3xl leading-tight">
+            Why Choose Us?
+          </h2>
+          <p className="text-slate-500 mt-2">
+            We provide more than just a room — a community lifestyle designed for modern living.
+          </p>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {reviews.map((review) => (
             <div
               key={review.id}
-              className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 shadow-[0_8px_40px_rgba(78,205,196,0.06)] flex flex-col gap-4"
+              className="bg-gray-50 rounded-2xl p-6 border border-gray-100 flex flex-col gap-4"
             >
               <StarRating count={review.stars} />
-              <blockquote className="text-on-surface-variant text-sm leading-relaxed flex-1">
+              <blockquote className="text-slate-600 text-sm leading-relaxed flex-1">
                 &ldquo;{review.quote}&rdquo;
               </blockquote>
-              <p className="font-display font-semibold text-on-surface text-sm">— {review.name}</p>
+              <p className="font-display font-semibold text-slate-800 text-sm">— {review.name}</p>
             </div>
           ))}
         </div>

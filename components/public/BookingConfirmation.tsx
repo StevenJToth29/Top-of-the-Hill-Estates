@@ -35,7 +35,7 @@ export default function BookingConfirmation({ booking }: { booking: BookingWithR
   const cancellationPolicy = isLongTerm ? LONG_TERM_POLICY : SHORT_TERM_POLICY
 
   return (
-    <div className="max-w-2xl mx-auto bg-surface-container rounded-2xl p-8 shadow-[0_8px_40px_rgba(78,205,196,0.06)]">
+    <div className="max-w-2xl mx-auto bg-surface-container rounded-2xl p-8 shadow-[0_8px_40px_rgba(45,212,191,0.06)]">
       <div className="text-center mb-8">
         <CheckCircleIcon className="w-16 h-16 text-secondary mx-auto mb-4" />
         <h1 className="font-display text-4xl font-bold text-primary">Booking Confirmed!</h1>

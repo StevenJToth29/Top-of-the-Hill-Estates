@@ -9,20 +9,22 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: '#08080E',
-        'surface-lowest': '#0C0C14',
-        'surface-low': '#111120',
-        surface: '#16162A',
-        'surface-container': '#1C1C32',
-        'surface-high': '#22223C',
-        'surface-highest': '#2A2A46',
-        primary: '#4ECDC4',
-        secondary: '#26A69A',
-        'on-surface': '#E8ECF0',
-        'on-surface-variant': '#94A3B8',
-        'outline-variant': 'rgba(78,205,196,0.18)',
-        error: '#FF7675',
-        'error-container': '#7F1D1D',
+        // All colors reference CSS variables so the admin data-admin context
+        // can override them to a dark theme without any class changes.
+        background:          'rgb(var(--color-background) / <alpha-value>)',
+        'surface-lowest':    'rgb(var(--color-surface-lowest) / <alpha-value>)',
+        'surface-low':       'rgb(var(--color-surface-low) / <alpha-value>)',
+        surface:             'rgb(var(--color-surface) / <alpha-value>)',
+        'surface-container': 'rgb(var(--color-surface-container) / <alpha-value>)',
+        'surface-high':      'rgb(var(--color-surface-high) / <alpha-value>)',
+        'surface-highest':   'rgb(var(--color-surface-highest) / <alpha-value>)',
+        primary:             'rgb(var(--color-primary) / <alpha-value>)',
+        secondary:           'rgb(var(--color-secondary) / <alpha-value>)',
+        'on-surface':        'rgb(var(--color-on-surface) / <alpha-value>)',
+        'on-surface-variant':'rgb(var(--color-on-surface-variant) / <alpha-value>)',
+        'outline-variant':   'rgba(45,212,191,0.20)',
+        error:               'rgb(var(--color-error) / <alpha-value>)',
+        'error-container':   'rgb(var(--color-error-container) / <alpha-value>)',
       },
       fontFamily: {
         display: ['var(--font-manrope)', 'sans-serif'],

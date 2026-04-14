@@ -24,7 +24,7 @@ interface StatCardProps {
 
 function StatCard({ label, value, icon: Icon, valueClass }: StatCardProps) {
   return (
-    <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 shadow-[0_8px_40px_rgba(78,205,196,0.06)]">
+    <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 shadow-[0_8px_40px_rgba(45,212,191,0.06)]">
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <p className="uppercase tracking-widest text-xs text-on-surface-variant mb-3">

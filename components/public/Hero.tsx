@@ -1,57 +1,45 @@
-import Link from 'next/link'
+import HeroSearch from './HeroSearch'
 
 export default function Hero() {
   return (
-    <section className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-gradient-to-b from-background to-surface px-4">
+    <section className="relative flex min-h-[88vh] flex-col items-center justify-center overflow-hidden px-4">
+      {/* Background — replace the gradient with a real photo:
+          className="absolute inset-0 object-cover" as next/image fill */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-20"
+        className="absolute inset-0"
         style={{
           background:
-            'radial-gradient(ellipse 80% 50% at 50% 30%, rgba(78,205,196,0.18) 0%, transparent 70%)',
+            'linear-gradient(135deg, #0D1B2A 0%, #1C3552 40%, #2A4A6B 65%, #1B3A2E 100%)',
+        }}
+      />
+      {/* Warm desert ambient glow */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(ellipse 70% 60% at 60% 40%, rgba(45,212,191,0.08) 0%, transparent 70%), radial-gradient(ellipse 50% 40% at 30% 70%, rgba(255,200,100,0.06) 0%, transparent 60%)',
         }}
       />
 
-      <div className="relative z-10 mx-auto max-w-3xl text-center">
-        <p className="mb-4 text-xs uppercase tracking-widest text-secondary font-medium">
+      {/* Content */}
+      <div className="relative z-10 mx-auto w-full max-w-5xl text-center">
+        <p className="mb-4 text-xs uppercase tracking-widest text-primary/90 font-medium">
           Mesa &amp; Tempe, Arizona
         </p>
-        <h1 className="font-display font-bold text-primary leading-tight mb-6" style={{ fontSize: 'clamp(2.25rem, 6vw, 3.75rem)' }}>
-          Rooms That Feel Like Home, In the Heart of the Valley
-        </h1>
-        <p className="text-on-surface-variant text-xl mb-10 max-w-xl mx-auto">
-          Short-term and long-term furnished rooms in Mesa &amp; Tempe, Arizona. Book directly — no
-          fees.
-        </p>
-        <Link
-          href="/rooms"
-          className="inline-block bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-8 py-3 shadow-[0_0_10px_rgba(78,205,196,0.30)] hover:opacity-90 transition-opacity"
+        <h1
+          className="font-display font-extrabold text-white leading-tight mb-6"
+          style={{ fontSize: 'clamp(2.25rem, 6vw, 4rem)' }}
         >
-          Browse Rooms
-        </Link>
-      </div>
+          Find Your Home in the{' '}
+          <span className="text-primary italic">Heart of Arizona</span>
+        </h1>
+        <p className="text-white/70 text-lg mb-12 max-w-xl mx-auto">
+          Furnished rooms for short-term and long-term stays. Book directly — no platform fees.
+        </p>
 
-      <div className="relative z-10 mt-16 w-full max-w-2xl">
-        <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl px-8 py-6 shadow-[0_8px_40px_rgba(78,205,196,0.06)] flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="text-center sm:text-left">
-            <p className="text-xs uppercase tracking-widest text-secondary font-medium mb-1">
-              Availability
-            </p>
-            <p className="font-display font-bold text-on-surface text-lg">Ready to move in</p>
-          </div>
-          <div className="hidden sm:block h-10 w-px bg-outline-variant" />
-          <div className="text-center">
-            <p className="text-xs uppercase tracking-widest text-secondary font-medium mb-1">
-              Options
-            </p>
-            <p className="font-display font-bold text-on-surface text-lg">Short &amp; Long Term</p>
-          </div>
-          <div className="hidden sm:block h-10 w-px bg-outline-variant" />
-          <div className="text-center sm:text-right">
-            <p className="text-xs uppercase tracking-widest text-secondary font-medium mb-1">
-              Location
-            </p>
-            <p className="font-display font-bold text-on-surface text-lg">Mesa / Tempe, AZ</p>
-          </div>
+        {/* Floating search bar */}
+        <div className="mx-auto max-w-4xl">
+          <HeroSearch />
         </div>
       </div>
     </section>

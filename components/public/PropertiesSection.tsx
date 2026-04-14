@@ -1,5 +1,6 @@
 import type { Property, Room } from '@/types'
 import RoomCard from './RoomCard'
+import Link from 'next/link'
 
 interface Props {
   properties: Array<Property & { rooms: Room[] }>
@@ -9,17 +10,30 @@ export default function PropertiesSection({ properties }: Props) {
   const hasRooms = properties.some((p) => p.rooms.length > 0)
 
   return (
-    <section className="bg-background py-16 sm:py-24">
+    <section className="bg-gray-50 py-16 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <p className="text-xs uppercase tracking-widest text-secondary font-medium mb-3 text-center">
-          Available Rooms
-        </p>
-        <h2 className="font-display font-bold text-primary text-4xl text-center mb-12 leading-tight">
-          Find Your Perfect Room
-        </h2>
+        <div className="flex items-end justify-between mb-10">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-primary font-semibold mb-2">
+              Available Rooms
+            </p>
+            <h2 className="font-display font-extrabold text-slate-900 text-3xl leading-tight">
+              Featured Locations
+            </h2>
+            <p className="text-slate-500 text-sm mt-1">
+              Discover furnished rooms across the Valley
+            </p>
+          </div>
+          <Link
+            href="/rooms"
+            className="text-sm font-semibold text-primary hover:text-secondary transition-colors hidden sm:block"
+          >
+            View all rooms →
+          </Link>
+        </div>
 
         {!hasRooms && (
-          <p className="text-on-surface-variant text-center">
+          <p className="text-slate-500 text-center py-12">
             No rooms are currently available. Please check back soon.
           </p>
         )}
@@ -28,7 +42,8 @@ export default function PropertiesSection({ properties }: Props) {
           if (property.rooms.length === 0) return null
           return (
             <div key={property.id} className="mb-14">
-              <h3 className="font-display font-bold text-primary text-2xl mb-6">
+              <h3 className="font-display font-bold text-slate-800 text-xl mb-6 flex items-center gap-2">
+                <span className="inline-block w-1.5 h-5 bg-primary rounded-full" />
                 {property.name}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -39,6 +54,15 @@ export default function PropertiesSection({ properties }: Props) {
             </div>
           )
         })}
+
+        <div className="text-center mt-4 sm:hidden">
+          <Link
+            href="/rooms"
+            className="text-sm font-semibold text-primary hover:text-secondary transition-colors"
+          >
+            View all rooms →
+          </Link>
+        </div>
       </div>
     </section>
   )

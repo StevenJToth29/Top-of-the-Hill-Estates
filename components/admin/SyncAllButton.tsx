@@ -23,7 +23,7 @@ export default function SyncAllButton() {
       type="button"
       onClick={handleSyncAll}
       disabled={syncing}
-      className="flex items-center gap-2 bg-gradient-to-r from-primary to-secondary text-background rounded-2xl px-6 py-2.5 font-semibold shadow-[0_0_10px_rgba(78,205,196,0.30)] disabled:opacity-50 transition-opacity"
+      className="flex items-center gap-2 bg-gradient-to-r from-primary to-secondary text-background rounded-2xl px-6 py-2.5 font-semibold shadow-[0_0_10px_rgba(45,212,191,0.30)] disabled:opacity-50 transition-opacity"
     >
       <ArrowPathIcon className={`w-4 h-4 ${syncing ? 'animate-spin' : ''}`} />
       {syncing ? 'Syncing…' : 'Sync All'}

@@ -89,7 +89,7 @@ export default async function RoomDetailPage({ params }: Props) {
             <AvailabilityCalendar blockedDates={blockedDates} />
 
             {room.house_rules && (
-              <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(78,205,196,0.06)] rounded-2xl p-5 space-y-3">
+              <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(45,212,191,0.06)] rounded-2xl p-5 space-y-3">
                 <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
                   House Rules
                 </p>

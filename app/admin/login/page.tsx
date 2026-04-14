@@ -32,9 +32,9 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div data-admin className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-secondary/10 blur-3xl" />
+        <div className="absolute -top-40 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-primary/10 blur-3xl" />
       </div>
 
       <div className="relative w-full max-w-sm">
@@ -107,7 +107,7 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-xl bg-gradient-to-r from-primary to-secondary px-4 py-2.5 font-display text-sm font-semibold text-background transition hover:opacity-90 active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full rounded-xl bg-primary px-4 py-2.5 font-display text-sm font-semibold text-background transition hover:bg-secondary active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {loading ? 'Signing in…' : 'Sign In'}
             </button>

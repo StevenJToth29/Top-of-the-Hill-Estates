@@ -1,10 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import {
-  UserGroupIcon,
-  HomeIcon,
-  BeakerIcon,
-} from '@heroicons/react/24/outline'
+import { UserGroupIcon, HomeIcon, BeakerIcon } from '@heroicons/react/24/outline'
 import type { Room, Property } from '@/types'
 
 interface Props {
@@ -16,69 +12,75 @@ export default function RoomCard({ room }: Props) {
   const coverImage = room.images?.[0] ?? null
 
   return (
-    <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl overflow-hidden shadow-[0_8px_40px_rgba(78,205,196,0.06)] flex flex-col">
-      <div className="relative h-52 w-full bg-surface-container">
+    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col">
+      {/* Image */}
+      <div className="relative h-52 w-full bg-gray-100">
         {coverImage ? (
           <Image
             src={coverImage}
             alt={room.name}
             fill
-            className="object-cover rounded-xl ring-1 ring-white/10"
+            className="object-cover"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         ) : (
-          <div className="absolute inset-0 rounded-xl ring-1 ring-white/10 flex items-center justify-center">
-            <HomeIcon className="h-12 w-12 text-on-surface-variant/30" />
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
+            <HomeIcon className="h-12 w-12 text-gray-300" />
           </div>
         )}
+        {/* Property badge */}
+        <div className="absolute top-3 left-3">
+          <span className="bg-white/90 backdrop-blur-sm text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200">
+            {property.name}
+          </span>
+        </div>
       </div>
 
+      {/* Content */}
       <div className="flex flex-col flex-1 p-5 gap-3">
         <div>
-          <p className="text-xs uppercase tracking-widest text-secondary font-medium mb-1">
-            {property.name}
-          </p>
-          <h3 className="font-display font-bold text-on-surface text-xl leading-snug">
+          <h3 className="font-display font-bold text-slate-900 text-lg leading-snug">
             {room.name}
           </h3>
+          {room.short_description && (
+            <p className="text-slate-500 text-sm mt-1 line-clamp-2">{room.short_description}</p>
+          )}
         </div>
 
-        {room.short_description && (
-          <p className="text-on-surface-variant text-sm line-clamp-2">{room.short_description}</p>
-        )}
-
-        <div className="flex items-center gap-4 text-on-surface-variant text-sm">
+        {/* Stats */}
+        <div className="flex items-center gap-4 text-slate-500 text-sm">
           <span className="flex items-center gap-1">
-            <UserGroupIcon className="h-4 w-4 text-secondary" />
+            <UserGroupIcon className="h-4 w-4 text-primary" />
             {room.guest_capacity} {room.guest_capacity === 1 ? 'guest' : 'guests'}
           </span>
           <span className="flex items-center gap-1">
-            <HomeIcon className="h-4 w-4 text-secondary" />
+            <HomeIcon className="h-4 w-4 text-primary" />
             {room.bedrooms} {room.bedrooms === 1 ? 'bed' : 'beds'}
           </span>
           <span className="flex items-center gap-1">
-            <BeakerIcon className="h-4 w-4 text-secondary" />
+            <BeakerIcon className="h-4 w-4 text-primary" />
             {room.bathrooms} {room.bathrooms === 1 ? 'bath' : 'baths'}
           </span>
         </div>
 
-        <div className="mt-auto flex items-end justify-between pt-2">
+        {/* Pricing + CTA */}
+        <div className="mt-auto flex items-end justify-between pt-2 border-t border-gray-100">
           <div>
-            <p className="text-primary font-bold text-lg">
+            <p className="text-slate-900 font-bold text-lg">
               ${room.nightly_rate.toFixed(0)}
-              <span className="text-on-surface-variant font-normal text-sm"> / night</span>
+              <span className="text-slate-400 font-normal text-sm"> / night</span>
             </p>
             {room.monthly_rate > 0 && (
-              <p className="text-on-surface-variant text-sm">
+              <p className="text-slate-400 text-xs">
                 ${room.monthly_rate.toFixed(0)} / month
               </p>
             )}
           </div>
           <Link
-            href={`/checkout?room=${room.slug}`}
-            className="bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-5 py-2 text-sm shadow-[0_0_10px_rgba(78,205,196,0.30)] hover:opacity-90 transition-opacity"
+            href={`/rooms/${room.slug}`}
+            className="bg-primary text-white font-semibold rounded-lg px-4 py-2 text-sm hover:bg-secondary transition-colors"
           >
-            Book Now
+            View Room
           </Link>
         </div>
       </div>

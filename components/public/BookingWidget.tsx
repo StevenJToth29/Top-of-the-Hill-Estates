@@ -114,7 +114,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
   )
 
   return (
-    <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(78,205,196,0.06)] rounded-2xl p-5 space-y-5 sticky top-6">
+    <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(45,212,191,0.06)] rounded-2xl p-5 space-y-5 sticky top-6">
       <div className="flex gap-2 p-1 bg-surface-container rounded-2xl">
         <button
           className={`${pillBase} ${bookingType === 'short_term' ? pillActive : pillInactive}`}
@@ -228,7 +228,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
 
       <button
         onClick={handleBook}
-        className="w-full bg-gradient-to-r from-primary to-secondary text-background font-display font-semibold py-3 rounded-2xl shadow-[0_0_10px_rgba(78,205,196,0.30)] hover:opacity-90 transition-opacity"
+        className="w-full bg-gradient-to-r from-primary to-secondary text-background font-display font-semibold py-3 rounded-2xl shadow-[0_0_10px_rgba(45,212,191,0.30)] hover:opacity-90 transition-opacity"
       >
         Book Now
       </button>
