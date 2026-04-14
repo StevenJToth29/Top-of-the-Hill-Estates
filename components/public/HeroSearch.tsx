@@ -6,7 +6,6 @@ import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
 
 export default function HeroSearch() {
   const router = useRouter()
-  const [location, setLocation] = useState('')
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [guests, setGuests] = useState('1')
@@ -14,7 +13,6 @@ export default function HeroSearch() {
   function handleSearch(e: React.FormEvent) {
     e.preventDefault()
     const params = new URLSearchParams()
-    if (location) params.set('property', location)
     if (checkIn) params.set('checkin', checkIn)
     if (checkOut) params.set('checkout', checkOut)
     if (guests && guests !== '1') params.set('guests', guests)
@@ -26,19 +24,6 @@ export default function HeroSearch() {
       onSubmit={handleSearch}
       className="bg-background rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.18)] p-2 flex flex-col md:flex-row items-stretch md:items-center gap-1"
     >
-      {/* Location */}
-      <div className="flex-1 px-4 py-3 min-w-0">
-        <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Location</p>
-        <input
-          type="text"
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          placeholder="Mesa or Tempe, AZ"
-          className="w-full font-body text-sm text-on-surface placeholder:text-on-surface-variant/50 outline-none bg-transparent"
-        />
-      </div>
-
-      <div className="hidden md:block w-px bg-surface self-stretch my-2" />
 
       {/* Check In */}
       <div className="flex-1 px-4 py-3 min-w-0">
