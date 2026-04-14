@@ -23,7 +23,7 @@ export default function Navbar({ logoUrl, logoSize = 52 }: NavbarProps) {
   return (
     <header className="sticky top-0 z-50 bg-background/90 backdrop-blur-md border-b border-surface shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
+        <div className="flex items-center justify-between" style={{ minHeight: Math.max(64, logoSize + 24) }}>
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg">
             <Image
