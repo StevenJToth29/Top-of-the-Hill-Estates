@@ -1,19 +1,10 @@
 'use client'
 
-'use client'
-
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { format } from 'date-fns'
+import { format, addDays, parseISO } from 'date-fns'
 import type { SearchParams } from '@/app/(public)/rooms/page'
 import DatePicker from './DatePicker'
-
-const PROPERTIES = [
-  { value: 'all', label: 'All Properties' },
-  { value: 'northridge', label: 'Northridge' },
-  { value: 'linden', label: 'Linden' },
-  { value: 'mesa downtown', label: 'Mesa Downtown' },
-]
 
 const today = format(new Date(), 'yyyy-MM-dd')
 
@@ -32,10 +23,8 @@ export default function RoomsFilter({
     const data = new FormData(e.currentTarget)
     const params = new URLSearchParams()
 
-    const property = data.get('property') as string
     const type = data.get('type') as string
 
-    if (property && property !== 'all') params.set('property', property)
     if (guests && parseInt(guests, 10) > 0) params.set('guests', guests)
     if (type) params.set('type', type)
     if (checkin) params.set('checkin', checkin)
@@ -48,53 +37,7 @@ export default function RoomsFilter({
 
   return (
     <form onSubmit={handleSubmit} className="bg-surface-container rounded-2xl p-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="filter-property"
-            className="uppercase tracking-widest text-xs text-secondary font-body"
-          >
-            Property
-          </label>
-          <select
-            id="filter-property"
-            name="property"
-            defaultValue={currentFilters.property ?? 'all'}
-            className="bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface font-body text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50 appearance-none cursor-pointer"
-          >
-            {PROPERTIES.map((p) => (
-              <option
-                key={p.value}
-                value={p.value}
-                className="bg-surface-highest text-on-surface"
-              >
-                {p.label}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex flex-col gap-1.5">
-          <span className="uppercase tracking-widest text-xs text-secondary font-body">Guests</span>
-          <div className="flex gap-2">
-            {(['', '1', '2'] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setGuests(v)}
-                className={[
-                  'flex-1 py-2.5 rounded-xl text-sm font-body font-medium transition-colors',
-                  guests === v
-                    ? 'bg-secondary text-background'
-                    : 'bg-surface-highest/40 text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
-                ].join(' ')}
-              >
-                {v === '' ? 'Any' : v === '1' ? '1 Guest' : '2 Guests'}
-              </button>
-            ))}
-          </div>
-        </div>
-
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-surface-highest/40 rounded-xl px-4 py-3">
           <DatePicker
             label="Check-in"
@@ -113,9 +56,30 @@ export default function RoomsFilter({
             label="Check-out"
             value={checkout}
             onChange={setCheckout}
-            min={checkin || today}
+            min={checkin ? format(addDays(parseISO(checkin), 1), 'yyyy-MM-dd') : today}
             placeholder="Any date"
           />
+        </div>
+
+        <div className="bg-surface-highest/40 rounded-xl px-4 py-3">
+          <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Guests</p>
+          <div className="flex gap-1.5">
+            {(['', '1', '2'] as const).map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setGuests(v)}
+                className={[
+                  'px-3 py-1 rounded-lg text-sm font-body font-medium transition-colors',
+                  guests === v
+                    ? 'bg-primary text-white'
+                    : 'bg-transparent text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
+                ].join(' ')}
+              >
+                {v === '' ? 'Any' : v}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

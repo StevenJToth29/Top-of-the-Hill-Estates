@@ -66,21 +66,46 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
     contact_email: settings.contact_email ?? '',
     contact_address: settings.contact_address ?? '',
     logo_url: settings.logo_url ?? '',
+    logo_size: settings.logo_size ?? 52,
   })
   const [hours, setHours] = useState<BusinessHours>(() => parseHours(settings.business_hours))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const [fieldErrors, setFieldErrors] = useState<{ contact_phone?: string; contact_email?: string }>({})
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoError, setLogoError] = useState('')
   const logoInputRef = useRef<HTMLInputElement>(null)
 
+  function formatPhone(raw: string): string {
+    const digits = raw.replace(/\D/g, '').slice(0, 10)
+    if (digits.length <= 3) return digits
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
+  }
+
   function handleChange(
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
+    const { name, value } = e.target
+    const next = name === 'contact_phone' ? formatPhone(value) : value
+    setForm((prev) => ({ ...prev, [name]: next }))
     setSaved(false)
     setError('')
+    setFieldErrors((prev) => ({ ...prev, [name]: undefined }))
+  }
+
+  function validate(): boolean {
+    const errors: { contact_phone?: string; contact_email?: string } = {}
+    const digits = form.contact_phone.replace(/\D/g, '')
+    if (form.contact_phone && digits.length !== 10) {
+      errors.contact_phone = 'Phone number must be 10 digits'
+    }
+    if (form.contact_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.contact_email)) {
+      errors.contact_email = 'Enter a valid email address'
+    }
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
   async function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -109,6 +134,7 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    if (!validate()) return
     setSaving(true)
     setError('')
     setSaved(false)
@@ -142,23 +168,15 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
       <section className="space-y-4">
         <h2 className="font-display text-base font-semibold text-on-surface">Site Logo</h2>
         <div className="flex items-center gap-6">
-          <div className="relative w-20 h-20 rounded-2xl overflow-hidden bg-surface-container flex items-center justify-center shrink-0">
-            {form.logo_url ? (
-              <Image
-                src={form.logo_url}
-                alt="Current logo"
-                fill
-                className="object-contain p-1"
-                unoptimized
-              />
-            ) : (
-              <Image
-                src="/logo.png"
-                alt="Current logo"
-                fill
-                className="object-contain p-1"
-              />
-            )}
+          <div className="rounded-2xl bg-surface-container flex items-center justify-center shrink-0 p-1" style={{ width: form.logo_size + 16, height: form.logo_size + 16 }}>
+            <Image
+              src={form.logo_url || '/logo.png'}
+              alt="Current logo"
+              width={form.logo_size}
+              height={form.logo_size}
+              className="object-contain rounded-xl"
+              unoptimized={!!form.logo_url}
+            />
           </div>
           <div className="space-y-2">
             <button
@@ -190,6 +208,26 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
             Logo uploaded — click Save Settings below to apply it site-wide.
           </p>
         )}
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <label className={labelClass}>Logo Size</label>
+            <span className="text-xs text-on-surface-variant">{form.logo_size}px</span>
+          </div>
+          <input
+            type="range"
+            min={32}
+            max={96}
+            step={4}
+            value={form.logo_size}
+            onChange={(e) => setForm((prev) => ({ ...prev, logo_size: Number(e.target.value) }))}
+            className="w-full accent-primary"
+          />
+          <div className="flex justify-between text-xs text-on-surface-variant/50">
+            <span>Small</span>
+            <span>Large</span>
+          </div>
+        </div>
       </section>
 
       <div className="h-px bg-outline-variant" />
@@ -237,8 +275,12 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
             type="tel"
             value={form.contact_phone}
             onChange={handleChange}
-            className={inputClass}
+            placeholder="(555) 555-5555"
+            className={`${inputClass} ${fieldErrors.contact_phone ? 'ring-1 ring-error' : ''}`}
           />
+          {fieldErrors.contact_phone && (
+            <p className="text-xs text-error mt-1">{fieldErrors.contact_phone}</p>
+          )}
         </div>
 
         <div>
@@ -246,11 +288,15 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
           <input
             id="contact_email"
             name="contact_email"
-            type="email"
+            type="text"
             value={form.contact_email}
             onChange={handleChange}
-            className={inputClass}
+            placeholder="you@example.com"
+            className={`${inputClass} ${fieldErrors.contact_email ? 'ring-1 ring-error' : ''}`}
           />
+          {fieldErrors.contact_email && (
+            <p className="text-xs text-error mt-1">{fieldErrors.contact_email}</p>
+          )}
         </div>
 
         <div>

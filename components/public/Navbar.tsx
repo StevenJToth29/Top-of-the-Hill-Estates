@@ -14,9 +14,10 @@ const navLinks = [
 
 interface NavbarProps {
   logoUrl?: string
+  logoSize?: number
 }
 
-export default function Navbar({ logoUrl }: NavbarProps) {
+export default function Navbar({ logoUrl, logoSize = 52 }: NavbarProps) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -28,8 +29,8 @@ export default function Navbar({ logoUrl }: NavbarProps) {
             <Image
               src={logoUrl ?? '/logo.png'}
               alt="Top of the Hill Rooms"
-              width={52}
-              height={52}
+              width={logoSize}
+              height={logoSize}
               className="rounded-xl"
               unoptimized={!!logoUrl}
             />

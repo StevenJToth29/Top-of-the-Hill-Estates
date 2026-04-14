@@ -18,10 +18,11 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <Navbar logoUrl={settings?.logo_url ?? undefined} />
+      <Navbar logoUrl={settings?.logo_url ?? undefined} logoSize={settings?.logo_size ?? 52} />
       <main className="flex-1">{children}</main>
       <Footer
         logoUrl={settings?.logo_url ?? undefined}
+        logoSize={settings?.logo_size ?? 52}
         phone={settings?.contact_phone ?? undefined}
         email={settings?.contact_email ?? undefined}
         address={settings?.contact_address ?? undefined}

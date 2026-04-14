@@ -110,6 +110,7 @@ export interface SiteSettings {
   contact_address: string
   business_name: string
   logo_url?: string
+  logo_size?: number
   business_hours?: string  // JSON-encoded BusinessHours
   updated_at: string
 }

@@ -4,7 +4,6 @@ import RoomsFilter from '@/components/public/RoomsFilter'
 import RoomsGrid, { type RoomWithProperty } from '@/components/public/RoomsGrid'
 
 export interface SearchParams {
-  property?: string
   guests?: string
   type?: string
   checkin?: string
@@ -32,11 +31,6 @@ export default async function RoomsPage({
   const rooms = (allRooms ?? []) as RoomWithProperty[]
 
   let filtered = rooms.filter((room) => {
-    if (searchParams.property && searchParams.property !== 'all') {
-      const needle = searchParams.property.toLowerCase()
-      const haystack = (room.property?.name ?? '').toLowerCase()
-      if (!haystack.includes(needle)) return false
-    }
     if (searchParams.guests) {
       const requested = parseInt(searchParams.guests, 10)
       if (!isNaN(requested) && room.guest_capacity < requested) return false

@@ -3,12 +3,13 @@ import Image from 'next/image'
 
 interface FooterProps {
   logoUrl?: string
+  logoSize?: number
   phone?: string
   email?: string
   address?: string
 }
 
-export default function Footer({ logoUrl, phone, email, address }: FooterProps) {
+export default function Footer({ logoUrl, logoSize = 52, phone, email, address }: FooterProps) {
   return (
     <footer className="bg-background border-t border-surface">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-12">
@@ -18,8 +19,8 @@ export default function Footer({ logoUrl, phone, email, address }: FooterProps) 
               <Image
                 src={logoUrl ?? '/logo.png'}
                 alt="Top of the Hill Rooms"
-                width={32}
-                height={32}
+                width={logoSize}
+                height={logoSize}
                 className="rounded-lg"
                 unoptimized={!!logoUrl}
               />

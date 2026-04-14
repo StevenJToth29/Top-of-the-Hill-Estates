@@ -67,12 +67,15 @@ export default function AdminSidebar({ logoUrl }: AdminSidebarProps) {
       <div className="mx-4 mb-3 h-px bg-surface-high" />
       <nav className="flex-1 space-y-1 px-3">
         {NAV_ITEMS.map(({ label, href, icon: Icon }) => (
-          <Link
+          <button
             key={href}
-            href={href}
-            onClick={() => setOpen(false)}
+            onClick={() => {
+              setOpen(false)
+              router.push(href)
+              router.refresh()
+            }}
             className={[
-              'flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+              'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
               isActive(href)
                 ? 'bg-surface-highest text-on-surface'
                 : 'text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
@@ -80,7 +83,7 @@ export default function AdminSidebar({ logoUrl }: AdminSidebarProps) {
           >
             <Icon className="h-5 w-5 shrink-0" />
             {label}
-          </Link>
+          </button>
         ))}
       </nav>
 

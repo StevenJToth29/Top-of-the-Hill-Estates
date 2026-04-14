@@ -21,9 +21,9 @@ import clsx from 'clsx'
 
 interface DatePickerProps {
   label: string
-  value: string          // 'yyyy-MM-dd' or ''
+  value: string
   onChange: (date: string) => void
-  min?: string           // 'yyyy-MM-dd' — dates before this are disabled
+  min?: string
   placeholder?: string
 }
 
@@ -36,7 +36,9 @@ export default function DatePicker({ label, value, onChange, min, placeholder = 
     return startOfMonth(new Date())
   })
   const [popoverStyle, setPopoverStyle] = useState<React.CSSProperties>({})
+
   const triggerRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
 
   const updatePosition = useCallback(() => {
     if (!triggerRef.current) return
@@ -44,31 +46,36 @@ export default function DatePicker({ label, value, onChange, min, placeholder = 
     setPopoverStyle({
       position: 'fixed',
       top: rect.bottom + 8,
-      left: Math.min(rect.left, window.innerWidth - 296), // keep 288px popover on screen
+      left: Math.min(rect.left, window.innerWidth - 296),
       width: 288,
       zIndex: 9999,
     })
   }, [])
 
-  // Close on outside click / escape, update position on scroll/resize
   useEffect(() => {
     if (!open) return
     updatePosition()
 
-    function handleClick(e: MouseEvent) {
-      if (triggerRef.current && !triggerRef.current.closest('[data-datepicker]')?.contains(e.target as Node)) {
+    function handleMouseDown(e: MouseEvent) {
+      const target = e.target as Node
+      // Close only if the click is outside both the trigger wrapper and the portaled popover
+      const inTrigger = triggerRef.current?.parentElement?.contains(target)
+      const inPopover = popoverRef.current?.contains(target)
+      if (!inTrigger && !inPopover) {
         setOpen(false)
       }
     }
+
     function handleKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false)
     }
-    window.addEventListener('mousedown', handleClick)
+
+    window.addEventListener('mousedown', handleMouseDown)
     window.addEventListener('keydown', handleKey)
     window.addEventListener('scroll', updatePosition, true)
     window.addEventListener('resize', updatePosition)
     return () => {
-      window.removeEventListener('mousedown', handleClick)
+      window.removeEventListener('mousedown', handleMouseDown)
       window.removeEventListener('keydown', handleKey)
       window.removeEventListener('scroll', updatePosition, true)
       window.removeEventListener('resize', updatePosition)
@@ -91,7 +98,7 @@ export default function DatePicker({ label, value, onChange, min, placeholder = 
   const displayValue = value ? format(parseISO(value), 'MMM d, yyyy') : ''
 
   const popover = open ? (
-    <div style={popoverStyle} data-datepicker>
+    <div ref={popoverRef} style={popoverStyle}>
       <div className="bg-background rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.22)] border border-surface p-4">
         {/* Month navigation */}
         <div className="flex items-center justify-between mb-4">
@@ -131,7 +138,9 @@ export default function DatePicker({ label, value, onChange, min, placeholder = 
         <div className="grid grid-cols-7 gap-y-0.5">
           {gridDays.map((day) => {
             const isCurrentMonth = day.getMonth() === viewMonth.getMonth()
-            const isSelected = selectedDate && format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
+            const isSelected = selectedDate
+              ? format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
+              : false
             const todayFlag = isToday(day)
             const disabled = !!minDate && isBefore(startOfDay(day), minDate)
 
@@ -173,8 +182,7 @@ export default function DatePicker({ label, value, onChange, min, placeholder = 
   ) : null
 
   return (
-    <div data-datepicker>
-      {/* Trigger */}
+    <div>
       <button
         ref={triggerRef}
         type="button"
@@ -190,7 +198,6 @@ export default function DatePicker({ label, value, onChange, min, placeholder = 
         <CalendarDaysIcon className="h-4 w-4 text-on-surface-variant/50 group-hover:text-primary transition-colors shrink-0" />
       </button>
 
-      {/* Portaled popover — renders above overflow:hidden ancestors */}
       {typeof document !== 'undefined' && popover && createPortal(popover, document.body)}
     </div>
   )

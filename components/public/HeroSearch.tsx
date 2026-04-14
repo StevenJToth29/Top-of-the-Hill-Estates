@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
-import { format } from 'date-fns'
+import { format, addDays, parseISO } from 'date-fns'
 import DatePicker from './DatePicker'
 
 export default function HeroSearch() {
@@ -51,7 +51,7 @@ export default function HeroSearch() {
           label="Check Out"
           value={checkOut}
           onChange={setCheckOut}
-          min={checkIn || today}
+          min={checkIn ? format(addDays(parseISO(checkIn), 1), 'yyyy-MM-dd') : today}
           placeholder="Add date"
         />
       </div>
