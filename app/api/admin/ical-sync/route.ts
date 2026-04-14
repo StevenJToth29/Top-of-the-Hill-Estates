@@ -1,8 +1,14 @@
-import { createServiceRoleClient } from '@/lib/supabase'
+import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import { parseICalUrl } from '@/lib/ical'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
+  const serverClient = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await serverClient.auth.getUser()
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const supabase = createServiceRoleClient()
   const body = await request.json().catch(() => ({}))
   const roomId: string | undefined = body.room_id

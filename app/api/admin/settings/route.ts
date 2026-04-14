@@ -1,7 +1,13 @@
-import { createServiceRoleClient } from '@/lib/supabase'
+import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
 
 export async function PATCH(request: Request) {
+  const serverClient = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await serverClient.auth.getUser()
+  if (authError || !user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const supabase = createServiceRoleClient()
   const body = await request.json()
 

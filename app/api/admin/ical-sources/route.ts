@@ -1,7 +1,18 @@
-import { createServiceRoleClient } from '@/lib/supabase'
+import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
 
+async function requireAdmin() {
+  const serverClient = await createServerSupabaseClient()
+  const { data: { user }, error } = await serverClient.auth.getUser()
+  if (error || !user) return null
+  return user
+}
+
 export async function GET() {
+  if (!(await requireAdmin())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const supabase = createServiceRoleClient()
   const { data, error } = await supabase
     .from('ical_sources')
@@ -13,6 +24,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!(await requireAdmin())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
   const supabase = createServiceRoleClient()
   const body = await request.json()
   const { room_id, platform, ical_url } = body
