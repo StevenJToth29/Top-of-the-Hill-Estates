@@ -22,8 +22,8 @@ const PLATFORMS = [
 ] as const
 
 const PLATFORM_BADGES: Record<string, string> = {
-  airbnb: 'bg-[#FF5A5F]/20 text-[#FF5A5F]',
-  vrbo: 'bg-[#3D6EBF]/20 text-secondary',
+  airbnb: 'bg-[#FF5A5F]/20 text-[#FF5A5F]', // Airbnb brand red — intentional
+  vrbo: 'bg-primary/20 text-primary',
   other: 'bg-surface-highest/60 text-on-surface-variant',
 }
 

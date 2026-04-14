@@ -1,6 +1,7 @@
 import { format } from 'date-fns/format'
 import { parseISO } from 'date-fns/parseISO'
-import type { Booking, BookingStatus, Room, Property } from '@/types'
+import type { Booking, Room, Property } from '@/types'
+import { STATUS_BADGE } from '@/lib/format'
 
 export type BookingWithRoom = Booking & {
   room: Room & { property: Property }
@@ -8,13 +9,6 @@ export type BookingWithRoom = Booking & {
 
 interface RecentBookingsWidgetProps {
   bookings: BookingWithRoom[]
-}
-
-const STATUS_STYLES: Record<BookingStatus, string> = {
-  pending: 'bg-surface-container text-on-surface-variant',
-  confirmed: 'bg-secondary/20 text-secondary',
-  cancelled: 'bg-error/20 text-error',
-  completed: 'bg-primary/20 text-primary',
 }
 
 function formatDate(dateStr: string) {
@@ -85,7 +79,7 @@ export function RecentBookingsWidget({ bookings }: RecentBookingsWidgetProps) {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_STYLES[booking.status]}`}
+                      className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_BADGE[booking.status]}`}
                     >
                       {booking.status}
                     </span>
