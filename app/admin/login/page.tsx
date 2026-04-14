@@ -1,11 +1,12 @@
 'use client'
 
 import { createClient } from '@/lib/supabase-browser'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 
 export default function AdminLoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -23,7 +24,8 @@ export default function AdminLoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
-      router.push('/admin')
+      const redirectTo = searchParams.get('redirectTo') ?? '/admin'
+      router.push(redirectTo)
       router.refresh()
     }
   }

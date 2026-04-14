@@ -33,11 +33,12 @@ export async function middleware(request: NextRequest) {
     },
   )
 
+  // getUser() validates the JWT with Supabase servers — getSession() does not
   const {
-    data: { session },
-  } = await supabase.auth.getSession()
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  if (!session) {
+  if (!user) {
     const loginUrl = new URL('/admin/login', request.url)
     loginUrl.searchParams.set('redirectTo', pathname)
     return NextResponse.redirect(loginUrl)
