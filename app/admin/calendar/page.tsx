@@ -1,11 +1,16 @@
 import { format, addMonths } from 'date-fns'
-import { createServiceRoleClient } from '@/lib/supabase'
+import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
+import { redirect } from 'next/navigation'
 import RoomsCalendar from '@/components/admin/RoomsCalendar'
 import type { Room, Property, Booking, ICalBlock } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
 export default async function AdminCalendarPage() {
+  const serverClient = await createServerSupabaseClient()
+  const { data: { user } } = await serverClient.auth.getUser()
+  if (!user) redirect('/admin/login')
+
   const supabase = createServiceRoleClient()
 
   const { data: rooms } = await supabase
