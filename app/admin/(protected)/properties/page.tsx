@@ -9,12 +9,23 @@ import DeletePropertyButton from '@/components/admin/DeletePropertyButton'
 export default async function AdminPropertiesPage() {
   const supabase = createServiceRoleClient()
 
-  const [{ data: properties }, { data: rooms }] = await Promise.all([
+  const [{ data: properties, error: propError }, { data: rooms }] = await Promise.all([
     supabase.from('properties').select('*').order('name'),
     supabase.from('rooms').select('property_id'),
   ])
 
-  const typedProperties = (properties ?? []) as Property[]
+  if (propError) {
+    throw new Error(`Failed to load properties: ${propError.message}`)
+  }
+
+  // Normalise rows — guard against missing columns if migration hasn't run yet
+  const typedProperties = (properties ?? []).map((p) => ({
+    ...p,
+    images: p.images ?? [],
+    amenities: p.amenities ?? [],
+    bedrooms: p.bedrooms ?? 0,
+    bathrooms: p.bathrooms ?? 0,
+  })) as Property[]
 
   const roomCountByProperty = (rooms ?? []).reduce<Record<string, number>>((acc, r) => {
     acc[r.property_id] = (acc[r.property_id] ?? 0) + 1
