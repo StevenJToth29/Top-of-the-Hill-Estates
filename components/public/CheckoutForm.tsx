@@ -9,12 +9,15 @@ import StripePaymentSection from './StripePaymentSection'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '')
 
+// Stripe appearance: intentionally uses the dark-surface palette so the payment
+// iframe feels embedded in the card regardless of public/admin context.
 const appearance: Appearance = {
   theme: 'night',
   variables: {
-    colorBackground: '#283646',
-    colorText: '#e8eaf0',
-    colorPrimary: '#afc9ea',
+    colorBackground: '#172D46',  /* --color-surface-container (admin) */
+    colorText: '#F8FAFC',        /* --color-on-surface (admin) */
+    colorPrimary: '#2DD4BF',     /* --color-primary (shared) */
+    colorDanger: '#FF7675',      /* --color-error (admin) */
     borderRadius: '12px',
     fontFamily: 'Plus Jakarta Sans, sans-serif',
   },
@@ -178,13 +181,13 @@ export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
                 the Hill Estates, LLC about wifi instructions, rental inquiry, application status,
                 scheduling and account-related updates. Message frequency varies, message &amp; data
                 rates may apply. Text HELP for assistance, reply STOP to opt out.{' '}
-                <a href="/privacypolicy" className="underline hover:text-secondary transition-colors">
+                <a href="/privacypolicy" className="underline hover:text-secondary transition-colors duration-150">
                   Privacy Policy
                 </a>{' '}
                 and{' '}
                 <a
                   href="/termsandconditions"
-                  className="underline hover:text-secondary transition-colors"
+                  className="underline hover:text-secondary transition-colors duration-150"
                 >
                   Terms of Service
                 </a>
@@ -205,13 +208,13 @@ export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
                 including special offers, discounts, new product updates among others from Top of
                 the Hill Estates, LLC at the phone number provided. Frequency may vary. Message
                 &amp; data rates may apply. Text HELP for assistance, reply STOP to opt out.{' '}
-                <a href="/privacypolicy" className="underline hover:text-secondary transition-colors">
+                <a href="/privacypolicy" className="underline hover:text-secondary transition-colors duration-150">
                   Privacy Policy
                 </a>{' '}
                 and{' '}
                 <a
                   href="/termsandconditions"
-                  className="underline hover:text-secondary transition-colors"
+                  className="underline hover:text-secondary transition-colors duration-150"
                 >
                   Terms of Service
                 </a>
@@ -228,7 +231,7 @@ export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-gradient-to-r from-primary to-secondary text-background rounded-2xl px-8 py-3 font-semibold shadow-[0_0_10px_rgba(45,212,191,0.30)] transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-primary to-secondary text-background rounded-2xl px-8 py-3 font-semibold shadow-[0_0_10px_rgba(45,212,191,0.30)] hover:opacity-90 transition-opacity duration-150 disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             {isSubmitting ? 'Checking availability…' : 'Continue to Payment'}
           </button>

@@ -25,7 +25,7 @@ function isRangeBlocked(checkIn: string, checkOut: string, blocked: Set<string>)
   return false
 }
 
-const pillBase = 'flex-1 py-2 text-sm font-medium rounded-xl transition-all focus:outline-none'
+const pillBase = 'flex-1 py-2 text-sm font-medium rounded-xl transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
 const pillActive = 'bg-secondary/20 text-secondary border border-secondary/50'
 const pillInactive = 'bg-surface-container text-on-surface-variant hover:text-on-surface'
 
@@ -228,7 +228,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
 
       <button
         onClick={handleBook}
-        className="w-full bg-gradient-to-r from-primary to-secondary text-background font-display font-semibold py-3 rounded-2xl shadow-[0_0_10px_rgba(45,212,191,0.30)] hover:opacity-90 transition-opacity"
+        className="w-full bg-gradient-to-r from-primary to-secondary text-background font-display font-semibold py-3 rounded-2xl shadow-[0_0_10px_rgba(45,212,191,0.30)] hover:opacity-90 transition-opacity duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
         Book Now
       </button>

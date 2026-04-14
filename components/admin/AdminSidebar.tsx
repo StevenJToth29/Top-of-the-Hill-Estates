@@ -57,6 +57,7 @@ export default function AdminSidebar() {
         </span>
       </div>
 
+      <div className="mx-4 mb-3 h-px bg-surface-high" />
       <nav className="flex-1 space-y-1 px-3">
         {NAV_ITEMS.map(({ label, href, icon: Icon }) => (
           <Link
@@ -64,7 +65,7 @@ export default function AdminSidebar() {
             href={href}
             onClick={() => setOpen(false)}
             className={[
-              'flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm font-medium transition',
+              'flex items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
               isActive(href)
                 ? 'bg-surface-highest text-on-surface'
                 : 'text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
@@ -79,7 +80,7 @@ export default function AdminSidebar() {
       <div className="px-3 pb-6">
         <button
           onClick={handleSignOut}
-          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm font-medium text-on-surface-variant transition hover:bg-surface-high hover:text-on-surface"
+          className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm font-medium text-on-surface-variant transition-colors duration-150 hover:bg-surface-high hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         >
           <ArrowRightOnRectangleIcon className="h-5 w-5 shrink-0" />
           Sign Out
@@ -97,7 +98,7 @@ export default function AdminSidebar() {
       <div className="md:hidden">
         <button
           onClick={() => setOpen(true)}
-          className="fixed left-4 top-4 z-40 rounded-xl bg-surface-container/80 p-2 backdrop-blur-xl text-on-surface-variant hover:text-on-surface"
+          className="fixed left-4 top-4 z-40 rounded-xl bg-surface-container/80 p-2 backdrop-blur-xl text-on-surface-variant hover:text-on-surface transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
           aria-label="Open navigation"
         >
           <Bars3Icon className="h-6 w-6" />
@@ -118,7 +119,7 @@ export default function AdminSidebar() {
         >
           <button
             onClick={() => setOpen(false)}
-            className="absolute right-4 top-4 text-on-surface-variant hover:text-on-surface"
+            className="absolute right-4 top-4 text-on-surface-variant hover:text-on-surface transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
             aria-label="Close navigation"
           >
             <XMarkIcon className="h-5 w-5" />

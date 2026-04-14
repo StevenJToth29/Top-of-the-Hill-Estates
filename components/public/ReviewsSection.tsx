@@ -42,7 +42,7 @@ function StarRating({ count }: { count: number }) {
       {Array.from({ length: 5 }).map((_, i) => (
         <svg
           key={i}
-          className={`h-4 w-4 ${i < count ? 'text-primary' : 'text-gray-200'}`}
+          className={`h-4 w-4 ${i < count ? 'text-primary' : 'text-surface-high'}`}
           fill="currentColor"
           viewBox="0 0 20 20"
           aria-hidden
@@ -56,16 +56,16 @@ function StarRating({ count }: { count: number }) {
 
 export default function ReviewsSection() {
   return (
-    <section className="bg-white py-16 sm:py-24">
+    <section className="bg-background py-16 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
           <p className="text-xs uppercase tracking-widest text-primary font-semibold mb-3">
             What Our Guests Say
           </p>
-          <h2 className="font-display font-extrabold text-slate-900 text-3xl leading-tight">
+          <h2 className="font-display font-extrabold text-on-surface text-3xl leading-tight">
             Why Choose Us?
           </h2>
-          <p className="text-slate-500 mt-2">
+          <p className="text-on-surface-variant font-body mt-2">
             We provide more than just a room — a community lifestyle designed for modern living.
           </p>
         </div>
@@ -73,13 +73,13 @@ export default function ReviewsSection() {
           {reviews.map((review) => (
             <div
               key={review.id}
-              className="bg-gray-50 rounded-2xl p-6 border border-gray-100 flex flex-col gap-4"
+              className="bg-surface-lowest rounded-2xl p-6 border border-surface flex flex-col gap-4"
             >
               <StarRating count={review.stars} />
-              <blockquote className="text-slate-600 text-sm leading-relaxed flex-1">
+              <blockquote className="text-on-surface-variant font-body text-sm leading-relaxed flex-1">
                 &ldquo;{review.quote}&rdquo;
               </blockquote>
-              <p className="font-display font-semibold text-slate-800 text-sm">— {review.name}</p>
+              <p className="font-display font-semibold text-on-surface text-sm">— {review.name}</p>
             </div>
           ))}
         </div>
