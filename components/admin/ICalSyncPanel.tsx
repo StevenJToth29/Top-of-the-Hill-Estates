@@ -208,7 +208,7 @@ export default function ICalSyncPanel({ room, siteUrl }: ICalSyncPanelProps) {
           <button
             type="submit"
             disabled={adding}
-            className="flex items-center gap-1.5 bg-gradient-to-r from-primary to-secondary text-background rounded-2xl px-5 py-2.5 font-semibold shadow-[0_0_10px_rgba(175,201,234,0.30)] disabled:opacity-50 text-sm shrink-0"
+            className="flex items-center gap-1.5 bg-gradient-to-r from-primary to-secondary text-background rounded-2xl px-5 py-2.5 font-semibold shadow-[0_0_10px_rgba(78,205,196,0.30)] disabled:opacity-50 text-sm shrink-0"
           >
             <PlusIcon className="w-4 h-4" />
             {adding ? 'Adding…' : 'Add'}

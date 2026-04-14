@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase-browser'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
+import Image from 'next/image'
 
 export default function AdminLoginPage() {
   const router = useRouter()
@@ -37,13 +38,22 @@ export default function AdminLoginPage() {
       </div>
 
       <div className="relative w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <span className="font-display text-2xl font-bold text-primary tracking-tight">
-            TOTH Admin
-          </span>
-          <p className="mt-1 font-body text-sm text-on-surface-variant">
-            Top of the Hill Rooms — Admin
-          </p>
+        <div className="mb-8 text-center flex flex-col items-center gap-3">
+          <Image
+            src="/logo.png"
+            alt="Top of the Hill Rooms"
+            width={64}
+            height={64}
+            className="rounded-2xl"
+          />
+          <div>
+            <span className="font-display text-xl font-bold text-primary tracking-tight block">
+              Top of the Hill Rooms
+            </span>
+            <p className="mt-1 font-body text-sm text-on-surface-variant">
+              Admin Portal
+            </p>
+          </div>
         </div>
 
         <div className="rounded-2xl border border-outline-variant bg-surface-container/60 backdrop-blur-xl p-8 shadow-2xl">

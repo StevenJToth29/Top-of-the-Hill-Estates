@@ -38,7 +38,7 @@ export default function CancellationPolicyDisplay({ variant = 'short_term' }: Pr
   const policy = variant === 'long_term' ? longTermPolicy : shortTermPolicy
 
   return (
-    <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(175,201,234,0.06)] rounded-2xl p-5 space-y-4">
+    <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(78,205,196,0.06)] rounded-2xl p-5 space-y-4">
       <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
         Cancellation Policy
       </p>

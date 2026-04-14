@@ -37,7 +37,7 @@ export default async function ContactPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-start">
           <div className="space-y-8">
-            <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-8 shadow-[0_8px_40px_rgba(175,201,234,0.06)]">
+            <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-8 shadow-[0_8px_40px_rgba(78,205,196,0.06)]">
               <h2 className="font-display text-xl font-semibold text-primary mb-6">
                 Contact Information
               </h2>

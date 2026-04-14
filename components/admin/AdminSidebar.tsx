@@ -12,6 +12,7 @@ import {
   HomeIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
+import Image from 'next/image'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -43,8 +44,15 @@ export default function AdminSidebar() {
 
   const sidebarContent = (
     <div className="flex h-full flex-col">
-      <div className="px-6 py-6">
-        <span className="font-display text-xl font-bold text-primary tracking-tight">
+      <div className="px-6 py-5 flex items-center gap-3">
+        <Image
+          src="/logo.png"
+          alt="Top of the Hill Rooms"
+          width={36}
+          height={36}
+          className="rounded-lg shrink-0"
+        />
+        <span className="font-display text-base font-bold text-primary tracking-tight leading-tight">
           TOTH Admin
         </span>
       </div>

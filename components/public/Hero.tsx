@@ -7,7 +7,7 @@ export default function Hero() {
         className="pointer-events-none absolute inset-0 opacity-20"
         style={{
           background:
-            'radial-gradient(ellipse 80% 50% at 50% 30%, rgba(175,201,234,0.18) 0%, transparent 70%)',
+            'radial-gradient(ellipse 80% 50% at 50% 30%, rgba(78,205,196,0.18) 0%, transparent 70%)',
         }}
       />
 
@@ -24,14 +24,14 @@ export default function Hero() {
         </p>
         <Link
           href="/rooms"
-          className="inline-block bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-8 py-3 shadow-[0_0_10px_rgba(175,201,234,0.30)] hover:opacity-90 transition-opacity"
+          className="inline-block bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-8 py-3 shadow-[0_0_10px_rgba(78,205,196,0.30)] hover:opacity-90 transition-opacity"
         >
           Browse Rooms
         </Link>
       </div>
 
       <div className="relative z-10 mt-16 w-full max-w-2xl">
-        <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl px-8 py-6 shadow-[0_8px_40px_rgba(175,201,234,0.06)] flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl px-8 py-6 shadow-[0_8px_40px_rgba(78,205,196,0.06)] flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="text-center sm:text-left">
             <p className="text-xs uppercase tracking-widest text-secondary font-medium mb-1">
               Availability

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { useState } from 'react'
 import { Bars3Icon, XMarkIcon } from '@heroicons/react/24/outline'
 import { clsx } from 'clsx'
@@ -17,8 +18,17 @@ export default function Navbar() {
     <header className="sticky top-0 z-50 bg-surface-lowest/80 backdrop-blur-xl">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="font-display font-bold text-primary text-lg tracking-tight">
-            Top of the Hill Rooms
+          <Link href="/" className="flex items-center gap-2.5">
+            <Image
+              src="/logo.png"
+              alt="Top of the Hill Rooms"
+              width={36}
+              height={36}
+              className="rounded-lg"
+            />
+            <span className="font-display font-bold text-primary text-lg tracking-tight">
+              Top of the Hill Rooms
+            </span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-6">
@@ -33,7 +43,7 @@ export default function Navbar() {
             ))}
             <Link
               href="/rooms"
-              className="bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-6 py-2 text-sm shadow-[0_0_10px_rgba(175,201,234,0.30)] hover:opacity-90 transition-opacity"
+              className="bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-6 py-2 text-sm shadow-[0_0_10px_rgba(78,205,196,0.30)] hover:opacity-90 transition-opacity"
             >
               Book a Room
             </Link>
@@ -73,7 +83,7 @@ export default function Navbar() {
           <Link
             href="/rooms"
             onClick={() => setOpen(false)}
-            className="mt-2 inline-block bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-6 py-2 text-sm text-center shadow-[0_0_10px_rgba(175,201,234,0.30)] hover:opacity-90 transition-opacity"
+            className="mt-2 inline-block bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-6 py-2 text-sm text-center shadow-[0_0_10px_rgba(78,205,196,0.30)] hover:opacity-90 transition-opacity"
           >
             Book a Room
           </Link>

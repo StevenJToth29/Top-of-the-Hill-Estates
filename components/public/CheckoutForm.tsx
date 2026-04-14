@@ -228,7 +228,7 @@ export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
           <button
             type="submit"
             disabled={isSubmitting}
-            className="w-full bg-gradient-to-r from-primary to-secondary text-background rounded-2xl px-8 py-3 font-semibold shadow-[0_0_10px_rgba(175,201,234,0.30)] transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full bg-gradient-to-r from-primary to-secondary text-background rounded-2xl px-8 py-3 font-semibold shadow-[0_0_10px_rgba(78,205,196,0.30)] transition-opacity disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isSubmitting ? 'Checking availability…' : 'Continue to Payment'}
           </button>

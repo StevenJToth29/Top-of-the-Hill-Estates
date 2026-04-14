@@ -23,7 +23,7 @@ function formatDate(dateStr: string) {
 
 export function RecentBookingsWidget({ bookings }: RecentBookingsWidgetProps) {
   return (
-    <div className="bg-surface-container rounded-2xl overflow-hidden shadow-[0_8px_40px_rgba(175,201,234,0.06)]">
+    <div className="bg-surface-container rounded-2xl overflow-hidden shadow-[0_8px_40px_rgba(78,205,196,0.06)]">
       <div className="px-6 py-5">
         <h2 className="font-display text-lg font-semibold text-on-surface">
           Recent Bookings

@@ -140,7 +140,7 @@ export default function RoomsFilter({
       <div className="mt-6 flex items-center gap-4">
         <button
           type="submit"
-          className="bg-gradient-to-r from-primary to-secondary text-background font-semibold font-body rounded-2xl px-6 py-2.5 shadow-[0_0_10px_rgba(175,201,234,0.30)] hover:opacity-90 transition-opacity"
+          className="bg-gradient-to-r from-primary to-secondary text-background font-semibold font-body rounded-2xl px-6 py-2.5 shadow-[0_0_10px_rgba(78,205,196,0.30)] hover:opacity-90 transition-opacity"
         >
           Search
         </button>

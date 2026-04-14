@@ -16,7 +16,7 @@ export default function RoomCard({ room }: Props) {
   const coverImage = room.images?.[0] ?? null
 
   return (
-    <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl overflow-hidden shadow-[0_8px_40px_rgba(175,201,234,0.06)] flex flex-col">
+    <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl overflow-hidden shadow-[0_8px_40px_rgba(78,205,196,0.06)] flex flex-col">
       <div className="relative h-52 w-full bg-surface-container">
         {coverImage ? (
           <Image
@@ -76,7 +76,7 @@ export default function RoomCard({ room }: Props) {
           </div>
           <Link
             href={`/checkout?room=${room.slug}`}
-            className="bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-5 py-2 text-sm shadow-[0_0_10px_rgba(175,201,234,0.30)] hover:opacity-90 transition-opacity"
+            className="bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-5 py-2 text-sm shadow-[0_0_10px_rgba(78,205,196,0.30)] hover:opacity-90 transition-opacity"
           >
             Book Now
           </Link>

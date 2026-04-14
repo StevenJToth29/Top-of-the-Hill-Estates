@@ -153,7 +153,7 @@ export default function AvailabilityCalendar({
   const sharedProps = { today: TODAY, blockedSet, selectedCheckIn, selectedCheckOut, onDateSelect }
 
   return (
-    <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(175,201,234,0.06)] rounded-2xl p-5">
+    <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(78,205,196,0.06)] rounded-2xl p-5">
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={goPrev}
