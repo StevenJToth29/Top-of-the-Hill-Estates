@@ -4,6 +4,7 @@ import Hero from '@/components/public/Hero'
 import AboutSection from '@/components/public/AboutSection'
 import PropertiesSection from '@/components/public/PropertiesSection'
 import ReviewsSection from '@/components/public/ReviewsSection'
+import ContactForm from '@/components/public/ContactForm'
 
 const DEFAULT_ABOUT =
   'Top of the Hill Estates offers fully furnished rooms in the heart of Mesa and Tempe, Arizona. Whether you need a short-term stay or a long-term home, we have flexible options to fit your lifestyle — with no platform fees when you book directly.'
@@ -53,6 +54,7 @@ export default async function HomePage() {
       <AboutSection aboutText={aboutText} />
       <PropertiesSection properties={properties} />
       <ReviewsSection />
+      <ContactForm />
     </>
   )
 }
