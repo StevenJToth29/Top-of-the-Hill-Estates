@@ -61,11 +61,21 @@ export default async function AdminRoomsPage() {
 
         {/* Properties + rooms */}
         {typedRooms.length === 0 ? (
-          <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-12 text-center">
+          <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-12 text-center space-y-2">
             <p className="text-on-surface-variant">No rooms yet.</p>
-            <Link href="/admin/rooms/new" className="mt-4 inline-block text-secondary hover:underline text-sm">
-              Add your first room
-            </Link>
+            {hasProperties ? (
+              <Link href="/admin/rooms/new" className="inline-block text-secondary hover:underline text-sm">
+                Add your first room
+              </Link>
+            ) : (
+              <p className="text-sm text-on-surface-variant/60">
+                You need to{' '}
+                <Link href="/admin/properties/new" className="text-secondary hover:underline">
+                  create a property
+                </Link>{' '}
+                first before adding rooms.
+              </p>
+            )}
           </div>
         ) : (
           Object.values(grouped).map(({ property, rooms: propRooms }) => (
