@@ -24,10 +24,11 @@ export default async function AdminLayout({
     .limit(1)
     .maybeSingle()
   const logoUrl = settings?.logo_url ?? undefined
+  const logoSize = settings?.logo_size ?? 52
 
   return (
     <div className="flex min-h-screen bg-background">
-      <AdminSidebar logoUrl={logoUrl} />
+      <AdminSidebar logoUrl={logoUrl} logoSize={logoSize} />
       <main className="flex-1 p-8">{children}</main>
     </div>
   )

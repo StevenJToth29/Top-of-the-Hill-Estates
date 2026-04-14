@@ -32,9 +32,10 @@ const supabase = createClient()
 
 interface AdminSidebarProps {
   logoUrl?: string
+  logoSize?: number
 }
 
-export default function AdminSidebar({ logoUrl }: AdminSidebarProps) {
+export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -54,8 +55,8 @@ export default function AdminSidebar({ logoUrl }: AdminSidebarProps) {
         <Image
           src={logoUrl ?? '/logo.png'}
           alt="Top of the Hill Rooms"
-          width={36}
-          height={36}
+          width={logoSize}
+          height={logoSize}
           className="rounded-lg shrink-0"
           unoptimized={!!logoUrl}
         />
