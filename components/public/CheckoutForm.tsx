@@ -21,10 +21,10 @@ const appearance: Appearance = {
 }
 
 interface GuestInfo {
-  first_name: string
-  last_name: string
-  email: string
-  phone: string
+  guest_first_name: string
+  guest_last_name: string
+  guest_email: string
+  guest_phone: string
 }
 
 interface CheckoutFormProps {
@@ -37,10 +37,10 @@ export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
   const router = useRouter()
   const [step, setStep] = useState<Step>('guest_info')
   const [guestInfo, setGuestInfo] = useState<GuestInfo>({
-    first_name: '',
-    last_name: '',
-    email: '',
-    phone: '',
+    guest_first_name: '',
+    guest_last_name: '',
+    guest_email: '',
+    guest_phone: '',
   })
   const [smsConsent, setSmsConsent] = useState(false)
   const [marketingConsent, setMarketingConsent] = useState(false)
@@ -97,33 +97,33 @@ export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-on-surface-variant text-sm mb-1" htmlFor="first_name">
+                <label className="block text-on-surface-variant text-sm mb-1" htmlFor="guest_first_name">
                   First Name
                 </label>
                 <input
-                  id="first_name"
+                  id="guest_first_name"
                   type="text"
-                  name="first_name"
+                  name="guest_first_name"
                   required
                   autoComplete="given-name"
-                  value={guestInfo.first_name}
-                  onChange={(e) => setGuestInfo((p) => ({ ...p, first_name: e.target.value }))}
+                  value={guestInfo.guest_first_name}
+                  onChange={(e) => setGuestInfo((p) => ({ ...p, guest_first_name: e.target.value }))}
                   className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50"
                   placeholder="Jane"
                 />
               </div>
               <div>
-                <label className="block text-on-surface-variant text-sm mb-1" htmlFor="last_name">
+                <label className="block text-on-surface-variant text-sm mb-1" htmlFor="guest_last_name">
                   Last Name
                 </label>
                 <input
-                  id="last_name"
+                  id="guest_last_name"
                   type="text"
-                  name="last_name"
+                  name="guest_last_name"
                   required
                   autoComplete="family-name"
-                  value={guestInfo.last_name}
-                  onChange={(e) => setGuestInfo((p) => ({ ...p, last_name: e.target.value }))}
+                  value={guestInfo.guest_last_name}
+                  onChange={(e) => setGuestInfo((p) => ({ ...p, guest_last_name: e.target.value }))}
                   className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50"
                   placeholder="Smith"
                 />
@@ -138,8 +138,8 @@ export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
                   name="email"
                   required
                   autoComplete="email"
-                  value={guestInfo.email}
-                  onChange={(e) => setGuestInfo((p) => ({ ...p, email: e.target.value }))}
+                  value={guestInfo.guest_email}
+                  onChange={(e) => setGuestInfo((p) => ({ ...p, guest_email: e.target.value }))}
                   className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50"
                   placeholder="jane@example.com"
                 />
@@ -154,8 +154,8 @@ export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
                   name="phone"
                   required
                   autoComplete="tel"
-                  value={guestInfo.phone}
-                  onChange={(e) => setGuestInfo((p) => ({ ...p, phone: e.target.value }))}
+                  value={guestInfo.guest_phone}
+                  onChange={(e) => setGuestInfo((p) => ({ ...p, guest_phone: e.target.value }))}
                   className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50"
                   placeholder="+1 (555) 000-0000"
                 />
@@ -259,7 +259,11 @@ export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
               bookingId={bookingId}
               isSubmitting={isSubmitting}
               setIsSubmitting={setIsSubmitting}
-              onSuccess={(id) => router.push(`/booking/confirmation?booking_id=${id}`)}
+              onSuccess={(id) =>
+                router.push(
+                  `/booking/confirmation?booking_id=${id}&guest_email=${encodeURIComponent(guestInfo.guest_email)}`,
+                )
+              }
               onError={setError}
             />
           </Elements>
