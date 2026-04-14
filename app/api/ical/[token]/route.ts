@@ -23,7 +23,7 @@ export async function GET(
       .from('bookings')
       .select('id, check_in, check_out')
       .eq('room_id', room.id)
-      .eq('status', 'confirmed'),
+      .in('status', ['confirmed', 'pending']),
     supabase
       .from('ical_blocks')
       .select('event_uid, summary, start_date, end_date')
