@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
-import { createServiceRoleClient } from '@/lib/supabase'
+import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import RoomForm from '@/components/admin/RoomForm'
 import type { Room, Property, ICalSource } from '@/types'
 
@@ -12,6 +12,10 @@ interface EditRoomPageProps {
 }
 
 export default async function EditRoomPage({ params }: EditRoomPageProps) {
+  const serverClient = await createServerSupabaseClient()
+  const { data: { user } } = await serverClient.auth.getUser()
+  if (!user) redirect('/admin/login')
+
   const supabase = createServiceRoleClient()
 
   const [{ data: room }, { data: properties }, { data: icalSources }] = await Promise.all([
@@ -24,6 +28,10 @@ export default async function EditRoomPage({ params }: EditRoomPageProps) {
 
   async function updateRoom(formData: FormData) {
     'use server'
+    const authClient = await createServerSupabaseClient()
+    const { data: { user: actionUser } } = await authClient.auth.getUser()
+    if (!actionUser) redirect('/admin/login')
+
     const supabase = createServiceRoleClient()
     const id = formData.get('id') as string
     const { error } = await supabase

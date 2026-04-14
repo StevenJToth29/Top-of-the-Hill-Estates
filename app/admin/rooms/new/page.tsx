@@ -3,16 +3,24 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
-import { createServiceRoleClient } from '@/lib/supabase'
+import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import RoomForm from '@/components/admin/RoomForm'
 import type { Property } from '@/types'
 
 export default async function NewRoomPage() {
+  const serverClient = await createServerSupabaseClient()
+  const { data: { user } } = await serverClient.auth.getUser()
+  if (!user) redirect('/admin/login')
+
   const supabase = createServiceRoleClient()
   const { data: properties } = await supabase.from('properties').select('*').order('name')
 
   async function createRoom(formData: FormData) {
     'use server'
+    const authClient = await createServerSupabaseClient()
+    const { data: { user: actionUser } } = await authClient.auth.getUser()
+    if (!actionUser) redirect('/admin/login')
+
     const supabase = createServiceRoleClient()
     const { data, error } = await supabase
       .from('rooms')
