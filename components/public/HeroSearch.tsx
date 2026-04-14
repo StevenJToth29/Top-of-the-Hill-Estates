@@ -59,7 +59,7 @@ export default function HeroSearch() {
           onChange={(e) => setGuests(e.target.value)}
           className="w-full font-body text-sm text-on-surface outline-none bg-transparent"
         >
-          {[1, 2, 3, 4, 5, 6].map((n) => (
+          {[1, 2].map((n) => (
             <option key={n} value={String(n)}>
               {n} {n === 1 ? 'Guest' : 'Guests'}
             </option>
