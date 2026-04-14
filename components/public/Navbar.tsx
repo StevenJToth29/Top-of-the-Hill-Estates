@@ -20,13 +20,13 @@ export default function Navbar() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg">
+          <Link href="/" className="flex items-center gap-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg">
             <Image
               src="/logo.png"
               alt="Top of the Hill Rooms"
-              width={36}
-              height={36}
-              className="rounded-lg"
+              width={52}
+              height={52}
+              className="rounded-xl"
             />
             <span className="font-display font-bold text-on-surface text-lg tracking-tight">
               Top of the Hill <span className="text-primary">Rooms</span>
