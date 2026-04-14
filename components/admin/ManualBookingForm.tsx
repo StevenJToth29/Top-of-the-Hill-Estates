@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import type { Room, BookingType } from '@/types'
-import { createClient } from '@/lib/supabase'
+import { createClient } from '@/lib/supabase-browser'
 import { formatCurrency } from '@/lib/format'
 
 type Props = {
