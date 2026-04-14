@@ -54,7 +54,15 @@ export default async function HomePage() {
       <AboutSection aboutText={aboutText} />
       <PropertiesSection properties={properties} />
       <ReviewsSection />
-      <ContactForm />
+      <section id="contact" className="bg-background py-16 px-4">
+        <div className="mx-auto max-w-xl">
+          <h2 className="font-display text-3xl font-bold text-primary mb-2">Get in Touch</h2>
+          <p className="text-on-surface-variant font-body mb-8">
+            Questions about availability or pricing? We&apos;d love to hear from you.
+          </p>
+          <ContactForm />
+        </div>
+      </section>
     </>
   )
 }
