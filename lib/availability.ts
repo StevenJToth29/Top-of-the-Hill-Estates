@@ -1,5 +1,8 @@
 import { createServiceRoleClient } from '@/lib/supabase'
-import { addDays, eachDayOfInterval, format, parseISO } from 'date-fns'
+import { addDays } from 'date-fns/addDays'
+import { eachDayOfInterval } from 'date-fns/eachDayOfInterval'
+import { format } from 'date-fns/format'
+import { parseISO } from 'date-fns/parseISO'
 
 function addDateRangeToSet(
   set: Set<string>,
