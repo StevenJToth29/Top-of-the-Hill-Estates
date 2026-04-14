@@ -5,6 +5,7 @@ import {
   ArrowPathIcon,
   ArrowRightOnRectangleIcon,
   Bars3Icon,
+  BuildingOfficeIcon,
   CalendarDaysIcon,
   CalendarIcon,
   ChartBarIcon,
@@ -19,6 +20,7 @@ import { useState } from 'react'
 
 export const NAV_ITEMS = [
   { label: 'Dashboard', href: '/admin', icon: ChartBarIcon },
+  { label: 'Properties', href: '/admin/properties', icon: BuildingOfficeIcon },
   { label: 'Rooms', href: '/admin/rooms', icon: HomeIcon },
   { label: 'Bookings', href: '/admin/bookings', icon: CalendarIcon },
   { label: 'Calendar', href: '/admin/calendar', icon: CalendarDaysIcon },

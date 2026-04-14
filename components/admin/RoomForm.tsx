@@ -4,8 +4,8 @@ import { useState, useTransition } from 'react'
 import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline'
 import type { Room, Property, ICalSource } from '@/types'
 import AmenitiesTagInput from './AmenitiesTagInput'
-import ImageUploader from './ImageUploader'
 import ICalSourcesManager from './ICalSourcesManager'
+import PropertyImagePicker from './PropertyImagePicker'
 
 interface RoomFormProps {
   room?: Room
@@ -43,6 +43,8 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
   const [images, setImages] = useState<string[]>(room?.images ?? [])
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  const propertyImages = properties.find((p) => p.id === propertyId)?.images ?? []
 
   const icalExportUrl = room?.ical_export_token
     ? `https://tothrooms.com/api/ical/${room.ical_export_token}`
@@ -140,18 +142,24 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
 
         <div>
           <label className={labelClass}>Property</label>
-          <select
-            value={propertyId}
-            onChange={(e) => setPropertyId(e.target.value)}
-            required
-            className={inputClass}
-          >
-            {properties.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          {room ? (
+            <p className="px-4 py-3 rounded-xl bg-surface-highest/20 text-on-surface-variant text-sm">
+              {properties.find((p) => p.id === propertyId)?.name ?? propertyId}
+            </p>
+          ) : (
+            <select
+              value={propertyId}
+              onChange={(e) => setPropertyId(e.target.value)}
+              required
+              className={inputClass}
+            >
+              {properties.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div>
@@ -311,9 +319,9 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
       {/* Images */}
       <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
         <h2 className="font-display text-lg font-semibold text-on-surface">Images</h2>
-        <ImageUploader
-          images={images}
-          roomId={roomId ?? 'new'}
+        <PropertyImagePicker
+          propertyImages={propertyImages}
+          selectedImages={images}
           onChange={setImages}
         />
       </section>

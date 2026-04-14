@@ -5,6 +5,10 @@ export interface Property {
   city: string
   state: string
   description: string
+  images: string[]
+  amenities: string[]
+  bedrooms: number
+  bathrooms: number
   created_at: string
 }
 

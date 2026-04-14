@@ -25,11 +25,12 @@ async function compressImage(file: File, maxWidth = 1200): Promise<Blob> {
 
 interface ImageUploaderProps {
   images: string[]
-  roomId: string
+  bucket: string
+  uploadFolder: string
   onChange: (images: string[]) => void
 }
 
-export default function ImageUploader({ images, roomId, onChange }: ImageUploaderProps) {
+export default function ImageUploader({ images, bucket, uploadFolder, onChange }: ImageUploaderProps) {
   const [isDragging, setIsDragging] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -45,16 +46,16 @@ export default function ImageUploader({ images, roomId, onChange }: ImageUploade
       if (!file.type.startsWith('image/')) continue
       try {
         const compressed = await compressImage(file)
-        const path = `${roomId}/${Date.now()}-${file.name}`
+        const path = `${uploadFolder}/${Date.now()}-${file.name}`
         const { data, error: uploadError } = await supabase.storage
-          .from('room-images')
+          .from(bucket)
           .upload(path, compressed, { contentType: 'image/jpeg', upsert: false })
 
         if (uploadError) throw uploadError
 
         const {
           data: { publicUrl },
-        } = supabase.storage.from('room-images').getPublicUrl(data.path)
+        } = supabase.storage.from(bucket).getPublicUrl(data.path)
         newUrls.push(publicUrl)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Upload failed')
@@ -67,9 +68,11 @@ export default function ImageUploader({ images, roomId, onChange }: ImageUploade
 
   async function deleteImage(url: string) {
     const supabase = createClient()
-    const match = url.match(/room-images\/(.+)$/)
-    if (match) {
-      await supabase.storage.from('room-images').remove([match[1]])
+    const bucketMarker = `/object/public/${bucket}/`
+    const idx = url.indexOf(bucketMarker)
+    if (idx !== -1) {
+      const path = url.slice(idx + bucketMarker.length)
+      await supabase.storage.from(bucket).remove([path])
     }
     onChange(images.filter((img) => img !== url))
   }

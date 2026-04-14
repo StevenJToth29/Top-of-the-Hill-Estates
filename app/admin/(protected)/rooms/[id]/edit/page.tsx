@@ -37,7 +37,6 @@ export default async function EditRoomPage({ params }: EditRoomPageProps) {
     const { error } = await supabase
       .from('rooms')
       .update({
-        property_id: formData.get('property_id') as string,
         name: formData.get('name') as string,
         slug: formData.get('slug') as string,
         short_description: formData.get('short_description') as string,
