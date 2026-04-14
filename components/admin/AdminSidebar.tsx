@@ -57,6 +57,7 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
           alt="Top of the Hill Rooms"
           width={logoSize}
           height={logoSize}
+          style={{ width: logoSize, height: logoSize }}
           className="rounded-lg shrink-0"
           unoptimized={!!logoUrl}
         />

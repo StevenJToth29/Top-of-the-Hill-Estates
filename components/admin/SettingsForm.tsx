@@ -174,6 +174,7 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
               alt="Current logo"
               width={form.logo_size}
               height={form.logo_size}
+              style={{ width: form.logo_size, height: form.logo_size }}
               className="object-contain rounded-xl"
               unoptimized={!!form.logo_url}
             />

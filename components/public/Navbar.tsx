@@ -31,6 +31,7 @@ export default function Navbar({ logoUrl, logoSize = 52 }: NavbarProps) {
               alt="Top of the Hill Rooms"
               width={logoSize}
               height={logoSize}
+              style={{ width: logoSize, height: logoSize }}
               className="rounded-xl"
               unoptimized={!!logoUrl}
             />

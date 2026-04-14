@@ -21,6 +21,7 @@ export default function Footer({ logoUrl, logoSize = 52, phone, email, address }
                 alt="Top of the Hill Rooms"
                 width={logoSize}
                 height={logoSize}
+                style={{ width: logoSize, height: logoSize }}
                 className="rounded-lg"
                 unoptimized={!!logoUrl}
               />
