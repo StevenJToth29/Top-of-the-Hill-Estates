@@ -12,9 +12,9 @@ export default function RoomCard({ room }: Props) {
   const coverImage = room.images?.[0] ?? null
 
   return (
-    <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-gray-100 hover:shadow-md hover:-translate-y-0.5 transition-all flex flex-col">
+    <div className="bg-surface-container rounded-2xl overflow-hidden shadow-sm border border-surface hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 flex flex-col">
       {/* Image */}
-      <div className="relative h-52 w-full bg-gray-100">
+      <div className="relative h-52 w-full bg-surface-low">
         {coverImage ? (
           <Image
             src={coverImage}
@@ -24,13 +24,13 @@ export default function RoomCard({ room }: Props) {
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200">
-            <HomeIcon className="h-12 w-12 text-gray-300" />
+          <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-surface-low to-surface">
+            <HomeIcon className="h-12 w-12 text-on-surface-variant/30" />
           </div>
         )}
         {/* Property badge */}
         <div className="absolute top-3 left-3">
-          <span className="bg-white/90 backdrop-blur-sm text-slate-700 text-xs font-semibold px-2.5 py-1 rounded-full border border-gray-200">
+          <span className="bg-background/90 backdrop-blur-sm text-on-surface text-xs font-semibold px-2.5 py-1 rounded-full border border-surface">
             {property.name}
           </span>
         </div>
@@ -39,16 +39,16 @@ export default function RoomCard({ room }: Props) {
       {/* Content */}
       <div className="flex flex-col flex-1 p-5 gap-3">
         <div>
-          <h3 className="font-display font-bold text-slate-900 text-lg leading-snug">
+          <h3 className="font-display font-bold text-on-surface text-lg leading-snug">
             {room.name}
           </h3>
           {room.short_description && (
-            <p className="text-slate-500 text-sm mt-1 line-clamp-2">{room.short_description}</p>
+            <p className="text-on-surface-variant font-body text-sm mt-1 line-clamp-2">{room.short_description}</p>
           )}
         </div>
 
         {/* Stats */}
-        <div className="flex items-center gap-4 text-slate-500 text-sm">
+        <div className="flex items-center gap-4 text-on-surface-variant font-body text-sm">
           <span className="flex items-center gap-1">
             <UserGroupIcon className="h-4 w-4 text-primary" />
             {room.guest_capacity} {room.guest_capacity === 1 ? 'guest' : 'guests'}
@@ -64,21 +64,21 @@ export default function RoomCard({ room }: Props) {
         </div>
 
         {/* Pricing + CTA */}
-        <div className="mt-auto flex items-end justify-between pt-2 border-t border-gray-100">
+        <div className="mt-auto flex items-end justify-between pt-2 border-t border-surface">
           <div>
-            <p className="text-slate-900 font-bold text-lg">
+            <p className="text-on-surface font-bold text-lg">
               ${room.nightly_rate.toFixed(0)}
-              <span className="text-slate-400 font-normal text-sm"> / night</span>
+              <span className="text-on-surface-variant font-normal text-sm"> / night</span>
             </p>
             {room.monthly_rate > 0 && (
-              <p className="text-slate-400 text-xs">
+              <p className="text-on-surface-variant font-body text-xs">
                 ${room.monthly_rate.toFixed(0)} / month
               </p>
             )}
           </div>
           <Link
             href={`/rooms/${room.slug}`}
-            className="bg-primary text-white font-semibold rounded-lg px-4 py-2 text-sm hover:bg-secondary transition-colors"
+            className="bg-primary text-white font-semibold rounded-lg px-4 py-2 text-sm hover:bg-secondary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             View Room
           </Link>
