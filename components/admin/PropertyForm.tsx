@@ -60,8 +60,7 @@ export default function PropertyForm({ property, propertyId }: PropertyFormProps
           throw new Error(data.error ?? 'Save failed')
         }
 
-        router.push('/admin/properties')
-        router.refresh()
+        window.location.href = '/admin/properties'
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Save failed')
       }

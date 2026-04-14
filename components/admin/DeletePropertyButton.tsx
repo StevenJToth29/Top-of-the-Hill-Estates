@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { TrashIcon, ExclamationTriangleIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { useRouter } from 'next/navigation'
 
@@ -59,8 +60,8 @@ export default function DeletePropertyButton({ propertyId, propertyName, hasRoom
         Delete
       </button>
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {showModal && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
           {/* Backdrop */}
           <div
             className="absolute inset-0 bg-on-surface/30 backdrop-blur-sm"
@@ -113,7 +114,8 @@ export default function DeletePropertyButton({ propertyId, propertyName, hasRoom
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

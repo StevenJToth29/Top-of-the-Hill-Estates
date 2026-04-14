@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { createServiceRoleClient } from '@/lib/supabase'
 import SettingsForm from '@/components/admin/SettingsForm'
 import type { SiteSettings } from '@/types'
