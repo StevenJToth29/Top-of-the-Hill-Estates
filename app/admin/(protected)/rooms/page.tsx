@@ -10,12 +10,13 @@ type RoomWithProperty = Room & { property: Property }
 
 export default async function AdminRoomsPage() {
   const supabase = createServiceRoleClient()
-  const { data: rooms } = await supabase
-    .from('rooms')
-    .select('*, property:properties(*)')
-    .order('name')
+  const [{ data: rooms }, { count: propertyCount }] = await Promise.all([
+    supabase.from('rooms').select('*, property:properties(*)').order('name'),
+    supabase.from('properties').select('id', { count: 'exact', head: true }),
+  ])
 
   const typedRooms = (rooms ?? []) as RoomWithProperty[]
+  const hasProperties = (propertyCount ?? 0) > 0
 
   // Group by property
   const grouped = typedRooms.reduce<Record<string, { property: Property; rooms: RoomWithProperty[] }>>(
@@ -39,13 +40,23 @@ export default async function AdminRoomsPage() {
             <h1 className="font-display text-3xl font-bold text-on-surface">Rooms</h1>
             <p className="text-on-surface-variant mt-1">{typedRooms.length} rooms across {Object.keys(grouped).length} properties</p>
           </div>
-          <Link
-            href="/admin/rooms/new"
-            className="flex items-center gap-2 bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-5 py-2.5 hover:opacity-90 transition-opacity"
-          >
-            <PlusIcon className="w-4 h-4" />
-            Add New Room
-          </Link>
+          {hasProperties ? (
+            <Link
+              href="/admin/rooms/new"
+              className="flex items-center gap-2 bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-5 py-2.5 hover:opacity-90 transition-opacity"
+            >
+              <PlusIcon className="w-4 h-4" />
+              Add New Room
+            </Link>
+          ) : (
+            <span
+              title="Create a property first before adding rooms."
+              className="flex items-center gap-2 bg-surface-container text-on-surface-variant font-semibold rounded-2xl px-5 py-2.5 cursor-not-allowed opacity-50 select-none"
+            >
+              <PlusIcon className="w-4 h-4" />
+              Add New Room
+            </span>
+          )}
         </div>
 
         {/* Properties + rooms */}

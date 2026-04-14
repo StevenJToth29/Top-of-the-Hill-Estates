@@ -49,6 +49,8 @@ export default async function NewRoomPage() {
     redirect(`/admin/rooms/${data.id}/edit`)
   }
 
+  const typedProperties = (properties ?? []) as Property[]
+
   return (
     <div className="min-h-screen bg-background px-4 py-10 sm:px-8">
       <div className="max-w-3xl mx-auto space-y-8">
@@ -67,10 +69,25 @@ export default async function NewRoomPage() {
           <p className="text-on-surface-variant mt-1">Fill in the details below to create a new room listing.</p>
         </div>
 
-        <RoomForm
-          properties={(properties ?? []) as Property[]}
-          onSave={createRoom}
-        />
+        {typedProperties.length === 0 ? (
+          <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-10 text-center space-y-4">
+            <p className="text-on-surface font-medium">No properties found.</p>
+            <p className="text-sm text-on-surface-variant">
+              You need at least one property before adding rooms.
+            </p>
+            <Link
+              href="/admin/properties/new"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-6 py-2.5 hover:opacity-90 transition-opacity text-sm"
+            >
+              Create a Property
+            </Link>
+          </div>
+        ) : (
+          <RoomForm
+            properties={typedProperties}
+            onSave={createRoom}
+          />
+        )}
       </div>
     </div>
   )
