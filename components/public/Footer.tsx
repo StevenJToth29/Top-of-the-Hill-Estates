@@ -31,14 +31,20 @@ export default function Footer({ logoUrl, phone, email, address }: FooterProps) 
               {address?.trim() && <p className="whitespace-pre-line">{address.trim()}</p>}
               {phone?.trim() && (
                 <p>
-                  <a href={`tel:${phone.replace(/\D/g, '')}`} className="hover:text-primary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
+                  <a
+                    href={`tel:${phone.replace(/\D/g, '')}`}
+                    className="text-primary underline underline-offset-2 hover:text-secondary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+                  >
                     {phone.trim()}
                   </a>
                 </p>
               )}
               {email?.trim() && (
                 <p>
-                  <a href={`mailto:${email}`} className="hover:text-primary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
+                  <a
+                    href={`mailto:${email}`}
+                    className="text-primary underline underline-offset-2 hover:text-secondary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+                  >
                     {email.trim()}
                   </a>
                 </p>
