@@ -27,25 +27,23 @@ export default function Footer({ logoUrl, phone, email, address }: FooterProps) 
                 Top of the Hill <span className="text-primary">Rooms</span>
               </span>
             </div>
-            {(address || phone || email) ? (
-              <address className="not-italic text-on-surface-variant font-body text-sm space-y-1">
-                {address && <p className="whitespace-pre-line">{address}</p>}
-                {phone && (
-                  <p>
-                    <a href={`tel:${phone.replace(/\D/g, '')}`} className="hover:text-primary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
-                      {phone}
-                    </a>
-                  </p>
-                )}
-                {email && (
-                  <p>
-                    <a href={`mailto:${email}`} className="hover:text-primary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
-                      {email}
-                    </a>
-                  </p>
-                )}
-              </address>
-            ) : null}
+            <address className="not-italic text-on-surface-variant font-body text-sm space-y-1">
+              {address?.trim() && <p className="whitespace-pre-line">{address.trim()}</p>}
+              {phone?.trim() && (
+                <p>
+                  <a href={`tel:${phone.replace(/\D/g, '')}`} className="hover:text-primary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
+                    {phone.trim()}
+                  </a>
+                </p>
+              )}
+              {email?.trim() && (
+                <p>
+                  <a href={`mailto:${email}`} className="hover:text-primary transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded">
+                    {email.trim()}
+                  </a>
+                </p>
+              )}
+            </address>
           </div>
 
           <div>

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { createServiceRoleClient } from '@/lib/supabase'
 import Navbar from '@/components/public/Navbar'
 import Footer from '@/components/public/Footer'
