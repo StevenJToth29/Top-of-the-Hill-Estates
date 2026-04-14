@@ -94,6 +94,14 @@ export interface ICalSource {
   created_at: string
 }
 
+export interface DayHours {
+  open: string    // 'HH:mm' or ''
+  close: string   // 'HH:mm' or ''
+  closed: boolean
+}
+
+export type BusinessHours = Record<string, DayHours>
+
 export interface SiteSettings {
   id: string
   about_text: string
@@ -102,6 +110,7 @@ export interface SiteSettings {
   contact_address: string
   business_name: string
   logo_url?: string
+  business_hours?: string  // JSON-encoded BusinessHours
   updated_at: string
 }
 

@@ -4,7 +4,36 @@ import { useRef, useState } from 'react'
 import Image from 'next/image'
 import { PhotoIcon } from '@heroicons/react/24/outline'
 import { createClient } from '@/lib/supabase-browser'
-import type { SiteSettings } from '@/types'
+import type { SiteSettings, BusinessHours } from '@/types'
+
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
+
+const DEFAULT_HOURS: BusinessHours = {
+  Mon: { open: '09:00', close: '17:00', closed: false },
+  Tue: { open: '09:00', close: '17:00', closed: false },
+  Wed: { open: '09:00', close: '17:00', closed: false },
+  Thu: { open: '09:00', close: '17:00', closed: false },
+  Fri: { open: '09:00', close: '17:00', closed: false },
+  Sat: { open: '10:00', close: '15:00', closed: false },
+  Sun: { open: '', close: '', closed: true },
+}
+
+function parseHours(json?: string): BusinessHours {
+  if (!json) return DEFAULT_HOURS
+  try {
+    return { ...DEFAULT_HOURS, ...JSON.parse(json) }
+  } catch {
+    return DEFAULT_HOURS
+  }
+}
+
+function fmt12(time: string) {
+  if (!time) return ''
+  const [h, m] = time.split(':').map(Number)
+  const ampm = h < 12 ? 'am' : 'pm'
+  const h12 = h % 12 || 12
+  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
+}
 
 interface SettingsFormProps {
   settings: SiteSettings
@@ -38,6 +67,7 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
     contact_address: settings.contact_address ?? '',
     logo_url: settings.logo_url ?? '',
   })
+  const [hours, setHours] = useState<BusinessHours>(() => parseHours(settings.business_hours))
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
@@ -86,7 +116,7 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
       const res = await fetch('/api/admin/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, business_hours: JSON.stringify(hours) }),
       })
       if (!res.ok) {
         const json = await res.json()
@@ -233,6 +263,86 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
             onChange={handleChange}
             className={`${inputClass} resize-y`}
           />
+        </div>
+      </section>
+
+      <div className="h-px bg-outline-variant" />
+
+      {/* Business hours */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="font-display text-base font-semibold text-on-surface">Business Hours</h2>
+          <p className="text-xs text-on-surface-variant/60 mt-0.5">Displayed on your contact and about pages.</p>
+        </div>
+
+        <div className="space-y-2">
+          {DAYS.map((day) => {
+            const dayHours = hours[day]
+            return (
+              <div key={day} className="flex items-center gap-3">
+                {/* Closed toggle */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setHours((prev) => ({
+                      ...prev,
+                      [day]: { ...prev[day], closed: !prev[day].closed },
+                    }))
+                  }
+                  className={[
+                    'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                    dayHours.closed ? 'bg-surface-high' : 'bg-primary',
+                  ].join(' ')}
+                  aria-label={`Toggle ${day}`}
+                >
+                  <span
+                    className={[
+                      'inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform',
+                      dayHours.closed ? 'translate-x-0.5' : 'translate-x-4',
+                    ].join(' ')}
+                  />
+                </button>
+
+                {/* Day name */}
+                <span className="w-8 text-sm font-medium text-on-surface shrink-0">{day}</span>
+
+                {dayHours.closed ? (
+                  <span className="text-sm text-on-surface-variant/50 italic">Closed</span>
+                ) : (
+                  <div className="flex items-center gap-2 flex-1">
+                    <input
+                      type="time"
+                      value={dayHours.open}
+                      onChange={(e) =>
+                        setHours((prev) => ({
+                          ...prev,
+                          [day]: { ...prev[day], open: e.target.value },
+                        }))
+                      }
+                      className="bg-surface-highest/40 rounded-xl px-3 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:light]"
+                    />
+                    <span className="text-on-surface-variant/50 text-sm">to</span>
+                    <input
+                      type="time"
+                      value={dayHours.close}
+                      onChange={(e) =>
+                        setHours((prev) => ({
+                          ...prev,
+                          [day]: { ...prev[day], close: e.target.value },
+                        }))
+                      }
+                      className="bg-surface-highest/40 rounded-xl px-3 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:light]"
+                    />
+                    {dayHours.open && dayHours.close && (
+                      <span className="text-xs text-on-surface-variant/50 hidden sm:inline">
+                        {fmt12(dayHours.open)} – {fmt12(dayHours.close)}
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       </section>
 

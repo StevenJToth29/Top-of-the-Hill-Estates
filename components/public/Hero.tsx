@@ -11,7 +11,7 @@ export default function Hero() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_70%_60%_at_60%_40%,rgb(45_212_191_/_0.08)_0%,transparent_70%),radial-gradient(ellipse_50%_40%_at_30%_70%,rgb(255_200_100_/_0.06)_0%,transparent_60%)]" />
 
       {/* Content */}
-      <div className="relative z-10 mx-auto w-full max-w-5xl text-center">
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 text-center">
         <p className="mb-4 text-xs uppercase tracking-widest text-primary/90 font-medium">
           Mesa &amp; Tempe, Arizona
         </p>
@@ -23,10 +23,8 @@ export default function Hero() {
           Furnished rooms for short-term and long-term stays. Book directly — no platform fees.
         </p>
 
-        {/* Floating search bar */}
-        <div className="mx-auto max-w-4xl">
-          <HeroSearch />
-        </div>
+        {/* Search bar — matches site max-width */}
+        <HeroSearch />
       </div>
     </section>
   )

@@ -20,6 +20,7 @@ export async function PATCH(request: Request) {
     updated_at: new Date().toISOString(),
   }
   if (body.logo_url !== undefined) fields.logo_url = body.logo_url
+  if (body.business_hours !== undefined) fields.business_hours = body.business_hours
 
   let error
   if (body.id) {
