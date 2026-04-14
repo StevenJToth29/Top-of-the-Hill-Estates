@@ -18,7 +18,11 @@ export default async function AdminLayout({
   }
 
   const serviceClient = createServiceRoleClient()
-  const { data: settings } = await serviceClient.from('site_settings').select('logo_url').single()
+  const { data: settings } = await serviceClient
+    .from('site_settings')
+    .select('*')
+    .limit(1)
+    .maybeSingle()
   const logoUrl = settings?.logo_url ?? undefined
 
   return (

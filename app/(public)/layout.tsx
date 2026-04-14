@@ -6,10 +6,15 @@ import Footer from '@/components/public/Footer'
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const supabase = createServiceRoleClient()
-  const { data: settings } = await supabase
+  const { data: settings, error: settingsError } = await supabase
     .from('site_settings')
-    .select('logo_url, contact_phone, contact_email, contact_address')
-    .single()
+    .select('*')
+    .limit(1)
+    .maybeSingle()
+
+  if (settingsError) {
+    console.error('[PublicLayout] Failed to load site settings:', settingsError.message)
+  }
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
