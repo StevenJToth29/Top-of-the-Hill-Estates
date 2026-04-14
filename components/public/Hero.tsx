@@ -23,8 +23,10 @@ export default function Hero() {
           Furnished rooms for short-term and long-term stays. Book directly — no platform fees.
         </p>
 
-        {/* Search bar — matches site max-width */}
-        <HeroSearch />
+        {/* Search bar */}
+        <div className="mx-auto max-w-4xl">
+          <HeroSearch />
+        </div>
       </div>
     </section>
   )
