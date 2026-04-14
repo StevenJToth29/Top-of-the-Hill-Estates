@@ -1,5 +1,6 @@
 import type { Booking, RefundResult } from '@/types'
-import { differenceInHours, parseISO } from 'date-fns'
+import { differenceInHours } from 'date-fns/differenceInHours'
+import { parseISO } from 'date-fns/parseISO'
 
 /**
  * Calculates the refund amount based on the cancellation policy.
