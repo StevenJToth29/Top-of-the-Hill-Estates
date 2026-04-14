@@ -30,7 +30,7 @@ export default async function ICalAdminPage() {
 
         <div className="space-y-4">
           {rooms && rooms.length > 0 ? (
-            (rooms as RoomWithRelations[]).map((room) => (
+            (rooms as unknown as RoomWithRelations[]).map((room) => (
               <div
                 key={room.id}
                 className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl shadow-[0_8px_40px_rgba(175,201,234,0.06)] p-6"
