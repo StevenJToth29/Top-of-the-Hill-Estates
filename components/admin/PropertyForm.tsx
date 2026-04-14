@@ -61,12 +61,7 @@ export default function PropertyForm({ property, propertyId }: PropertyFormProps
         }
 
         router.refresh()
-        if (propertyId) {
-          router.push('/admin/properties')
-        } else {
-          // Redirect to edit page so images can be uploaded against the real ID
-          router.push(`/admin/properties/${data.id}/edit`)
-        }
+        router.push('/admin/properties')
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Save failed')
       }
