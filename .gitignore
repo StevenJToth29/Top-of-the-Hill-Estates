@@ -68,6 +68,10 @@ web_modules/
 # dotenv environment variable files
 .env
 .env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 !.env.example
 
 # parcel-bundler cache (https://parceljs.org/)
@@ -75,8 +79,11 @@ web_modules/
 .parcel-cache
 
 # Next.js build output
-.next
-out
+.next/
+out/
+
+# Vercel
+.vercel
 
 # Nuxt.js build / generate output
 .nuxt
