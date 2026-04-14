@@ -19,20 +19,6 @@
   --color-error-container:      254 226 226;   /* #FEE2E2  */
 }
 
-/* ─── Admin panel: dark mode override ─────────────────────────── */
-[data-admin] {
-  --color-background:           13  27  42;    /* #0D1B2A  */
-  --color-surface-lowest:       9   20  34;    /* #091422  */
-  --color-surface-low:          15  30  48;    /* #0F1E30  */
-  --color-surface:              19  37  58;    /* #13253A  */
-  --color-surface-container:    23  45  70;    /* #172D46  */
-  --color-surface-high:         28  53  82;    /* #1C3552  */
-  --color-surface-highest:      33  60  94;    /* #213C5E  */
-  --color-on-surface:           248 250 252;   /* #F8FAFC  */
-  --color-on-surface-variant:   148 163 184;   /* #94A3B8  */
-  --color-error:                255 118 117;   /* #FF7675  */
-  --color-error-container:      127 29  29;    /* #7F1D1D  */
-}
 
 html,
 body {
