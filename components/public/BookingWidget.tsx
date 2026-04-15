@@ -50,6 +50,13 @@ export default function BookingWidget({ room, blockedDates }: Props) {
   const securityDeposit = room.security_deposit ?? 0
   const extraGuestFee = room.extra_guest_fee ?? 0
 
+  // First blocked date strictly after check-in — caps how far out checkout can go
+  const checkOutMax = useMemo(() => {
+    if (!checkIn) return undefined
+    const sorted = [...blockedDates].sort()
+    return sorted.find((d) => d > checkIn)
+  }, [checkIn, blockedDates])
+
   const nights = checkIn && checkOut ? differenceInDays(parseISO(checkOut), parseISO(checkIn)) : 0
   const subtotal = nights * room.nightly_rate
   const extraGuests = Math.max(0, guests - 1)
@@ -206,6 +213,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
                 }}
                 min={today}
                 placeholder="Add date"
+                blockedDates={blockedDates}
               />
             </div>
             <div className="bg-surface-highest/40 rounded-xl px-3 py-2.5">
@@ -221,6 +229,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
                     ? format(addDays(parseISO(checkIn), room.minimum_nights_short_term), 'yyyy-MM-dd')
                     : today
                 }
+                max={checkOutMax}
                 placeholder="Add date"
               />
             </div>
@@ -281,6 +290,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
               }}
               min={today}
               placeholder="Add date"
+              blockedDates={blockedDates}
             />
           </div>
 

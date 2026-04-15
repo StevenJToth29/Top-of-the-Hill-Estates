@@ -2,57 +2,11 @@ import { NextRequest } from 'next/server'
 import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
-import { createOrUpdateGHLContact, triggerGHLWorkflow } from '@/lib/ghl'
-import type { Booking, Room } from '@/types'
-
-async function getRoom(roomId: string): Promise<Room | null> {
-  const supabase = createServiceRoleClient()
-  const { data, error } = await supabase
-    .from('rooms')
-    .select('*, property:properties(*)')
-    .eq('id', roomId)
-    .single()
-
-  if (error) {
-    console.error('Failed to fetch room:', error)
-    return null
-  }
-  return data as Room
-}
-
-async function syncToGHL(booking: Booking): Promise<void> {
-  const room = await getRoom(booking.room_id)
-  if (!room) return
-
-  const supabase = createServiceRoleClient()
-
-  const ghlContactId = await createOrUpdateGHLContact({
-    firstName: booking.guest_first_name,
-    lastName: booking.guest_last_name,
-    email: booking.guest_email,
-    phone: booking.guest_phone,
-    tags: [booking.booking_type, room.property?.name ?? '', room.name],
-    customFields: {
-      check_in_date: booking.check_in,
-      check_out_date: booking.check_out,
-      room_slug: room.slug,
-      booking_id: booking.id,
-    },
-  })
-
-  if (ghlContactId) {
-    await Promise.all([
-      supabase.from('bookings').update({ ghl_contact_id: ghlContactId }).eq('id', booking.id),
-      triggerGHLWorkflow(process.env.GHL_BOOKING_WEBHOOK_URL ?? '', {
-        bookingId: booking.id,
-        contactId: ghlContactId,
-        ...booking,
-      }),
-    ])
-  }
-}
+import { notifyGHLBookingConfirmed } from '@/lib/ghl'
+import type { Booking } from '@/types'
 
 export async function POST(request: NextRequest) {
+  console.log('Stripe webhook received')
   const body = await request.text()
   const sig = request.headers.get('stripe-signature') ?? ''
 
@@ -63,6 +17,7 @@ export async function POST(request: NextRequest) {
     console.error('Webhook signature verification failed:', err)
     return new Response('Webhook signature verification failed', { status: 400 })
   }
+  console.log('Stripe event type:', event.type)
 
   const supabase = createServiceRoleClient()
 
@@ -86,7 +41,9 @@ export async function POST(request: NextRequest) {
           break
         }
 
-        await syncToGHL(booking as Booking)
+        notifyGHLBookingConfirmed(booking as Booking).catch((err) => {
+          console.error('GHL confirmation trigger error:', err)
+        })
         break
       }
 
@@ -119,19 +76,14 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        const { data: booking, error } = await supabase
+        const { error } = await supabase
           .from('bookings')
           .update(updatePayload)
           .eq('stripe_payment_intent_id', session.payment_intent as string)
-          .select()
-          .single()
 
-        if (error || !booking) {
+        if (error) {
           console.error('Failed to update booking on checkout.session.completed:', error)
-          break
         }
-
-        if (isPaid) await syncToGHL(booking as Booking)
         break
       }
 

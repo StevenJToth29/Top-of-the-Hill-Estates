@@ -57,9 +57,13 @@ export default async function RoomDetailPage({ params }: Props) {
   let mapCoords: { lat: number; lng: number } | null = null
   if (room.property && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
     try {
-      const address = encodeURIComponent(
-        `${room.property.address}, ${room.property.city}, ${room.property.state}`,
-      )
+      const addressParts = [
+        room.property.address,
+        room.property.city,
+        room.property.state,
+        room.property.zip,
+      ].filter(Boolean).join(', ')
+      const address = encodeURIComponent(addressParts)
       const geoRes = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=${address}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`,
         { next: { revalidate: 86400 } },

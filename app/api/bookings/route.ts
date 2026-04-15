@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { isRoomAvailable } from '@/lib/availability'
-import type { BookingType } from '@/types'
+import { syncToGHL } from '@/lib/ghl'
+import type { Booking, BookingType } from '@/types'
 
 interface CreateBookingBody {
   room_id: string
@@ -187,6 +188,12 @@ export async function POST(request: Request) {
       console.error('Failed to snapshot processing fee:', processingFeeInsertError)
       return NextResponse.json({ error: 'Failed to record processing fee' }, { status: 500 })
     }
+
+    // Sync to GHL in the background — non-blocking so it doesn't delay the response
+    syncToGHL(booking as Booking).catch((err) => {
+      console.error('GHL sync error on booking creation:', err)
+    })
+
 
     return NextResponse.json({
       bookingId: booking.id,

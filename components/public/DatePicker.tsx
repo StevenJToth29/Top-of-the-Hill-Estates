@@ -14,6 +14,7 @@ import {
   subMonths,
   isToday,
   isBefore,
+  isAfter,
   startOfDay,
 } from 'date-fns'
 import { CalendarDaysIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
@@ -24,13 +25,14 @@ interface DatePickerProps {
   value: string
   onChange: (date: string) => void
   min?: string
+  max?: string
   placeholder?: string
   blockedDates?: string[]
 }
 
 const DAY_HEADERS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
-export default function DatePicker({ label, value, onChange, min, placeholder = 'Select date', blockedDates }: DatePickerProps) {
+export default function DatePicker({ label, value, onChange, min, max, placeholder = 'Select date', blockedDates }: DatePickerProps) {
   const blockedSet = useMemo(() => new Set(blockedDates ?? []), [blockedDates])
   const [open, setOpen] = useState(false)
   const [viewMonth, setViewMonth] = useState<Date>(() => {
@@ -89,11 +91,13 @@ export default function DatePicker({ label, value, onChange, min, placeholder = 
   const gridDays = eachDayOfInterval({ start: gridStart, end: gridEnd })
 
   const minDate = min ? startOfDay(parseISO(min)) : null
+  const maxDate = max ? startOfDay(parseISO(max)) : null
   const selectedDate = value ? parseISO(value) : null
 
   function selectDay(day: Date) {
     const iso = format(day, 'yyyy-MM-dd')
     if (minDate && isBefore(day, minDate)) return
+    if (maxDate && isAfter(day, maxDate)) return
     if (blockedSet.has(iso)) return
     onChange(iso)
     setOpen(false)
@@ -146,7 +150,7 @@ export default function DatePicker({ label, value, onChange, min, placeholder = 
             const isSelected = selectedDate ? iso === format(selectedDate, 'yyyy-MM-dd') : false
             const todayFlag = isToday(day)
             const isBlocked = blockedSet.has(iso)
-            const disabled = (!!minDate && isBefore(startOfDay(day), minDate)) || isBlocked
+            const disabled = (!!minDate && isBefore(startOfDay(day), minDate)) || (!!maxDate && isAfter(startOfDay(day), maxDate)) || isBlocked
 
             return (
               <button

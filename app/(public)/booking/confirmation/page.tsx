@@ -1,4 +1,4 @@
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import BookingConfirmation from '@/components/public/BookingConfirmation'
 import type { Booking, Room, Property, BookingFee } from '@/types'
 
@@ -14,13 +14,21 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
     return <NotFound />
   }
 
-  const supabase = await createServerSupabaseClient()
-  const { data: booking, error } = await supabase
-    .from('bookings')
-    .select('*, room:rooms(*, property:properties(*))')
-    .eq('id', bookingId)
-    .ilike('guest_email', guestEmail)
-    .single()
+  const supabase = createServiceRoleClient()
+  const publicSupabase = await createServerSupabaseClient()
+
+  const [{ data: booking, error }, { data: settings }] = await Promise.all([
+    supabase
+      .from('bookings')
+      .select('*, room:rooms(*, property:properties(*))')
+      .eq('id', bookingId)
+      .ilike('guest_email', guestEmail)
+      .single(),
+    publicSupabase
+      .from('site_settings')
+      .select('contact_phone, contact_email')
+      .maybeSingle(),
+  ])
 
   if (error || !booking || !booking.room || !booking.room.property) {
     return <NotFound />
@@ -42,7 +50,12 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
 
   return (
     <main className="min-h-screen bg-background py-16 px-4">
-      <BookingConfirmation booking={typedBooking} bookingFees={(bookingFees ?? []) as BookingFee[]} />
+      <BookingConfirmation
+        booking={typedBooking}
+        bookingFees={(bookingFees ?? []) as BookingFee[]}
+        contactPhone={settings?.contact_phone ?? undefined}
+        contactEmail={settings?.contact_email ?? undefined}
+      />
     </main>
   )
 }

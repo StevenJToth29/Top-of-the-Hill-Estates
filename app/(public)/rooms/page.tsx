@@ -8,6 +8,8 @@ export interface SearchParams {
   type?: string
   checkin?: string
   checkout?: string
+  max_price?: string
+  amenities?: string
 }
 
 export const metadata = {
@@ -37,6 +39,20 @@ export default async function RoomsPage({
     }
     if (searchParams.type === 'short_term' && !room.nightly_rate) return false
     if (searchParams.type === 'long_term' && !room.monthly_rate) return false
+    if (searchParams.max_price) {
+      const maxPrice = parseFloat(searchParams.max_price)
+      if (!isNaN(maxPrice)) {
+        if (searchParams.type === 'long_term') {
+          if (room.monthly_rate > 0 && room.monthly_rate > maxPrice) return false
+        } else {
+          if (room.nightly_rate > 0 && room.nightly_rate > maxPrice) return false
+        }
+      }
+    }
+    if (searchParams.amenities) {
+      const required = searchParams.amenities.split(',').map((a) => a.trim()).filter(Boolean)
+      if (required.length > 0 && !required.every((a) => room.amenities?.includes(a))) return false
+    }
     return true
   })
 

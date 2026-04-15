@@ -38,22 +38,13 @@ export default function PropertiesSection({ properties }: Props) {
           </p>
         )}
 
-        {properties.map((property) => {
-          if (property.rooms.length === 0) return null
-          return (
-            <div key={property.id} className="mb-14">
-              <h3 className="font-display font-bold text-on-surface text-xl mb-6 flex items-center gap-2">
-                <span className="inline-block w-1.5 h-5 bg-primary rounded-full" />
-                {property.name}
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {property.rooms.map((room) => (
-                  <RoomCard key={room.id} room={{ ...room, property }} />
-                ))}
-              </div>
-            </div>
-          )
-        })}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {properties.flatMap((property) =>
+            property.rooms.map((room) => (
+              <RoomCard key={room.id} room={{ ...room, property }} />
+            )),
+          )}
+        </div>
 
         <div className="text-center mt-4 sm:hidden">
           <Link
