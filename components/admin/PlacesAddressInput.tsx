@@ -4,6 +4,12 @@
 import { useEffect, useRef } from 'react'
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
 
+// Initialise once at module load — safe to call before any component mounts
+setOptions({
+  key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+  libraries: ['places'],
+})
+
 export interface PlacesAddressInputProps {
   value: string
   onChange: (value: string) => void
@@ -60,22 +66,16 @@ export default function PlacesAddressInput({
   const onChangeRef = useRef(onChange)
   const onCityChangeRef = useRef(onCityChange)
   const onStateChangeRef = useRef(onStateChange)
-  useEffect(() => {
-    onChangeRef.current = onChange
-    onCityChangeRef.current = onCityChange
-    onStateChangeRef.current = onStateChange
-  })
+  // Mutate during render — safe for refs, keeps Autocomplete initialisation stable
+  onChangeRef.current = onChange
+  onCityChangeRef.current = onCityChange
+  onStateChangeRef.current = onStateChange
 
   useEffect(() => {
     if (!inputRef.current) return
 
     let isMounted = true
     let listener: google.maps.MapsEventListener | undefined
-
-    setOptions({
-      key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
-      libraries: ['places'],
-    })
 
     importLibrary('places')
       .then(() => {
@@ -97,8 +97,9 @@ export default function PlacesAddressInput({
           if (parsed.state !== undefined) onStateChangeRef.current(parsed.state)
         })
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         // Graceful degradation — input works as plain text if Places fails to load
+        if (process.env.NODE_ENV !== 'production') console.warn('[PlacesAddressInput] Places failed to load:', err)
       })
 
     return () => {

@@ -86,6 +86,19 @@ describe('PlacesAddressInput', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '456 Oak Ave' } })
     expect(onChange).toHaveBeenCalledWith('456 Oak Ave')
   })
+
+  it('propagates the required attribute to the input', () => {
+    render(
+      <PlacesAddressInput
+        value=""
+        onChange={jest.fn()}
+        onCityChange={jest.fn()}
+        onStateChange={jest.fn()}
+        required
+      />
+    )
+    expect(screen.getByRole('textbox')).toBeRequired()
+  })
 })
 
 describe('PlacesAddressInput — place_changed integration', () => {
@@ -149,6 +162,10 @@ describe('PlacesAddressInput — place_changed integration', () => {
     await waitFor(() => {
       expect(mockAutocompleteConstructor).toHaveBeenCalled()
     })
+
+    const { setOptions, importLibrary } = jest.requireMock('@googlemaps/js-api-loader')
+    expect(setOptions).toHaveBeenCalledWith(expect.objectContaining({ libraries: ['places'] }))
+    expect(importLibrary).toHaveBeenCalledWith('places')
 
     act(() => {
       placeChangedCallback?.()
