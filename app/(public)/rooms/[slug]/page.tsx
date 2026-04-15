@@ -31,21 +31,27 @@ export default async function RoomDetailPage({ params }: Props) {
 
   if (!rawRoom) notFound()
 
-  const { data: roomFees } = await supabase
-    .from('room_fees')
-    .select('*')
-    .eq('room_id', rawRoom.id)
-    .order('created_at')
-
-  const room = { ...rawRoom, fees: roomFees ?? [] } as unknown as Room
-
   const today = new Date()
   const sixMonthsOut = addMonths(today, 6)
-  const blockedDates = await getBlockedDatesForRoom(
-    room.id,
-    format(today, 'yyyy-MM-dd'),
-    format(sixMonthsOut, 'yyyy-MM-dd'),
-  )
+
+  const [{ data: roomFees, error: feesError }, blockedDates] = await Promise.all([
+    supabase
+      .from('room_fees')
+      .select('*')
+      .eq('room_id', rawRoom.id)
+      .order('created_at'),
+    getBlockedDatesForRoom(
+      rawRoom.id,
+      format(today, 'yyyy-MM-dd'),
+      format(sixMonthsOut, 'yyyy-MM-dd'),
+    ),
+  ])
+
+  if (feesError) {
+    console.error('[room-detail] Failed to fetch room_fees:', feesError)
+  }
+
+  const room = { ...rawRoom, fees: roomFees ?? [] } as unknown as Room
 
   // Geocode exact address server-side; coordinates are passed to the map but street is never rendered
   let mapCoords: { lat: number; lng: number } | null = null
