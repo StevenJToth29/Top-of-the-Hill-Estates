@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
-import type { Booking, Room, Property } from '@/types'
+import type { Booking, Room, Property, BookingModificationRequest } from '@/types'
 import { calculateRefund } from '@/lib/cancellation'
 import { formatCurrency, formatDate, formatDateTime, STATUS_BADGE, OPEN_ENDED_DATE } from '@/lib/format'
 import clsx from 'clsx'
@@ -11,9 +11,10 @@ import { useRouter } from 'next/navigation'
 
 type Props = {
   booking: Booking & { room: Room & { property: Property } }
+  modificationRequests?: BookingModificationRequest[]
 }
 
-export default function BookingDetailPanel({ booking }: Props) {
+export default function BookingDetailPanel({ booking, modificationRequests = [] }: Props) {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const router = useRouter()
 
@@ -137,6 +138,15 @@ export default function BookingDetailPanel({ booking }: Props) {
             </button>
           </div>
         )}
+
+        {modificationRequests.length > 0 && (
+          <div className="rounded-xl bg-surface-container p-4 space-y-4">
+            <h3 className="text-sm font-semibold text-on-surface">Modification Requests</h3>
+            {modificationRequests.map((req) => (
+              <ModificationRequestRow key={req.id} req={req} bookingId={booking.id} />
+            ))}
+          </div>
+        )}
       </div>
 
       {showCancelModal && (
@@ -147,6 +157,111 @@ export default function BookingDetailPanel({ booking }: Props) {
         />
       )}
     </>
+  )
+}
+
+function ModificationRequestRow({
+  req,
+  bookingId,
+}: {
+  req: BookingModificationRequest
+  bookingId: string
+}) {
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [note, setNote] = useState('')
+  const router = useRouter()
+
+  async function handleAction(action: 'approve' | 'reject') {
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await fetch(
+        `/api/admin/bookings/${bookingId}/modification-requests/${req.id}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action, admin_note: note || undefined }),
+        },
+      )
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Action failed')
+      router.refresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const statusColor =
+    req.status === 'pending'
+      ? 'text-secondary'
+      : req.status === 'approved'
+        ? 'text-primary'
+        : 'text-error'
+
+  return (
+    <div className="border border-outline-variant rounded-xl p-3 space-y-2 text-sm">
+      <div className="flex items-center justify-between">
+        <span className={`font-semibold capitalize ${statusColor}`}>{req.status}</span>
+        <span className="text-xs text-on-surface-variant">
+          {formatDateTime(req.created_at)}
+        </span>
+      </div>
+      <div className="grid grid-cols-2 gap-2 text-on-surface-variant">
+        <div>
+          <span className="text-xs">Check-in</span>
+          <p className="text-on-surface">{formatDate(req.requested_check_in)}</p>
+        </div>
+        <div>
+          <span className="text-xs">Check-out</span>
+          <p className="text-on-surface">{formatDate(req.requested_check_out)}</p>
+        </div>
+        <div>
+          <span className="text-xs">Guests</span>
+          <p className="text-on-surface">{req.requested_guest_count}</p>
+        </div>
+        <div>
+          <span className="text-xs">Price delta</span>
+          <p className={req.price_delta >= 0 ? 'text-secondary' : 'text-primary'}>
+            {req.price_delta >= 0 ? '+' : ''}
+            {formatCurrency(req.price_delta)}
+          </p>
+        </div>
+      </div>
+      {req.admin_note && (
+        <p className="text-on-surface-variant italic text-xs">Note: {req.admin_note}</p>
+      )}
+      {req.status === 'pending' && (
+        <div className="space-y-2 pt-1">
+          <input
+            type="text"
+            placeholder="Admin note (optional)"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            className="w-full bg-surface-highest/40 rounded-lg px-3 py-1.5 text-xs text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50"
+          />
+          {error && <p className="text-error text-xs">{error}</p>}
+          <div className="flex gap-2">
+            <button
+              onClick={() => handleAction('approve')}
+              disabled={loading}
+              className="rounded-lg bg-secondary/20 px-3 py-1.5 text-xs font-semibold text-secondary hover:bg-secondary/30 disabled:opacity-50"
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => handleAction('reject')}
+              disabled={loading}
+              className="rounded-lg bg-error/20 px-3 py-1.5 text-xs font-semibold text-error hover:bg-error/30 disabled:opacity-50"
+            >
+              Reject
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 

@@ -2,7 +2,7 @@ import { createServiceRoleClient } from '@/lib/supabase'
 import BookingsTable from '@/components/admin/BookingsTable'
 import BookingDetailPanel from '@/components/admin/BookingDetailPanel'
 import NewManualBookingButton from '@/components/admin/NewManualBookingButton'
-import type { Booking, Room, Property } from '@/types'
+import type { Booking, Room, Property, BookingModificationRequest } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -25,13 +25,22 @@ export default async function AdminBookingsPage({
   const { data: bookings } = await query
 
   let selectedBooking: (Booking & { room: Room & { property: Property } }) | null = null
+  let selectedBookingModRequests: BookingModificationRequest[] = []
   if (searchParams.id) {
-    const { data } = await supabase
-      .from('bookings')
-      .select('*, room:rooms(*, property:properties(*))')
-      .eq('id', searchParams.id)
-      .single()
-    selectedBooking = data
+    const [{ data: bookingData }, { data: modData }] = await Promise.all([
+      supabase
+        .from('bookings')
+        .select('*, room:rooms(*, property:properties(*))')
+        .eq('id', searchParams.id)
+        .single(),
+      supabase
+        .from('booking_modification_requests')
+        .select('*')
+        .eq('booking_id', searchParams.id)
+        .order('created_at', { ascending: false }),
+    ])
+    selectedBooking = bookingData
+    selectedBookingModRequests = (modData ?? []) as BookingModificationRequest[]
   }
 
   return (
@@ -54,7 +63,12 @@ export default async function AdminBookingsPage({
           selectedId={searchParams.id}
         />
 
-        {selectedBooking && <BookingDetailPanel booking={selectedBooking} />}
+        {selectedBooking && (
+          <BookingDetailPanel
+            booking={selectedBooking}
+            modificationRequests={selectedBookingModRequests}
+          />
+        )}
       </div>
     </div>
   )

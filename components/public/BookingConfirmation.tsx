@@ -31,14 +31,20 @@ const LONG_TERM_POLICY =
 export default function BookingConfirmation({
   booking,
   bookingFees,
+  contactPhone,
+  contactEmail,
 }: {
   booking: BookingWithRoom
   bookingFees: BookingFee[]
+  contactPhone?: string
+  contactEmail?: string
 }) {
   const { room } = booking
   const property = room.property
   const isLongTerm = booking.booking_type === 'long_term'
   const cancellationPolicy = isLongTerm ? LONG_TERM_POLICY : SHORT_TERM_POLICY
+  const phone = contactPhone || '(480) 555-0000'
+  const email = contactEmail || 'info@tothrooms.com'
 
   return (
     <div className="max-w-2xl mx-auto bg-surface-container rounded-2xl p-8 shadow-[0_8px_40px_rgba(45,212,191,0.06)]">
@@ -72,7 +78,7 @@ export default function BookingConfirmation({
           <p className="text-on-surface font-semibold">{room.name}</p>
           <p>{property.name}</p>
           <p>
-            {property.address}, {property.city}, {property.state}
+            {property.address}, {property.city}, {property.state}{property.zip ? ` ${property.zip}` : ''}
           </p>
         </div>
       </section>
@@ -163,15 +169,24 @@ export default function BookingConfirmation({
         </p>
       </section>
 
+      <section className="mb-6">
+        <a
+          href={`/booking/manage?booking_id=${booking.id}&guest_email=${encodeURIComponent(booking.guest_email)}`}
+          className="inline-block bg-surface-container rounded-xl px-6 py-3 text-sm font-semibold font-body text-secondary hover:bg-surface-container/80 transition-colors"
+        >
+          Manage your booking
+        </a>
+      </section>
+
       <section className="mb-8">
         <p className="font-body text-on-surface-variant text-sm">
           Questions? Contact us at{' '}
-          <a href="tel:+14805550000" className="text-secondary hover:underline">
-            (480) 555-0000
+          <a href={`tel:${phone.replace(/\D/g, '')}`} className="text-secondary hover:underline">
+            {phone}
           </a>{' '}
           or{' '}
-          <a href="mailto:info@tothrooms.com" className="text-secondary hover:underline">
-            info@tothrooms.com
+          <a href={`mailto:${email}`} className="text-secondary hover:underline">
+            {email}
           </a>
         </p>
       </section>
