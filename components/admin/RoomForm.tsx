@@ -76,7 +76,7 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
     if (bedrooms) parts.push(`Bedrooms: ${bedrooms}`)
     if (bathrooms) parts.push(`Bathrooms: ${bathrooms}`)
     if (guestCapacity) parts.push(`Guest capacity: ${guestCapacity}`)
-    const allAmenities = [...new Set([...propertyAmenities, ...amenities])]
+    const allAmenities = Array.from(new Set([...propertyAmenities, ...amenities]))
     if (allAmenities.length) parts.push(`Amenities: ${allAmenities.join(', ')}`)
     if (showNightlyRate && nightlyRate) parts.push(`Nightly rate: $${nightlyRate}`)
     if (showMonthlyRate && monthlyRate) parts.push(`Monthly rate: $${monthlyRate}`)

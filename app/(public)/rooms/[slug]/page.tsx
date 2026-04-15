@@ -85,12 +85,12 @@ export default async function RoomDetailPage({ params }: Props) {
             />
 
             {(() => {
-              const allAmenities = [
-                ...new Set([
+              const allAmenities = Array.from(
+                new Set([
                   ...(room.property?.amenities ?? []),
                   ...(room.amenities ?? []),
                 ]),
-              ]
+              )
               return allAmenities.length > 0 ? (
                 <AmenitiesGrid amenities={allAmenities} />
               ) : null
