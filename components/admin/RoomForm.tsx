@@ -64,7 +64,9 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const propertyImages = properties.find((p) => p.id === propertyId)?.images ?? []
+  const selectedProperty = properties.find((p) => p.id === propertyId)
+  const propertyImages = selectedProperty?.images ?? []
+  const propertyAmenities = selectedProperty?.amenities ?? []
 
   const icalExportUrl = room?.ical_export_token
     ? `https://tothrooms.com/api/ical/${room.ical_export_token}`
@@ -269,8 +271,32 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
       {/* Amenities */}
       <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
         <h2 className="font-display text-lg font-semibold text-on-surface">Amenities</h2>
-        <p className="text-xs text-on-surface-variant/60">Room-specific amenities. Property amenities are inherited automatically.</p>
-        <AmenitiesTagInput value={amenities} onChange={setAmenities} />
+
+        {propertyAmenities.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+              Inherited from property
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {propertyAmenities.map((a) => (
+                <span
+                  key={a}
+                  className="px-3 py-1 rounded-full text-xs bg-surface-container text-on-surface-variant border border-outline-variant/40"
+                >
+                  {a}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-on-surface-variant uppercase tracking-wider">
+            Room-specific
+          </p>
+          <p className="text-xs text-on-surface-variant/60">Add amenities unique to this room. Duplicates of property amenities will be merged automatically.</p>
+          <AmenitiesTagInput value={amenities} onChange={setAmenities} />
+        </div>
       </section>
 
       {/* Images */}
