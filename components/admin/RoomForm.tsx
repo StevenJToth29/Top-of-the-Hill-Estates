@@ -261,7 +261,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
           </div>
           <div>
             <label className={labelClass}>Bathrooms</label>
-            <input type="number" value={bathrooms} onChange={(e) => setBathrooms(Number(e.target.value))} min={0.5} step={0.5} className={inputClass} />
+            <input type="number" value={bathrooms} onChange={(e) => setBathrooms(Number(e.target.value))} min={0} step={0.5} className={inputClass} />
           </div>
         </div>
       </section>
