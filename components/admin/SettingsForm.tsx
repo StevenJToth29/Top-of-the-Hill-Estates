@@ -69,6 +69,8 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
     logo_url: settings.logo_url ?? '',
     logo_size: settings.logo_size ?? 52,
     global_house_rules: settings.global_house_rules ?? '',
+    checkin_time: settings.checkin_time ?? '15:00',
+    checkout_time: settings.checkout_time ?? '10:00',
   })
   const [hours, setHours] = useState<BusinessHours>(() => parseHours(settings.business_hours))
   const [saving, setSaving] = useState(false)
@@ -430,6 +432,52 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
           placeholder="No smoking, no parties, quiet hours after 10pm…"
           className={`${inputClass} resize-y`}
         />
+      </section>
+
+      <div className="h-px bg-outline-variant" />
+
+      {/* Short-term booking times */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="font-display text-base font-semibold text-on-surface">Short-term Booking Times</h2>
+          <p className="text-xs text-on-surface-variant/60 mt-0.5">
+            Standard check-in and check-out times applied to all short-term listings.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-5">
+          <div className="space-y-1.5">
+            <label htmlFor="checkin_time" className={labelClass}>Check-in Time</label>
+            <div className="flex items-center gap-3">
+              <input
+                id="checkin_time"
+                name="checkin_time"
+                type="time"
+                value={form.checkin_time}
+                onChange={handleChange}
+                className="bg-surface-highest/40 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:light]"
+              />
+              {form.checkin_time && (
+                <span className="text-sm text-on-surface-variant">{fmt12(form.checkin_time)}</span>
+              )}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="checkout_time" className={labelClass}>Check-out Time</label>
+            <div className="flex items-center gap-3">
+              <input
+                id="checkout_time"
+                name="checkout_time"
+                type="time"
+                value={form.checkout_time}
+                onChange={handleChange}
+                className="bg-surface-highest/40 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:light]"
+              />
+              {form.checkout_time && (
+                <span className="text-sm text-on-surface-variant">{fmt12(form.checkout_time)}</span>
+              )}
+            </div>
+          </div>
+        </div>
       </section>
 
       <div className="flex items-center gap-4">

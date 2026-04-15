@@ -143,6 +143,8 @@ export interface SiteSettings {
   logo_size?: number
   business_hours?: string  // JSON-encoded BusinessHours
   global_house_rules?: string
+  checkin_time?: string   // 24-hour "HH:mm", e.g. "15:00"
+  checkout_time?: string  // 24-hour "HH:mm", e.g. "11:00"
   updated_at: string
 }
 
