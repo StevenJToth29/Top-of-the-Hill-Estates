@@ -3,85 +3,125 @@
 import { useState } from 'react'
 import { XMarkIcon, PlusIcon } from '@heroicons/react/24/outline'
 
-const COMMON_AMENITIES = [
-  // Connectivity & tech
-  'WiFi',
-  'High-Speed Internet',
-  'Cable TV',
-  'Smart TV',
-  'Streaming Services',
-  'Desk & Workspace',
-  // Climate & comfort
-  'AC',
-  'Central Heat',
-  'Ceiling Fan',
-  'Blackout Curtains',
-  // Kitchen & food
-  'Kitchen Access',
-  'Full Kitchen',
-  'Microwave',
-  'Coffee Maker',
-  'Dishwasher',
-  'Refrigerator',
-  // Laundry
-  'Laundry',
-  'In-Unit Washer/Dryer',
-  'Washer/Dryer Access',
-  // Parking & access
+const PROPERTY_AMENITIES = [
+  // Parking
   'Parking',
   'Garage Parking',
   'Street Parking',
-  'Private Entrance',
-  'Keyless Entry',
-  // Outdoor & shared
+  'EV Charging',
+  // Outdoor & shared spaces
   'Backyard',
   'Patio / Deck',
-  'Pool Access',
+  'Front Porch',
+  'Pool',
   'Hot Tub',
   'BBQ Grill',
   'Fire Pit',
-  // Bathroom
-  'Private Bathroom',
-  'Shared Bathroom',
-  'Walk-in Shower',
-  'Bathtub',
-  'Towels Included',
-  // Pet & family
-  'Pet Friendly',
-  'Dog Friendly',
-  'Cat Friendly',
-  'Child Friendly',
+  'Outdoor Seating',
+  // Shared laundry
+  'Shared Laundry Room',
+  'Coin Laundry On-Site',
+  // Shared kitchen
+  'Shared Kitchen',
+  'Common Area',
+  // Building access & security
+  'Gated Entry',
+  'Keyless Entry',
+  'Doorbell Camera',
+  'Security Camera (Exterior)',
+  'On-Site Manager',
+  'Package Receiving',
   // Utilities & billing
   'Utilities Included',
   'Water Included',
   'Electric Included',
   'Gas Included',
   'Trash Service',
-  // Furnished & setup
-  'Furnished',
-  'Partially Furnished',
-  'Linens Provided',
-  'Storage Space',
-  'Closet / Wardrobe',
-  // Safety
-  'Smoke Detector',
-  'Carbon Monoxide Detector',
-  'Fire Extinguisher',
-  'Security Camera (Exterior)',
-  'Deadbolt Lock',
+  'Recycling',
+  // Pet & family
+  'Pet Friendly',
+  'Dog Friendly',
+  'Cat Friendly',
+  'Child Friendly',
+  'Fenced Yard',
+  // Connectivity
+  'WiFi Included',
+  'Cable TV Included',
   // Accessibility
   'Wheelchair Accessible',
   'Elevator Access',
   'Step-Free Entry',
+  'Accessible Parking',
+]
+
+const ROOM_AMENITIES = [
+  // Bed & sleep
+  'King Bed',
+  'Queen Bed',
+  'Full Bed',
+  'Twin Bed',
+  'Bunk Beds',
+  'Memory Foam Mattress',
+  'Linens Provided',
+  'Extra Pillows & Blankets',
+  'Blackout Curtains',
+  // Bathroom
+  'Private Bathroom',
+  'Shared Bathroom',
+  'En-Suite Bathroom',
+  'Walk-in Shower',
+  'Bathtub',
+  'Towels Provided',
+  'Hair Dryer',
+  // Climate
+  'AC',
+  'Ceiling Fan',
+  'Space Heater',
+  'Window AC Unit',
+  // Tech & entertainment
+  'Smart TV',
+  'Cable TV',
+  'Streaming Services',
+  'WiFi',
+  'High-Speed Internet',
+  'USB Charging Ports',
+  // Workspace
+  'Desk & Chair',
+  'Ergonomic Chair',
+  'Monitor',
+  'Good Natural Light',
+  // Storage & furniture
+  'Closet',
+  'Walk-in Closet',
+  'Dresser',
+  'Nightstands',
+  'Full-Length Mirror',
+  'Luggage Rack',
+  // In-room conveniences
+  'Mini Fridge',
+  'Microwave',
+  'Coffee Maker',
+  'Electric Kettle',
+  'Iron & Ironing Board',
+  'In-Room Safe',
+  'Smoke Detector',
+  'Carbon Monoxide Detector',
+  // Access
+  'Private Entrance',
+  'Keyed Lock',
+  'In-Unit Washer/Dryer',
 ]
 
 interface AmenitiesTagInputProps {
   value: string[]
   onChange: (amenities: string[]) => void
+  context?: 'property' | 'room'
 }
 
-export default function AmenitiesTagInput({ value, onChange }: AmenitiesTagInputProps) {
+export default function AmenitiesTagInput({ value, onChange, context = 'property' }: AmenitiesTagInputProps) {
   const [inputValue, setInputValue] = useState('')
+
+  const LIST = context === 'room' ? ROOM_AMENITIES : PROPERTY_AMENITIES
 
   function addAmenity(amenity: string) {
     const trimmed = amenity.trim()
@@ -102,7 +142,7 @@ export default function AmenitiesTagInput({ value, onChange }: AmenitiesTagInput
     }
   }
 
-  const suggestions = COMMON_AMENITIES.filter(
+  const suggestions = LIST.filter(
     (s) => !value.includes(s) && s.toLowerCase().includes(inputValue.toLowerCase()),
   )
 

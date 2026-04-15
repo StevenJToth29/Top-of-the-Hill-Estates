@@ -13,7 +13,6 @@ interface RoomFormProps {
   properties: Property[]
   icalSources?: ICalSource[]
   roomId?: string
-  onSave: (formData: FormData) => Promise<void>
 }
 
 function slugify(s: string) {
@@ -42,7 +41,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   )
 }
 
-export default function RoomForm({ room, properties, icalSources, roomId, onSave }: RoomFormProps) {
+export default function RoomForm({ room, properties, icalSources, roomId }: RoomFormProps) {
   const [isPending, startTransition] = useTransition()
   const [name, setName] = useState(room?.name ?? '')
   const [slug, setSlug] = useState(room?.slug ?? '')
@@ -107,29 +106,38 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
-    const fd = new FormData(e.currentTarget)
-    fd.set('name', name)
-    fd.set('slug', slug)
-    fd.set('property_id', propertyId)
-    fd.set('short_description', shortDescription)
-    fd.set('description', description)
-    fd.set('guest_capacity', String(guestCapacity))
-    fd.set('bedrooms', String(bedrooms))
-    fd.set('bathrooms', String(bathrooms))
-    fd.set('nightly_rate', String(nightlyRate))
-    fd.set('monthly_rate', String(monthlyRate))
-    fd.set('show_nightly_rate', showNightlyRate ? 'true' : 'false')
-    fd.set('show_monthly_rate', showMonthlyRate ? 'true' : 'false')
-    fd.set('minimum_nights_short_term', String(minNightsShort))
-    fd.set('minimum_nights_long_term', String(minNightsLong))
-    fd.set('is_active', isActive ? 'true' : 'false')
-    fd.set('amenities', JSON.stringify(amenities))
-    fd.set('images', JSON.stringify(images))
-    if (roomId) fd.set('id', roomId)
+
+    const payload = {
+      id: roomId,
+      property_id: propertyId,
+      name,
+      slug,
+      short_description: shortDescription,
+      description,
+      guest_capacity: guestCapacity,
+      bedrooms,
+      bathrooms,
+      nightly_rate: nightlyRate,
+      monthly_rate: monthlyRate,
+      show_nightly_rate: showNightlyRate,
+      show_monthly_rate: showMonthlyRate,
+      minimum_nights_short_term: minNightsShort,
+      minimum_nights_long_term: minNightsLong,
+      is_active: isActive,
+      amenities,
+      images,
+    }
 
     startTransition(async () => {
       try {
-        await onSave(fd)
+        const res = await fetch('/api/admin/rooms', {
+          method: roomId ? 'PATCH' : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const data = await res.json()
+        if (!res.ok) throw new Error(data.error ?? 'Save failed')
+        window.location.href = roomId ? '/admin/rooms' : `/admin/rooms/${data.id}/edit`
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Save failed')
       }
@@ -324,7 +332,7 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
             Room-specific
           </p>
           <p className="text-xs text-on-surface-variant/60">Add amenities unique to this room. Duplicates of property amenities will be merged automatically.</p>
-          <AmenitiesTagInput value={amenities} onChange={setAmenities} />
+          <AmenitiesTagInput value={amenities} onChange={setAmenities} context="room" />
         </div>
       </section>
 
