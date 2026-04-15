@@ -4,14 +4,75 @@ import { useState } from 'react'
 import { XMarkIcon, PlusIcon } from '@heroicons/react/24/outline'
 
 const COMMON_AMENITIES = [
+  // Connectivity & tech
   'WiFi',
-  'AC',
-  'Parking',
-  'Kitchen Access',
-  'Laundry',
-  'Furnished',
-  'Utilities Included',
+  'High-Speed Internet',
   'Cable TV',
+  'Smart TV',
+  'Streaming Services',
+  'Desk & Workspace',
+  // Climate & comfort
+  'AC',
+  'Central Heat',
+  'Ceiling Fan',
+  'Blackout Curtains',
+  // Kitchen & food
+  'Kitchen Access',
+  'Full Kitchen',
+  'Microwave',
+  'Coffee Maker',
+  'Dishwasher',
+  'Refrigerator',
+  // Laundry
+  'Laundry',
+  'In-Unit Washer/Dryer',
+  'Washer/Dryer Access',
+  // Parking & access
+  'Parking',
+  'Garage Parking',
+  'Street Parking',
+  'Private Entrance',
+  'Keyless Entry',
+  // Outdoor & shared
+  'Backyard',
+  'Patio / Deck',
+  'Pool Access',
+  'Hot Tub',
+  'BBQ Grill',
+  'Fire Pit',
+  // Bathroom
+  'Private Bathroom',
+  'Shared Bathroom',
+  'Walk-in Shower',
+  'Bathtub',
+  'Towels Included',
+  // Pet & family
+  'Pet Friendly',
+  'Dog Friendly',
+  'Cat Friendly',
+  'Child Friendly',
+  // Utilities & billing
+  'Utilities Included',
+  'Water Included',
+  'Electric Included',
+  'Gas Included',
+  'Trash Service',
+  // Furnished & setup
+  'Furnished',
+  'Partially Furnished',
+  'Linens Provided',
+  'Storage Space',
+  'Closet / Wardrobe',
+  // Safety
+  'Smoke Detector',
+  'Carbon Monoxide Detector',
+  'Fire Extinguisher',
+  'Security Camera (Exterior)',
+  'Deadbolt Lock',
+  // Accessibility
+  'Wheelchair Accessible',
+  'Elevator Access',
+  'Step-Free Entry',
 ]
 
 interface AmenitiesTagInputProps {
