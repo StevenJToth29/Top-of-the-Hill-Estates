@@ -123,7 +123,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
             <thead>
               <tr>
                 {/* Room column header */}
-                <th className="sticky left-0 top-0 z-30 bg-surface-container/95 backdrop-blur-sm px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant border-b border-r border-outline-variant/60 min-w-[160px] max-w-[180px]">
+                <th className="sticky left-0 top-0 z-30 bg-surface-container/95 backdrop-blur-sm px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant border-b border-r border-outline-variant/60 min-w-[200px]">
                   Room
                 </th>
 
@@ -173,10 +173,10 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                   )}
                 >
                   {/* Room label */}
-                  <td className="sticky left-0 z-10 bg-surface-container/90 backdrop-blur-sm px-4 py-2.5 border-r border-outline-variant/60 min-w-[160px] max-w-[180px]">
-                    <div className="text-xs font-semibold text-on-surface truncate">{room.name}</div>
+                  <td className="sticky left-0 z-10 bg-surface-container/90 backdrop-blur-sm px-4 py-2.5 border-r border-outline-variant/60 min-w-[200px]">
+                    <div className="text-xs font-semibold text-on-surface whitespace-normal leading-snug">{room.name}</div>
                     {room.property && (
-                      <div className="text-[10px] text-on-surface-variant/70 truncate mt-0.5">
+                      <div className="text-[10px] text-on-surface-variant/70 mt-0.5">
                         {room.property.name}
                       </div>
                     )}
