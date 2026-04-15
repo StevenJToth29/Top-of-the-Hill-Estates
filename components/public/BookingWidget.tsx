@@ -15,8 +15,6 @@ function formatDate(d: Date) {
   return format(d, 'yyyy-MM-dd')
 }
 
-const today = formatDate(new Date())
-
 function isRangeBlocked(checkIn: string, checkOut: string, blocked: Set<string>): boolean {
   const start = parseISO(checkIn)
   const days = differenceInDays(parseISO(checkOut), start)
@@ -45,7 +43,9 @@ export default function BookingWidget({ room, blockedDates }: Props) {
   const [guests, setGuests] = useState(1)
   const [error, setError] = useState('')
 
-  const roomFees: RoomFee[] = room.fees ?? []
+  const today = useMemo(() => formatDate(new Date()), [])
+
+  const roomFees: RoomFee[] = useMemo(() => room.fees ?? [], [room.fees])
   const cleaningFee = room.cleaning_fee ?? 0
   const securityDeposit = room.security_deposit ?? 0
   const extraGuestFee = room.extra_guest_fee ?? 0
@@ -98,7 +98,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
       }
     }
     return true
-  }, [bookingType, checkIn, checkOut, moveIn, nights, room, blockedSet])
+  }, [bookingType, checkIn, checkOut, moveIn, nights, room.minimum_nights_short_term, blockedSet])
 
   const handleBook = useCallback(() => {
     if (!validate()) return
@@ -138,7 +138,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
     cleaningFee, securityDeposit, extraGuestFee, roomFees, stTotal, ltTotal, router,
   ])
 
-  const guestOptions = Array.from({ length: room.guest_capacity }, (_, i) => i + 1)
+  const guestOptions = Array.from({ length: Math.max(room.guest_capacity ?? 1, 1) }, (_, i) => i + 1)
 
   const GuestSelector = (
     <div>
@@ -170,6 +170,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
       {showNightly && showMonthly && (
         <div className="flex gap-2 p-1 bg-surface-container rounded-2xl">
           <button
+            type="button"
             className={`${pillBase} ${bookingType === 'short_term' ? pillActive : pillInactive}`}
             onClick={() => {
               setBookingType('short_term')
@@ -179,6 +180,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
             Short-term (Nightly)
           </button>
           <button
+            type="button"
             className={`${pillBase} ${bookingType === 'long_term' ? pillActive : pillInactive}`}
             onClick={() => {
               setBookingType('long_term')
@@ -284,36 +286,38 @@ export default function BookingWidget({ room, blockedDates }: Props) {
 
           {GuestSelector}
 
-          <div className="bg-surface-container rounded-xl p-4 space-y-2 text-sm">
-            <div className="flex justify-between text-on-surface-variant">
-              <span>First month</span>
-              <span>${room.monthly_rate.toLocaleString()}</span>
-            </div>
-            {securityDeposit > 0 && (
+          {moveIn && (
+            <div className="bg-surface-container rounded-xl p-4 space-y-2 text-sm">
               <div className="flex justify-between text-on-surface-variant">
-                <span>Security deposit</span>
-                <span>${securityDeposit.toLocaleString()}</span>
+                <span>First month</span>
+                <span>${room.monthly_rate.toLocaleString()}</span>
               </div>
-            )}
-            {ltExtraGuestTotal > 0 && (
-              <div className="flex justify-between text-on-surface-variant">
-                <span>
-                  Extra guests ({extraGuests} × ${extraGuestFee}/month)
-                </span>
-                <span>${ltExtraGuestTotal.toLocaleString()}</span>
+              {securityDeposit > 0 && (
+                <div className="flex justify-between text-on-surface-variant">
+                  <span>Security deposit</span>
+                  <span>${securityDeposit.toLocaleString()}</span>
+                </div>
+              )}
+              {ltExtraGuestTotal > 0 && (
+                <div className="flex justify-between text-on-surface-variant">
+                  <span>
+                    Extra guests ({extraGuests} × ${extraGuestFee}/month)
+                  </span>
+                  <span>${ltExtraGuestTotal.toLocaleString()}</span>
+                </div>
+              )}
+              {ltGenericFees.map((f) => (
+                <div key={f.id} className="flex justify-between text-on-surface-variant">
+                  <span>{f.label}</span>
+                  <span>${f.amount.toLocaleString()}</span>
+                </div>
+              ))}
+              <div className="flex justify-between pt-2 border-t border-outline-variant">
+                <span className="text-on-surface font-medium">Due today</span>
+                <span className="text-primary font-bold text-2xl">${ltTotal.toLocaleString()}</span>
               </div>
-            )}
-            {ltGenericFees.map((f) => (
-              <div key={f.id} className="flex justify-between text-on-surface-variant">
-                <span>{f.label}</span>
-                <span>${f.amount.toLocaleString()}</span>
-              </div>
-            ))}
-            <div className="flex justify-between pt-2 border-t border-outline-variant">
-              <span className="text-on-surface font-medium">Due today</span>
-              <span className="text-primary font-bold text-2xl">${ltTotal.toLocaleString()}</span>
             </div>
-          </div>
+          )}
 
           <p className="text-xs text-on-surface-variant">
             Min. {room.minimum_nights_long_term} days. Deposit is non-refundable.
