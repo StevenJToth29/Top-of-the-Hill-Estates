@@ -39,6 +39,7 @@ interface FieldErrors {
 
 interface CheckoutFormProps {
   bookingParams: BookingParams
+  onProcessingFeeSet: (fee: number) => void
 }
 
 type Step = 'guest_info' | 'payment'
@@ -72,7 +73,7 @@ function validateGuestInfo(info: GuestInfo): FieldErrors {
   return errors
 }
 
-export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
+export default function CheckoutForm({ bookingParams, onProcessingFeeSet }: CheckoutFormProps) {
   const router = useRouter()
   const [step, setStep] = useState<Step>('guest_info')
   const [guestInfo, setGuestInfo] = useState<GuestInfo>({
@@ -139,6 +140,7 @@ export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
 
       setClientSecret(data.clientSecret)
       setBookingId(data.bookingId)
+      onProcessingFeeSet(data.processing_fee ?? 0)
       setStep('payment')
     } catch {
       setError('Network error. Please check your connection and try again.')
@@ -329,6 +331,10 @@ export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
               {error}
             </p>
           )}
+
+          <p className="text-on-surface-variant/60 text-xs italic">
+            Processing fees are non-refundable.
+          </p>
 
           <Elements stripe={stripePromise} options={{ clientSecret, appearance }}>
             <StripePaymentSection
