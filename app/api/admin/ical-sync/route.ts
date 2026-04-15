@@ -38,7 +38,7 @@ export async function POST(request: Request) {
             end_date: event.end.toISOString().split('T')[0],
             last_synced_at: now,
           })),
-          { onConflict: 'event_uid' },
+          { onConflict: 'room_id,event_uid', ignoreDuplicates: false },
         )
       }
 
