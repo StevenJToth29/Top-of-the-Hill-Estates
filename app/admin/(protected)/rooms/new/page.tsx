@@ -15,41 +15,6 @@ export default async function NewRoomPage() {
   const supabase = createServiceRoleClient()
   const { data: properties } = await supabase.from('properties').select('*').order('name')
 
-  async function createRoom(formData: FormData) {
-    'use server'
-    const authClient = await createServerSupabaseClient()
-    const { data: { user: actionUser } } = await authClient.auth.getUser()
-    if (!actionUser) redirect('/admin/login')
-
-    const supabase = createServiceRoleClient()
-    const { data, error } = await supabase
-      .from('rooms')
-      .insert({
-        property_id: formData.get('property_id') as string,
-        name: formData.get('name') as string,
-        slug: formData.get('slug') as string,
-        short_description: formData.get('short_description') as string,
-        description: formData.get('description') as string,
-        guest_capacity: Number(formData.get('guest_capacity')),
-        bedrooms: Number(formData.get('bedrooms')),
-        bathrooms: Number(formData.get('bathrooms')),
-        nightly_rate: Number(formData.get('nightly_rate')),
-        monthly_rate: Number(formData.get('monthly_rate')),
-        show_nightly_rate: formData.get('show_nightly_rate') === 'true',
-        show_monthly_rate: formData.get('show_monthly_rate') === 'true',
-        minimum_nights_short_term: Number(formData.get('minimum_nights_short_term')),
-        minimum_nights_long_term: Number(formData.get('minimum_nights_long_term')),
-        is_active: formData.get('is_active') === 'true',
-        amenities: JSON.parse((formData.get('amenities') as string) || '[]'),
-        images: JSON.parse((formData.get('images') as string) || '[]'),
-      })
-      .select('id')
-      .single()
-
-    if (error) throw new Error(error.message)
-    redirect(`/admin/rooms/${data.id}/edit`)
-  }
-
   const typedProperties = (properties ?? []) as Property[]
 
   return (
@@ -86,7 +51,6 @@ export default async function NewRoomPage() {
         ) : (
           <RoomForm
             properties={typedProperties}
-            onSave={createRoom}
           />
         )}
       </div>
