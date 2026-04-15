@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import RoomForm from '@/components/admin/RoomForm'
-import type { Room, Property, ICalSource } from '@/types'
+import type { Room, Property, ICalSource, RoomFee } from '@/types'
 
 interface EditRoomPageProps {
   params: { id: string }
@@ -18,13 +18,16 @@ export default async function EditRoomPage({ params }: EditRoomPageProps) {
 
   const supabase = createServiceRoleClient()
 
-  const [{ data: room }, { data: properties }, { data: icalSources }] = await Promise.all([
+  const [{ data: room }, { data: properties }, { data: icalSources }, { data: roomFees }] = await Promise.all([
     supabase.from('rooms').select('*, property:properties(*)').eq('id', params.id).single(),
     supabase.from('properties').select('*').order('name'),
     supabase.from('ical_sources').select('*').eq('room_id', params.id),
+    supabase.from('room_fees').select('*').eq('room_id', params.id).order('created_at'),
   ])
 
   if (!room) notFound()
+
+  const roomWithFees = { ...room, fees: (roomFees ?? []) as RoomFee[] } as Room
 
   return (
     <div className="min-h-screen bg-background px-4 py-10 sm:px-8">
@@ -45,7 +48,7 @@ export default async function EditRoomPage({ params }: EditRoomPageProps) {
         </div>
 
         <RoomForm
-          room={room as Room}
+          room={roomWithFees}
           properties={(properties ?? []) as Property[]}
           icalSources={(icalSources ?? []) as ICalSource[]}
           roomId={params.id}

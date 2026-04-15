@@ -3,13 +3,14 @@ import BookingConfirmation from '@/components/public/BookingConfirmation'
 import type { Booking, Room, Property, BookingFee } from '@/types'
 
 interface PageProps {
-  searchParams: { booking_id?: string }
+  searchParams: { booking_id?: string; guest_email?: string }
 }
 
 export default async function BookingConfirmationPage({ searchParams }: PageProps) {
   const bookingId = searchParams.booking_id
+  const guestEmail = searchParams.guest_email
 
-  if (!bookingId) {
+  if (!bookingId || !guestEmail) {
     return <NotFound />
   }
 
@@ -18,6 +19,7 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
     .from('bookings')
     .select('*, room:rooms(*, property:properties(*))')
     .eq('id', bookingId)
+    .ilike('guest_email', guestEmail)
     .single()
 
   if (error || !booking || !booking.room || !booking.room.property) {

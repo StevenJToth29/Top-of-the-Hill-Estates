@@ -53,7 +53,7 @@ export async function POST(request: Request) {
   // Fetch authoritative room rates — never trust client-supplied prices
   const { data: room, error: roomError } = await supabase
     .from('rooms')
-    .select('nightly_rate, monthly_rate')
+    .select('nightly_rate, monthly_rate, cleaning_fee, security_deposit, extra_guest_fee')
     .eq('id', body.room_id as string)
     .eq('is_active', true)
     .single()
@@ -75,16 +75,31 @@ export async function POST(request: Request) {
   }
 
   const totalNights = checkOut === OPEN_ENDED_DATE ? 0 : Number(body.total_nights ?? 1)
+  const guestCount = Math.max(1, Number(body.guest_count ?? 1))
+  const cleaning_fee = room.cleaning_fee ?? 0
+  const security_deposit = room.security_deposit ?? 0
+  const extra_guest_fee = room.extra_guest_fee ?? 0
+  const extraGuests = Math.max(0, guestCount - 1)
+
   let total_amount: number
-  let amount_due_at_checkin: number
+  let snapshotCleaningFee: number
+  let snapshotSecurityDeposit: number
+  let snapshotExtraGuestFee: number
 
   if (bookingType === 'short_term') {
-    total_amount = totalNights * room.nightly_rate
-    amount_due_at_checkin = 0
+    const extraGuestTotal = extraGuests * extra_guest_fee * totalNights
+    total_amount = totalNights * room.nightly_rate + cleaning_fee + extraGuestTotal
+    snapshotCleaningFee = cleaning_fee
+    snapshotSecurityDeposit = 0
+    snapshotExtraGuestFee = extraGuestTotal
   } else {
-    total_amount = room.monthly_rate * 2
-    amount_due_at_checkin = room.monthly_rate
+    const extraGuestTotal = extraGuests * extra_guest_fee
+    total_amount = room.monthly_rate + security_deposit + extraGuestTotal
+    snapshotCleaningFee = 0
+    snapshotSecurityDeposit = security_deposit
+    snapshotExtraGuestFee = extraGuestTotal
   }
+  const amount_due_at_checkin = 0
 
   const now = new Date().toISOString()
 
@@ -104,6 +119,10 @@ export async function POST(request: Request) {
       total_nights: totalNights,
       nightly_rate: room.nightly_rate,
       monthly_rate: room.monthly_rate,
+      cleaning_fee: snapshotCleaningFee,
+      security_deposit: snapshotSecurityDeposit,
+      extra_guest_fee: snapshotExtraGuestFee,
+      guest_count: guestCount,
       total_amount,
       amount_paid: 0,
       amount_due_at_checkin,
