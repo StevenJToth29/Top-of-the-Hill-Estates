@@ -112,8 +112,8 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
 
       {/* Calendar card */}
       <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl overflow-hidden">
-        <div className="overflow-x-auto overflow-y-auto max-h-[68vh]">
-          <table className="border-collapse table-fixed min-w-max w-full">
+        <div className="overflow-y-auto max-h-[68vh]">
+          <table className="border-collapse table-fixed w-full">
             <thead>
               <tr>
                 {/* Room column header */}
@@ -129,7 +129,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                     <th
                       key={format(day, 'yyyy-MM-dd')}
                       className={clsx(
-                        'sticky top-0 z-20 bg-surface-container/95 backdrop-blur-sm w-5 min-w-[20px] py-2 border-b border-outline-variant/60 text-center',
+                        'sticky top-0 z-20 bg-surface-container/95 backdrop-blur-sm py-2 border-b border-outline-variant/60 text-center',
                         isFirst && 'border-l-2 border-l-primary/25',
                         isSun && !isFirst && 'border-l border-l-outline-variant/40',
                       )}
@@ -139,7 +139,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                           className={clsx(
                             'text-[10px] font-medium leading-none',
                             todayDay
-                              ? 'w-5 h-5 flex items-center justify-center rounded-full bg-primary text-white font-bold'
+                              ? 'inline-flex items-center justify-center w-4 h-4 rounded-full bg-primary text-white font-bold'
                               : 'text-on-surface-variant',
                           )}
                         >
@@ -189,7 +189,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                         key={dateStr}
                         title={tooltip}
                         className={clsx(
-                          'w-5 h-7 min-w-[20px] p-0 text-center cursor-default transition-colors',
+                          'h-8 p-0 text-center cursor-default transition-colors',
                           isFirst && 'border-l-2 border-l-primary/25',
                           isSun && !isFirst && 'border-l border-l-outline-variant/40',
                           status === 'booking' &&
