@@ -4,6 +4,7 @@ export interface Property {
   address: string
   city: string
   state: string
+  zip: string
   description: string
   images: string[]
   amenities: string[]
@@ -38,6 +39,7 @@ export interface Room {
   security_deposit?: number
   extra_guest_fee?: number
   fees?: RoomFee[]
+  cancellation_window_hours: number
   ical_export_token: string
   created_at: string
   updated_at: string
@@ -122,6 +124,20 @@ export interface BookingFee {
   label: string
   amount: number
   created_at: string
+}
+
+export interface BookingModificationRequest {
+  id: string
+  booking_id: string
+  requested_check_in: string
+  requested_check_out: string
+  requested_guest_count: number
+  requested_total_nights: number
+  price_delta: number
+  status: 'pending' | 'approved' | 'rejected'
+  admin_note: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface DayHours {
