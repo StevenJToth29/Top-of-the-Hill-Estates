@@ -13,6 +13,7 @@ function addDateRangeToSet(
 ): void {
   // Cap open-ended bookings to avoid generating an enormous date range.
   const effectiveEnd = endIso === OPEN_ENDED_DATE ? (capIso ?? endIso) : endIso
+  // Checkout day is exclusive — it's the first available day for the next guest.
   const days = eachDayOfInterval({
     start: parseISO(startIso),
     end: addDays(parseISO(effectiveEnd), -1),
@@ -43,13 +44,13 @@ export async function getBlockedDatesForRoom(
         .eq('room_id', roomId)
         .in('status', ['confirmed', 'pending'])
         .lt('check_in', endDate)
-        .gt('check_out', startDate),
+        .gte('check_out', startDate),
       supabase
         .from('ical_blocks')
         .select('start_date, end_date')
         .eq('room_id', roomId)
         .lt('start_date', endDate)
-        .gt('end_date', startDate),
+        .gte('end_date', startDate),
     ])
 
   if (bookingsError) console.error('Error fetching bookings for availability:', bookingsError)
@@ -71,6 +72,52 @@ export async function isRoomAvailable(
   checkOut: string,
 ): Promise<boolean> {
   const blocked = new Set(await getBlockedDatesForRoom(roomId, checkIn, checkOut))
+  if (blocked.size === 0) return true
+
+  return eachDayOfInterval({
+    start: parseISO(checkIn),
+    end: addDays(parseISO(checkOut), -1),
+  }).every((day) => !blocked.has(format(day, 'yyyy-MM-dd')))
+}
+
+/**
+ * Same as isRoomAvailable but excludes one booking from the blocked set.
+ * Use this when checking availability for a modification of an existing booking
+ * so the guest's own dates are not counted as blocked.
+ */
+export async function isRoomAvailableExcluding(
+  roomId: string,
+  checkIn: string,
+  checkOut: string,
+  excludeBookingId: string,
+): Promise<boolean> {
+  const supabase = createServiceRoleClient()
+
+  const [{ data: bookings, error: bookingsError }, { data: icalBlocks, error: icalError }] =
+    await Promise.all([
+      supabase
+        .from('bookings')
+        .select('check_in, check_out')
+        .eq('room_id', roomId)
+        .in('status', ['confirmed', 'pending'])
+        .neq('id', excludeBookingId)
+        .lt('check_in', checkOut)
+        .gte('check_out', checkIn),
+      supabase
+        .from('ical_blocks')
+        .select('start_date, end_date')
+        .eq('room_id', roomId)
+        .lt('start_date', checkOut)
+        .gte('end_date', checkIn),
+    ])
+
+  if (bookingsError) console.error('Error fetching bookings for availability:', bookingsError)
+  if (icalError) console.error('Error fetching iCal blocks for availability:', icalError)
+
+  const blocked = new Set<string>()
+  for (const booking of bookings ?? []) addDateRangeToSet(blocked, booking.check_in, booking.check_out, checkOut)
+  for (const block of icalBlocks ?? []) addDateRangeToSet(blocked, block.start_date, block.end_date, checkOut)
+
   if (blocked.size === 0) return true
 
   return eachDayOfInterval({
