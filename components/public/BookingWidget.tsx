@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, differenceInDays, parseISO, addDays } from 'date-fns'
-import type { Room, BookingType } from '@/types'
+import type { Room, BookingType, RoomFee } from '@/types'
 import DatePicker from './DatePicker'
 
 interface Props {
@@ -26,7 +26,8 @@ function isRangeBlocked(checkIn: string, checkOut: string, blocked: Set<string>)
   return false
 }
 
-const pillBase = 'flex-1 py-2 text-sm font-medium rounded-xl transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
+const pillBase =
+  'flex-1 py-2 text-sm font-medium rounded-xl transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary'
 const pillActive = 'bg-secondary/20 text-secondary border border-secondary/50'
 const pillInactive = 'bg-surface-container text-on-surface-variant hover:text-on-surface'
 
@@ -44,16 +45,42 @@ export default function BookingWidget({ room, blockedDates }: Props) {
   const [guests, setGuests] = useState(1)
   const [error, setError] = useState('')
 
+  const roomFees: RoomFee[] = room.fees ?? []
+  const cleaningFee = room.cleaning_fee ?? 0
+  const securityDeposit = room.security_deposit ?? 0
+  const extraGuestFee = room.extra_guest_fee ?? 0
+
   const nights = checkIn && checkOut ? differenceInDays(parseISO(checkOut), parseISO(checkIn)) : 0
   const subtotal = nights * room.nightly_rate
+  const extraGuests = Math.max(0, guests - 1)
+
+  // Short-term fee totals
+  const stExtraGuestTotal = extraGuests * extraGuestFee * nights
+  const stGenericFees = roomFees.filter((f) => f.booking_type === 'short_term' || f.booking_type === 'both')
+  const stGenericTotal = stGenericFees.reduce((sum, f) => sum + f.amount, 0)
+  const stTotal = subtotal + cleaningFee + stExtraGuestTotal + stGenericTotal
+
+  // Long-term fee totals
+  const ltExtraGuestTotal = extraGuests * extraGuestFee
+  const ltGenericFees = roomFees.filter((f) => f.booking_type === 'long_term' || f.booking_type === 'both')
+  const ltGenericTotal = ltGenericFees.reduce((sum, f) => sum + f.amount, 0)
+  const ltTotal = room.monthly_rate + securityDeposit + ltExtraGuestTotal + ltGenericTotal
 
   const validate = useCallback((): boolean => {
     setError('')
     if (bookingType === 'short_term') {
-      if (!checkIn || !checkOut) { setError('Please select check-in and check-out dates.'); return false }
-      if (nights <= 0) { setError('Check-out must be after check-in.'); return false }
+      if (!checkIn || !checkOut) {
+        setError('Please select check-in and check-out dates.')
+        return false
+      }
+      if (nights <= 0) {
+        setError('Check-out must be after check-in.')
+        return false
+      }
       if (nights < room.minimum_nights_short_term) {
-        setError(`Minimum stay is ${room.minimum_nights_short_term} night${room.minimum_nights_short_term !== 1 ? 's' : ''}.`)
+        setError(
+          `Minimum stay is ${room.minimum_nights_short_term} night${room.minimum_nights_short_term !== 1 ? 's' : ''}.`
+        )
         return false
       }
       if (blockedSet.has(checkIn) || isRangeBlocked(checkIn, checkOut, blockedSet)) {
@@ -61,8 +88,14 @@ export default function BookingWidget({ room, blockedDates }: Props) {
         return false
       }
     } else {
-      if (!moveIn) { setError('Please select a move-in date.'); return false }
-      if (blockedSet.has(moveIn)) { setError('Selected move-in date is unavailable.'); return false }
+      if (!moveIn) {
+        setError('Please select a move-in date.')
+        return false
+      }
+      if (blockedSet.has(moveIn)) {
+        setError('Selected move-in date is unavailable.')
+        return false
+      }
     }
     return true
   }, [bookingType, checkIn, checkOut, moveIn, nights, room, blockedSet])
@@ -77,42 +110,49 @@ export default function BookingWidget({ room, blockedDates }: Props) {
       guests: String(guests),
       nightly_rate: String(room.nightly_rate),
       monthly_rate: String(room.monthly_rate),
+      cleaning_fee: String(cleaningFee),
+      security_deposit: String(securityDeposit),
+      extra_guest_fee: String(extraGuestFee),
+      fees: JSON.stringify(roomFees),
     })
 
     if (bookingType === 'short_term') {
       params.set('checkin', checkIn)
       params.set('checkout', checkOut)
       params.set('total_nights', String(nights))
-      params.set('total_amount', String(subtotal))
-      params.set('amount_to_pay', String(subtotal))
+      params.set('total_amount', String(stTotal))
+      params.set('amount_to_pay', String(stTotal))
       params.set('amount_due', '0')
     } else {
       params.set('checkin', moveIn)
       params.set('checkout', '')
       params.set('total_nights', '30')
-      params.set('total_amount', String(room.monthly_rate * 2))
-      params.set('amount_to_pay', String(room.monthly_rate))
-      params.set('amount_due', String(room.monthly_rate))
+      params.set('total_amount', String(ltTotal))
+      params.set('amount_to_pay', String(ltTotal))
+      params.set('amount_due', '0')
     }
 
     router.push(`/checkout?${params.toString()}`)
-  }, [validate, room, bookingType, guests, checkIn, checkOut, moveIn, nights, subtotal, router])
+  }, [
+    validate, room, bookingType, guests, checkIn, checkOut, moveIn, nights,
+    cleaningFee, securityDeposit, extraGuestFee, roomFees, stTotal, ltTotal, router,
+  ])
 
-  const guestOptions = Array.from({ length: Math.min(room.guest_capacity, 2) }, (_, i) => i + 1)
+  const guestOptions = Array.from({ length: room.guest_capacity }, (_, i) => i + 1)
 
   const GuestSelector = (
     <div>
       <label className="block text-xs uppercase tracking-widest text-on-surface-variant mb-2">
         Guests
       </label>
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         {guestOptions.map((n) => (
           <button
             key={n}
             type="button"
             onClick={() => setGuests(n)}
             className={[
-              'flex-1 py-2 rounded-xl text-sm font-medium transition-colors',
+              'px-4 py-2 rounded-xl text-sm font-medium transition-colors',
               guests === n
                 ? 'bg-primary text-white'
                 : 'bg-surface-container text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
@@ -131,13 +171,19 @@ export default function BookingWidget({ room, blockedDates }: Props) {
         <div className="flex gap-2 p-1 bg-surface-container rounded-2xl">
           <button
             className={`${pillBase} ${bookingType === 'short_term' ? pillActive : pillInactive}`}
-            onClick={() => { setBookingType('short_term'); setError('') }}
+            onClick={() => {
+              setBookingType('short_term')
+              setError('')
+            }}
           >
             Short-term (Nightly)
           </button>
           <button
             className={`${pillBase} ${bookingType === 'long_term' ? pillActive : pillInactive}`}
-            onClick={() => { setBookingType('long_term'); setError('') }}
+            onClick={() => {
+              setBookingType('long_term')
+              setError('')
+            }}
           >
             Long-term (Monthly)
           </button>
@@ -151,20 +197,29 @@ export default function BookingWidget({ room, blockedDates }: Props) {
               <DatePicker
                 label="Check-in"
                 value={checkIn}
-                onChange={(d) => { setCheckIn(d); setCheckOut(''); setError('') }}
+                onChange={(d) => {
+                  setCheckIn(d)
+                  setCheckOut('')
+                  setError('')
+                }}
                 min={today}
                 placeholder="Add date"
-                blockedDates={blockedDates}
               />
             </div>
             <div className="bg-surface-highest/40 rounded-xl px-3 py-2.5">
               <DatePicker
                 label="Check-out"
                 value={checkOut}
-                onChange={(d) => { setCheckOut(d); setError('') }}
-                min={checkIn ? format(addDays(parseISO(checkIn), room.minimum_nights_short_term), 'yyyy-MM-dd') : today}
+                onChange={(d) => {
+                  setCheckOut(d)
+                  setError('')
+                }}
+                min={
+                  checkIn
+                    ? format(addDays(parseISO(checkIn), room.minimum_nights_short_term), 'yyyy-MM-dd')
+                    : today
+                }
                 placeholder="Add date"
-                blockedDates={blockedDates}
               />
             </div>
           </div>
@@ -174,12 +229,34 @@ export default function BookingWidget({ room, blockedDates }: Props) {
           {nights > 0 && (
             <div className="bg-surface-container rounded-xl p-4 space-y-2 text-sm">
               <div className="flex justify-between text-on-surface-variant">
-                <span>{nights} night{nights !== 1 ? 's' : ''} × ${room.nightly_rate.toLocaleString()}</span>
+                <span>
+                  {nights} night{nights !== 1 ? 's' : ''} × ${room.nightly_rate.toLocaleString()}
+                </span>
                 <span>${subtotal.toLocaleString()}</span>
               </div>
+              {cleaningFee > 0 && (
+                <div className="flex justify-between text-on-surface-variant">
+                  <span>Cleaning fee</span>
+                  <span>${cleaningFee.toLocaleString()}</span>
+                </div>
+              )}
+              {stExtraGuestTotal > 0 && (
+                <div className="flex justify-between text-on-surface-variant">
+                  <span>
+                    Extra guests ({extraGuests} × ${extraGuestFee}/night)
+                  </span>
+                  <span>${stExtraGuestTotal.toLocaleString()}</span>
+                </div>
+              )}
+              {stGenericFees.map((f) => (
+                <div key={f.id} className="flex justify-between text-on-surface-variant">
+                  <span>{f.label}</span>
+                  <span>${f.amount.toLocaleString()}</span>
+                </div>
+              ))}
               <div className="flex justify-between pt-2 border-t border-outline-variant">
                 <span className="text-on-surface font-medium">Due today</span>
-                <span className="text-primary font-bold text-lg">${subtotal.toLocaleString()}</span>
+                <span className="text-primary font-bold text-lg">${stTotal.toLocaleString()}</span>
               </div>
             </div>
           )}
@@ -196,10 +273,12 @@ export default function BookingWidget({ room, blockedDates }: Props) {
             <DatePicker
               label="Move-in Date"
               value={moveIn}
-              onChange={(d) => { setMoveIn(d); setError('') }}
+              onChange={(d) => {
+                setMoveIn(d)
+                setError('')
+              }}
               min={today}
               placeholder="Add date"
-              blockedDates={blockedDates}
             />
           </div>
 
@@ -207,20 +286,32 @@ export default function BookingWidget({ room, blockedDates }: Props) {
 
           <div className="bg-surface-container rounded-xl p-4 space-y-2 text-sm">
             <div className="flex justify-between text-on-surface-variant">
-              <span>Monthly rate</span>
-              <span>${room.monthly_rate.toLocaleString()}/month</span>
-            </div>
-            <div className="flex justify-between text-on-surface-variant">
-              <span>Deposit at booking</span>
+              <span>First month</span>
               <span>${room.monthly_rate.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between text-on-surface-variant">
-              <span>Balance due at check-in</span>
-              <span>${room.monthly_rate.toLocaleString()}</span>
-            </div>
+            {securityDeposit > 0 && (
+              <div className="flex justify-between text-on-surface-variant">
+                <span>Security deposit</span>
+                <span>${securityDeposit.toLocaleString()}</span>
+              </div>
+            )}
+            {ltExtraGuestTotal > 0 && (
+              <div className="flex justify-between text-on-surface-variant">
+                <span>
+                  Extra guests ({extraGuests} × ${extraGuestFee}/month)
+                </span>
+                <span>${ltExtraGuestTotal.toLocaleString()}</span>
+              </div>
+            )}
+            {ltGenericFees.map((f) => (
+              <div key={f.id} className="flex justify-between text-on-surface-variant">
+                <span>{f.label}</span>
+                <span>${f.amount.toLocaleString()}</span>
+              </div>
+            ))}
             <div className="flex justify-between pt-2 border-t border-outline-variant">
               <span className="text-on-surface font-medium">Due today</span>
-              <span className="text-primary font-bold text-2xl">${room.monthly_rate.toLocaleString()}</span>
+              <span className="text-primary font-bold text-2xl">${ltTotal.toLocaleString()}</span>
             </div>
           </div>
 
