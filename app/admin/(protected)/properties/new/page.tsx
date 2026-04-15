@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import PropertyForm from '@/components/admin/PropertyForm'
 
 export default async function NewPropertyPage() {
@@ -12,6 +12,10 @@ export default async function NewPropertyPage() {
     data: { user },
   } = await serverClient.auth.getUser()
   if (!user) redirect('/admin/login')
+
+  const supabase = createServiceRoleClient()
+  const { data: settings } = await supabase.from('site_settings').select('global_house_rules').maybeSingle()
+  const globalHouseRules = settings?.global_house_rules ?? ''
 
   return (
     <div className="min-h-screen bg-background px-4 py-10 sm:px-8">
@@ -33,7 +37,7 @@ export default async function NewPropertyPage() {
           </p>
         </div>
 
-        <PropertyForm />
+        <PropertyForm globalHouseRules={globalHouseRules} />
       </div>
     </div>
   )

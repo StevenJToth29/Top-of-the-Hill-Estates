@@ -10,9 +10,10 @@ import AIWriteButton from './AIWriteButton'
 interface PropertyFormProps {
   property?: Property
   propertyId?: string
+  globalHouseRules?: string
 }
 
-export default function PropertyForm({ property, propertyId }: PropertyFormProps) {
+export default function PropertyForm({ property, propertyId, globalHouseRules = '' }: PropertyFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [name, setName] = useState(property?.name ?? '')
@@ -23,6 +24,7 @@ export default function PropertyForm({ property, propertyId }: PropertyFormProps
   const [bedrooms, setBedrooms] = useState(property?.bedrooms ?? 0)
   const [bathrooms, setBathrooms] = useState(property?.bathrooms ?? 0)
   const [amenities, setAmenities] = useState<string[]>(property?.amenities ?? [])
+  const [useGlobalRules, setUseGlobalRules] = useState(property?.use_global_house_rules ?? true)
   const [houseRules, setHouseRules] = useState(property?.house_rules ?? '')
   const [images, setImages] = useState<string[]>(property?.images ?? [])
   const [error, setError] = useState<string | null>(null)
@@ -56,6 +58,7 @@ export default function PropertyForm({ property, propertyId }: PropertyFormProps
       bathrooms,
       amenities,
       house_rules: houseRules,
+      use_global_house_rules: useGlobalRules,
       images,
     }
 
@@ -192,13 +195,52 @@ export default function PropertyForm({ property, propertyId }: PropertyFormProps
       {/* House Rules */}
       <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
         <h2 className="font-display text-lg font-semibold text-on-surface">House Rules</h2>
-        <textarea
-          value={houseRules}
-          onChange={(e) => setHouseRules(e.target.value)}
-          rows={4}
-          placeholder="No smoking, pets welcome, quiet hours after 10pm…"
-          className={inputClass}
-        />
+
+        {/* Toggle */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={useGlobalRules}
+          onClick={() => setUseGlobalRules((v) => !v)}
+          className="flex items-center gap-3 group"
+        >
+          <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${useGlobalRules ? 'bg-secondary' : 'bg-surface-container'}`}>
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${useGlobalRules ? 'translate-x-6' : 'translate-x-1'}`} />
+          </span>
+          <span className="text-sm text-on-surface-variant group-hover:text-on-surface transition-colors">
+            Use Global House Rules
+          </span>
+        </button>
+
+        {useGlobalRules ? (
+          globalHouseRules ? (
+            <div className="space-y-1.5">
+              <p className="text-xs text-on-surface-variant/60">
+                Showing global rules — edit them in{' '}
+                <a href="/admin/settings" className="text-secondary underline">Site Settings</a>.
+              </p>
+              <div className="bg-surface-container rounded-xl px-4 py-3 text-sm text-on-surface-variant whitespace-pre-line leading-relaxed">
+                {globalHouseRules}
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-on-surface-variant/60">
+              No global rules set yet — add them in{' '}
+              <a href="/admin/settings" className="text-secondary underline">Site Settings</a>.
+            </p>
+          )
+        ) : (
+          <div className="space-y-1.5">
+            <p className="text-xs text-on-surface-variant/60">Custom rules for this property only.</p>
+            <textarea
+              value={houseRules}
+              onChange={(e) => setHouseRules(e.target.value)}
+              rows={4}
+              placeholder="No smoking, pets welcome, quiet hours after 10pm…"
+              className={inputClass}
+            />
+          </div>
+        )}
       </section>
 
       {/* Images */}

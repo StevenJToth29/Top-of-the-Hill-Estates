@@ -17,6 +17,7 @@ export async function POST(request: NextRequest) {
         bathrooms: Number(body.bathrooms ?? 0),
         amenities: body.amenities ?? [],
         house_rules: body.house_rules ?? '',
+        use_global_house_rules: body.use_global_house_rules ?? true,
         images: body.images ?? [],
       })
       .select('id')
@@ -51,6 +52,7 @@ export async function PATCH(request: NextRequest) {
         bathrooms: Number(fields.bathrooms ?? 0),
         amenities: fields.amenities ?? [],
         house_rules: fields.house_rules ?? '',
+        use_global_house_rules: fields.use_global_house_rules ?? true,
         images: fields.images ?? [],
       })
       .eq('id', id)

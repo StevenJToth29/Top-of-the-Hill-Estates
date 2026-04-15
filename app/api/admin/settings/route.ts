@@ -22,6 +22,7 @@ export async function PATCH(request: Request) {
   if (body.logo_url !== undefined) fields.logo_url = body.logo_url
   if (body.logo_size !== undefined) fields.logo_size = body.logo_size
   if (body.business_hours !== undefined) fields.business_hours = body.business_hours
+  if (body.global_house_rules !== undefined) fields.global_house_rules = body.global_house_rules
 
   let error
   if (body.id) {

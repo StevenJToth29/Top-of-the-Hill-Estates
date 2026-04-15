@@ -10,6 +10,7 @@ export interface Property {
   bedrooms: number
   bathrooms: number
   house_rules?: string
+  use_global_house_rules?: boolean
   created_at: string
 }
 
@@ -115,6 +116,7 @@ export interface SiteSettings {
   logo_url?: string
   logo_size?: number
   business_hours?: string  // JSON-encoded BusinessHours
+  global_house_rules?: string
   updated_at: string
 }
 

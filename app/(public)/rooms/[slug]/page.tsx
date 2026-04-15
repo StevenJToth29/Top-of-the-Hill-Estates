@@ -16,12 +16,15 @@ interface Props {
 
 export default async function RoomDetailPage({ params }: Props) {
   const supabase = await createServerSupabaseClient()
-  const { data: rawRoom } = await supabase
-    .from('rooms')
-    .select('*, property:properties(*)')
-    .eq('slug', params.slug)
-    .eq('is_active', true)
-    .single()
+  const [{ data: rawRoom }, { data: siteSettings }] = await Promise.all([
+    supabase
+      .from('rooms')
+      .select('*, property:properties(*)')
+      .eq('slug', params.slug)
+      .eq('is_active', true)
+      .single(),
+    supabase.from('site_settings').select('global_house_rules').maybeSingle(),
+  ])
 
   if (!rawRoom) notFound()
 
@@ -98,16 +101,22 @@ export default async function RoomDetailPage({ params }: Props) {
 
             <AvailabilityCalendar blockedDates={blockedDates} />
 
-            {room.property?.house_rules && (
-              <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(45,212,191,0.06)] rounded-2xl p-5 space-y-3">
-                <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
-                  House Rules
-                </p>
-                <p className="text-on-surface-variant text-sm leading-relaxed whitespace-pre-line">
-                  {room.property.house_rules}
-                </p>
-              </div>
-            )}
+            {(() => {
+              const useGlobal = room.property?.use_global_house_rules ?? true
+              const rules = useGlobal
+                ? (siteSettings?.global_house_rules ?? '')
+                : (room.property?.house_rules ?? '')
+              return rules ? (
+                <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(45,212,191,0.06)] rounded-2xl p-5 space-y-3">
+                  <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
+                    House Rules
+                  </p>
+                  <p className="text-on-surface-variant text-sm leading-relaxed whitespace-pre-line">
+                    {rules}
+                  </p>
+                </div>
+              ) : null
+            })()}
 
             <CancellationPolicyDisplay variant="short_term" />
 

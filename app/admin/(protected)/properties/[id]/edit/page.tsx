@@ -19,13 +19,13 @@ export default async function EditPropertyPage({ params }: EditPropertyPageProps
   if (!user) redirect('/admin/login')
 
   const supabase = createServiceRoleClient()
-  const { data: property } = await supabase
-    .from('properties')
-    .select('*')
-    .eq('id', params.id)
-    .single()
+  const [{ data: property }, { data: settings }] = await Promise.all([
+    supabase.from('properties').select('*').eq('id', params.id).single(),
+    supabase.from('site_settings').select('global_house_rules').maybeSingle(),
+  ])
 
   if (!property) notFound()
+  const globalHouseRules = settings?.global_house_rules ?? ''
 
   return (
     <div className="min-h-screen bg-background px-4 py-10 sm:px-8">
@@ -48,6 +48,7 @@ export default async function EditPropertyPage({ params }: EditPropertyPageProps
         <PropertyForm
           property={property as Property}
           propertyId={params.id}
+          globalHouseRules={globalHouseRules}
         />
       </div>
     </div>

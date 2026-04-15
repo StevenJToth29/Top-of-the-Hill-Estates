@@ -67,6 +67,7 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
     contact_address: settings.contact_address ?? '',
     logo_url: settings.logo_url ?? '',
     logo_size: settings.logo_size ?? 52,
+    global_house_rules: settings.global_house_rules ?? '',
   })
   const [hours, setHours] = useState<BusinessHours>(() => parseHours(settings.business_hours))
   const [saving, setSaving] = useState(false)
@@ -142,7 +143,7 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
       const res = await fetch('/api/admin/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, business_hours: JSON.stringify(hours) }),
+        body: JSON.stringify({ ...form, business_hours: JSON.stringify(hours), global_house_rules: form.global_house_rules }),
       })
       if (!res.ok) {
         const json = await res.json()
@@ -391,6 +392,27 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
             )
           })}
         </div>
+      </section>
+
+      <div className="h-px bg-outline-variant" />
+
+      {/* Global House Rules */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="font-display text-base font-semibold text-on-surface">Global House Rules</h2>
+          <p className="text-xs text-on-surface-variant/60 mt-0.5">
+            Default rules applied to all properties. Each property can override these with its own custom rules.
+          </p>
+        </div>
+        <textarea
+          id="global_house_rules"
+          name="global_house_rules"
+          rows={6}
+          value={form.global_house_rules}
+          onChange={handleChange}
+          placeholder="No smoking, no parties, quiet hours after 10pm…"
+          className={`${inputClass} resize-y`}
+        />
       </section>
 
       <div className="flex items-center gap-4">
