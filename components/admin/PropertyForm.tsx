@@ -6,6 +6,7 @@ import type { Property } from '@/types'
 import AmenitiesTagInput from './AmenitiesTagInput'
 import ImageUploader from './ImageUploader'
 import AIWriteButton from './AIWriteButton'
+import PlacesAddressInput from './PlacesAddressInput'
 
 interface PropertyFormProps {
   property?: Property
@@ -20,6 +21,7 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
   const [address, setAddress] = useState(property?.address ?? '')
   const [city, setCity] = useState(property?.city ?? '')
   const [state, setState] = useState(property?.state ?? '')
+  const [zip, setZip] = useState(property?.zip ?? '')
   const [description, setDescription] = useState(property?.description ?? '')
   const [bedrooms, setBedrooms] = useState(property?.bedrooms ?? 0)
   const [bathrooms, setBathrooms] = useState(property?.bathrooms ?? 0)
@@ -53,6 +55,7 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
       address,
       city,
       state,
+      zip,
       description,
       bedrooms,
       bathrooms,
@@ -103,18 +106,19 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
 
         <div>
           <label className={labelClass}>Street Address</label>
-          <input
-            type="text"
+          <PlacesAddressInput
             value={address}
-            onChange={(e) => setAddress(e.target.value)}
+            onChange={setAddress}
+            onCityChange={setCity}
+            onStateChange={setState}
             required
             placeholder="123 Main St"
             className={inputClass}
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-5">
-          <div>
+        <div className="grid grid-cols-3 gap-5">
+          <div className="col-span-1">
             <label className={labelClass}>City</label>
             <input
               type="text"
@@ -133,6 +137,16 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
               onChange={(e) => setState(e.target.value)}
               required
               placeholder="AZ"
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label className={labelClass}>ZIP Code</label>
+            <input
+              type="text"
+              value={zip}
+              onChange={(e) => setZip(e.target.value)}
+              placeholder="85201"
               className={inputClass}
             />
           </div>
