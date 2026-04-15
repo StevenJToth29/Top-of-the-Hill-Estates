@@ -6,6 +6,7 @@ import type { Room, Property, ICalSource } from '@/types'
 import AmenitiesTagInput from './AmenitiesTagInput'
 import ICalSourcesManager from './ICalSourcesManager'
 import PropertyImagePicker from './PropertyImagePicker'
+import AIWriteButton from './AIWriteButton'
 
 interface RoomFormProps {
   room?: Room
@@ -67,6 +68,20 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
   const selectedProperty = properties.find((p) => p.id === propertyId)
   const propertyImages = selectedProperty?.images ?? []
   const propertyAmenities = selectedProperty?.amenities ?? []
+
+  function buildAIContext() {
+    const parts: string[] = []
+    if (name) parts.push(`Room name: ${name}`)
+    if (selectedProperty) parts.push(`Property: ${selectedProperty.name}`)
+    if (bedrooms) parts.push(`Bedrooms: ${bedrooms}`)
+    if (bathrooms) parts.push(`Bathrooms: ${bathrooms}`)
+    if (guestCapacity) parts.push(`Guest capacity: ${guestCapacity}`)
+    const allAmenities = [...new Set([...propertyAmenities, ...amenities])]
+    if (allAmenities.length) parts.push(`Amenities: ${allAmenities.join(', ')}`)
+    if (showNightlyRate && nightlyRate) parts.push(`Nightly rate: $${nightlyRate}`)
+    if (showMonthlyRate && monthlyRate) parts.push(`Monthly rate: $${monthlyRate}`)
+    return parts.join('\n')
+  }
 
   const icalExportUrl = room?.ical_export_token
     ? `https://tothrooms.com/api/ical/${room.ical_export_token}`
@@ -193,6 +208,13 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
             placeholder="Brief tagline shown on listing cards"
             className={inputClass}
           />
+          <div className="mt-2">
+            <AIWriteButton
+              fieldType="short_description"
+              context={buildAIContext()}
+              onAccept={setShortDescription}
+            />
+          </div>
         </div>
 
         <div>
@@ -204,6 +226,13 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
             placeholder="Detailed description of the room"
             className={inputClass}
           />
+          <div className="mt-2">
+            <AIWriteButton
+              fieldType="room_description"
+              context={buildAIContext()}
+              onAccept={setDescription}
+            />
+          </div>
         </div>
 
         <Toggle checked={isActive} onChange={setIsActive} label={isActive ? 'Active' : 'Inactive'} />

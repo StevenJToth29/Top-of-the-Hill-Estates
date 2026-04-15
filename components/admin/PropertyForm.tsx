@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import type { Property } from '@/types'
 import AmenitiesTagInput from './AmenitiesTagInput'
 import ImageUploader from './ImageUploader'
+import AIWriteButton from './AIWriteButton'
 
 interface PropertyFormProps {
   property?: Property
@@ -29,6 +30,16 @@ export default function PropertyForm({ property, propertyId }: PropertyFormProps
   const inputClass =
     'w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-1 focus:ring-secondary/50'
   const labelClass = 'block text-sm font-medium text-on-surface-variant mb-1.5'
+
+  function buildAIContext() {
+    const parts: string[] = []
+    if (name) parts.push(`Property name: ${name}`)
+    if (city && state) parts.push(`Location: ${city}, ${state}`)
+    if (bedrooms) parts.push(`Bedrooms: ${bedrooms}`)
+    if (bathrooms) parts.push(`Bathrooms: ${bathrooms}`)
+    if (amenities.length) parts.push(`Amenities: ${amenities.join(', ')}`)
+    return parts.join('\n')
+  }
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -133,6 +144,13 @@ export default function PropertyForm({ property, propertyId }: PropertyFormProps
             placeholder="Brief description of the property"
             className={inputClass}
           />
+          <div className="mt-2">
+            <AIWriteButton
+              fieldType="property_description"
+              context={buildAIContext()}
+              onAccept={setDescription}
+            />
+          </div>
         </div>
       </section>
 
