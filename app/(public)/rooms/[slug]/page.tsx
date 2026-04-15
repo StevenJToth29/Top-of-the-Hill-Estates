@@ -31,7 +31,13 @@ export default async function RoomDetailPage({ params }: Props) {
 
   if (!rawRoom) notFound()
 
-  const room = rawRoom as unknown as Room
+  const { data: roomFees } = await supabase
+    .from('room_fees')
+    .select('*')
+    .eq('room_id', rawRoom.id)
+    .order('created_at')
+
+  const room = { ...rawRoom, fees: roomFees ?? [] } as unknown as Room
 
   const today = new Date()
   const sixMonthsOut = addMonths(today, 6)

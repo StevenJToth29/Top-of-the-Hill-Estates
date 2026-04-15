@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import { isRoomAvailable } from '@/lib/availability'
+import { OPEN_ENDED_DATE } from '@/lib/format'
 import type { BookingType } from '@/types'
 
 export async function POST(request: Request) {
@@ -25,13 +26,26 @@ export async function POST(request: Request) {
     'guest_email',
     'guest_phone',
     'check_in',
-    'check_out',
   ] as const
 
   for (const field of required) {
     if (!body[field]) {
       return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 })
     }
+  }
+
+  // Compute amounts server-side
+  const bookingType = body.booking_type as BookingType
+
+  // check_out is required for short-term; for long-term it defaults to open-ended
+  const checkOut = body.check_out
+    ? (body.check_out as string)
+    : bookingType === 'long_term'
+      ? OPEN_ENDED_DATE
+      : null
+
+  if (!checkOut) {
+    return NextResponse.json({ error: 'Missing required field: check_out' }, { status: 400 })
   }
 
   const supabase = createServiceRoleClient()
@@ -48,19 +62,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Room not found' }, { status: 404 })
   }
 
-  // Check availability before creating booking
-  const available = await isRoomAvailable(
-    body.room_id as string,
-    body.check_in as string,
-    body.check_out as string,
-  )
-  if (!available) {
-    return NextResponse.json({ error: 'Room is not available for the selected dates' }, { status: 409 })
+  // Check availability before creating booking (skip for open-ended long-term)
+  if (checkOut !== OPEN_ENDED_DATE) {
+    const available = await isRoomAvailable(
+      body.room_id as string,
+      body.check_in as string,
+      checkOut,
+    )
+    if (!available) {
+      return NextResponse.json({ error: 'Room is not available for the selected dates' }, { status: 409 })
+    }
   }
 
-  // Compute amounts server-side
-  const bookingType = body.booking_type as BookingType
-  const totalNights = Number(body.total_nights ?? 1)
+  const totalNights = checkOut === OPEN_ENDED_DATE ? 0 : Number(body.total_nights ?? 1)
   let total_amount: number
   let amount_due_at_checkin: number
 
@@ -86,7 +100,7 @@ export async function POST(request: Request) {
       sms_consent: body.sms_consent ?? false,
       marketing_consent: body.marketing_consent ?? false,
       check_in: body.check_in,
-      check_out: body.check_out,
+      check_out: checkOut,
       total_nights: totalNights,
       nightly_rate: room.nightly_rate,
       monthly_rate: room.monthly_rate,

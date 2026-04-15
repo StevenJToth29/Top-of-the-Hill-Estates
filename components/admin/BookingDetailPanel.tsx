@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import type { Booking, Room, Property } from '@/types'
 import { calculateRefund } from '@/lib/cancellation'
-import { formatCurrency, formatDate, formatDateTime, STATUS_BADGE } from '@/lib/format'
+import { formatCurrency, formatDate, formatDateTime, STATUS_BADGE, OPEN_ENDED_DATE } from '@/lib/format'
 import clsx from 'clsx'
 import CancelBookingModal from './CancelBookingModal'
 import { useRouter } from 'next/navigation'
@@ -17,9 +17,10 @@ export default function BookingDetailPanel({ booking }: Props) {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const router = useRouter()
 
-  const nights =
-    booking.total_nights ||
-    differenceInCalendarDays(parseISO(booking.check_out), parseISO(booking.check_in))
+  const isOpenEnded = booking.check_out === OPEN_ENDED_DATE
+  const nights = isOpenEnded
+    ? null
+    : (booking.total_nights || differenceInCalendarDays(parseISO(booking.check_out), parseISO(booking.check_in)))
 
   const canCancel = booking.status === 'confirmed' || booking.status === 'pending'
   const refund = canCancel ? calculateRefund(booking, new Date()) : null
@@ -75,7 +76,9 @@ export default function BookingDetailPanel({ booking }: Props) {
           <Section title="Dates">
             <Field label="Check-in" value={formatDate(booking.check_in)} />
             <Field label="Check-out" value={formatDate(booking.check_out)} />
-            <Field label="Total Nights" value={`${nights} night${nights !== 1 ? 's' : ''}`} />
+            {nights !== null && (
+              <Field label="Total Nights" value={`${nights} night${nights !== 1 ? 's' : ''}`} />
+            )}
           </Section>
 
           <Section title="Payment">

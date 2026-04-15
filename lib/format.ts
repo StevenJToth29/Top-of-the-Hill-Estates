@@ -1,6 +1,9 @@
 import { format, parseISO } from 'date-fns'
 import type { BookingStatus } from '@/types'
 
+/** Sentinel value stored in check_out for open-ended long-term bookings. */
+export const OPEN_ENDED_DATE = '9999-12-31'
+
 const currencyFormatter = new Intl.NumberFormat('en-US', {
   style: 'currency',
   currency: 'USD',
@@ -11,6 +14,7 @@ export function formatCurrency(amount: number): string {
 }
 
 export function formatDate(iso: string): string {
+  if (iso === OPEN_ENDED_DATE) return 'Open-ended'
   try {
     return format(parseISO(iso), 'MMM d, yyyy')
   } catch {

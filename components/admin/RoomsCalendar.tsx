@@ -17,6 +17,7 @@ import clsx from 'clsx'
 import type { Room, Property, Booking, ICalBlock } from '@/types'
 import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import RoomCalendarModal from './RoomCalendarModal'
+import { OPEN_ENDED_DATE } from '@/lib/format'
 
 interface RoomsCalendarProps {
   rooms: Array<Room & { property: Property }>
@@ -48,7 +49,7 @@ function getDayInfo(
       if (!isBefore(date, start) && isBefore(date, end)) {
         return {
           status: 'booking',
-          tooltip: `${booking.guest_first_name} ${booking.guest_last_name} (${booking.check_in} – ${booking.check_out}) [${booking.status}]`,
+          tooltip: `${booking.guest_first_name} ${booking.guest_last_name} (${booking.check_in} – ${booking.check_out === OPEN_ENDED_DATE ? 'open-ended' : booking.check_out}) [${booking.status}]`,
           initial: (booking.guest_last_name[0] ?? '').toUpperCase(),
         }
       }

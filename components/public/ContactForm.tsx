@@ -37,8 +37,14 @@ export default function ContactForm() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setStatus('sending')
     setErrorMessage(null)
+
+    if (!form.smsConsent) {
+      setErrorMessage('You must consent to non-marketing SMS messages to continue.')
+      return
+    }
+
+    setStatus('sending')
     try {
       // TODO: replace with real API route or GHL webhook
       await fetch('/api/contact', {
@@ -136,32 +142,50 @@ export default function ContactForm() {
       </div>
 
       <div className="space-y-3 pt-1">
-        <label className="flex items-start gap-3 cursor-pointer">
+        <label className="flex items-start gap-3 bg-surface px-4 py-4 rounded-xl cursor-pointer">
           <input
             type="checkbox"
             name="smsConsent"
             checked={form.smsConsent}
             onChange={handleChange}
-            className="mt-1 h-4 w-4 shrink-0 rounded accent-secondary"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded accent-secondary cursor-pointer"
           />
           <span className="font-body text-sm text-on-surface-variant leading-relaxed">
-            I agree to receive text messages from Top of the Hill Estates, LLC regarding my
-            inquiry and reservation updates. Message and data rates may apply. Reply STOP to
-            opt out at any time.
+            By checking this box, I consent to receive non-marketing text messages from Top of
+            the Hill Estates, LLC about wifi instructions, rental inquiry, application status,
+            scheduling and account-related updates. Message frequency varies, message &amp; data
+            rates may apply. Text HELP for assistance, reply STOP to opt out.{' '}
+            <a href="/privacypolicy" className="underline hover:text-secondary transition-colors duration-150">
+              Privacy Policy
+            </a>{' '}
+            and{' '}
+            <a href="/termsandconditions" className="underline hover:text-secondary transition-colors duration-150">
+              Terms of Service
+            </a>
+            <span className="text-error ml-1">*</span>
           </span>
         </label>
 
-        <label className="flex items-start gap-3 cursor-pointer">
+        <label className="flex items-start gap-3 bg-surface px-4 py-4 rounded-xl cursor-pointer">
           <input
             type="checkbox"
             name="marketingConsent"
             checked={form.marketingConsent}
             onChange={handleChange}
-            className="mt-1 h-4 w-4 shrink-0 rounded accent-secondary"
+            className="mt-0.5 h-4 w-4 shrink-0 rounded accent-secondary cursor-pointer"
           />
           <span className="font-body text-sm text-on-surface-variant leading-relaxed">
-            I also agree to receive promotional messages about special offers and availability
-            from Top of the Hill Estates, LLC. (Optional)
+            By checking this box, I consent to receive marketing and promotional messages
+            including special offers, discounts, new product updates among others from Top of
+            the Hill Estates, LLC at the phone number provided. Frequency may vary. Message
+            &amp; data rates may apply. Text HELP for assistance, reply STOP to opt out.{' '}
+            <a href="/privacypolicy" className="underline hover:text-secondary transition-colors duration-150">
+              Privacy Policy
+            </a>{' '}
+            and{' '}
+            <a href="/termsandconditions" className="underline hover:text-secondary transition-colors duration-150">
+              Terms of Service
+            </a>
           </span>
         </label>
       </div>

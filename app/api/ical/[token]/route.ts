@@ -1,6 +1,7 @@
 import { parseISO } from 'date-fns'
 import { generateICalFeed } from '@/lib/ical'
 import { createServiceRoleClient } from '@/lib/supabase'
+import { OPEN_ENDED_DATE } from '@/lib/format'
 
 export async function GET(
   request: Request,
@@ -31,14 +32,16 @@ export async function GET(
   ])
 
   const events = [
-    ...(bookings ?? []).map(b => ({
-      uid: `booking-${b.id}@tothrooms.com`,
-      summary: `Reserved - ${room.name}`,
-      // check_out is the day after the last night per iCal convention
-      start: parseISO(b.check_in),
-      end: parseISO(b.check_out),
-      description: 'Booked via Top of the Hill Rooms',
-    })),
+    ...(bookings ?? [])
+      .filter(b => b.check_out !== OPEN_ENDED_DATE)
+      .map(b => ({
+        uid: `booking-${b.id}@tothrooms.com`,
+        summary: `Reserved - ${room.name}`,
+        // check_out is the day after the last night per iCal convention
+        start: parseISO(b.check_in),
+        end: parseISO(b.check_out),
+        description: 'Booked via Top of the Hill Rooms',
+      })),
     ...(icalBlocks ?? []).map(block => ({
       uid: block.event_uid,
       summary: block.summary || 'Blocked',

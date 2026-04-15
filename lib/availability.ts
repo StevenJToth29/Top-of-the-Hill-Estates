@@ -3,15 +3,19 @@ import { addDays } from 'date-fns/addDays'
 import { eachDayOfInterval } from 'date-fns/eachDayOfInterval'
 import { format } from 'date-fns/format'
 import { parseISO } from 'date-fns/parseISO'
+import { OPEN_ENDED_DATE } from '@/lib/format'
 
 function addDateRangeToSet(
   set: Set<string>,
   startIso: string,
   endIso: string,
+  capIso?: string,
 ): void {
+  // Cap open-ended bookings to avoid generating an enormous date range.
+  const effectiveEnd = endIso === OPEN_ENDED_DATE ? (capIso ?? endIso) : endIso
   const days = eachDayOfInterval({
     start: parseISO(startIso),
-    end: addDays(parseISO(endIso), -1),
+    end: addDays(parseISO(effectiveEnd), -1),
   })
   for (const day of days) {
     set.add(format(day, 'yyyy-MM-dd'))
@@ -52,8 +56,8 @@ export async function getBlockedDatesForRoom(
   if (icalError) console.error('Error fetching iCal blocks for availability:', icalError)
 
   const blocked = new Set<string>()
-  for (const booking of bookings ?? []) addDateRangeToSet(blocked, booking.check_in, booking.check_out)
-  for (const block of icalBlocks ?? []) addDateRangeToSet(blocked, block.start_date, block.end_date)
+  for (const booking of bookings ?? []) addDateRangeToSet(blocked, booking.check_in, booking.check_out, endDate)
+  for (const block of icalBlocks ?? []) addDateRangeToSet(blocked, block.start_date, block.end_date, endDate)
 
   return Array.from(blocked).sort()
 }
