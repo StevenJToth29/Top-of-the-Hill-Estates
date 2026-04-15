@@ -137,7 +137,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error ?? 'Save failed')
-        window.location.href = roomId ? '/admin/rooms' : `/admin/rooms/${data.id}/edit`
+        window.location.href = '/admin/rooms'
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Save failed')
       }
