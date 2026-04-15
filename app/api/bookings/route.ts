@@ -56,6 +56,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
 
+    const { data: siteSettings } = await supabase
+      .from('site_settings')
+      .select('stripe_fee_percent, stripe_fee_flat')
+      .limit(1)
+      .single()
+
+    const stripeFeePercent = Number(siteSettings?.stripe_fee_percent ?? 2.9)
+    const stripeFeeFlat = Number(siteSettings?.stripe_fee_flat ?? 0.30)
+
     const available = await isRoomAvailable(room_id, check_in, check_out)
     if (!available) {
       return NextResponse.json({ error: 'Room is not available for the selected dates' }, { status: 409 })
@@ -102,7 +111,12 @@ export async function POST(request: Request) {
       snapshotExtraGuestFee = extra_guest_total
     }
 
-    const amount_to_pay = total_amount
+    const processing_fee = Math.round(
+      (total_amount * (stripeFeePercent / 100) + stripeFeeFlat) * 100
+    ) / 100
+    const grand_total = total_amount + processing_fee
+
+    const amount_to_pay = grand_total
     const amount_due_at_checkin = 0
 
     const paymentIntent = await stripe.paymentIntents.create({
@@ -129,7 +143,8 @@ export async function POST(request: Request) {
         security_deposit: snapshotSecurityDeposit,
         extra_guest_fee: snapshotExtraGuestFee,
         guest_count: safeGuestCount,
-        total_amount,
+        total_amount: grand_total,
+        processing_fee,
         amount_paid: 0,
         amount_due_at_checkin,
         stripe_payment_intent_id: paymentIntent.id,
@@ -160,10 +175,24 @@ export async function POST(request: Request) {
       }
     }
 
+    // Snapshot processing fee as a non-refundable booking fee
+    const { error: processingFeeInsertError } = await supabase.from('booking_fees').insert({
+      booking_id: booking.id,
+      label: 'Processing Fee',
+      amount: processing_fee,
+      is_refundable: false,
+    })
+
+    if (processingFeeInsertError) {
+      console.error('Failed to snapshot processing fee:', processingFeeInsertError)
+      return NextResponse.json({ error: 'Failed to record processing fee' }, { status: 500 })
+    }
+
     return NextResponse.json({
       bookingId: booking.id,
       clientSecret: paymentIntent.client_secret,
-      total_amount,
+      total_amount: grand_total,
+      processing_fee,
       amount_due_at_checkin,
     })
   } catch (err) {
