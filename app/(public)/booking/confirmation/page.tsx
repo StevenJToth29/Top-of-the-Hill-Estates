@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
 import BookingConfirmation from '@/components/public/BookingConfirmation'
-import type { Booking, Room, Property } from '@/types'
+import type { Booking, Room, Property, BookingFee } from '@/types'
 
 interface PageProps {
   searchParams: { booking_id?: string }
@@ -28,9 +28,15 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
     room: Room & { property: Property }
   }
 
+  const { data: bookingFees } = await supabase
+    .from('booking_fees')
+    .select('*')
+    .eq('booking_id', bookingId)
+    .order('created_at')
+
   return (
     <main className="min-h-screen bg-background py-16 px-4">
-      <BookingConfirmation booking={typedBooking} />
+      <BookingConfirmation booking={typedBooking} bookingFees={(bookingFees ?? []) as BookingFee[]} />
     </main>
   )
 }

@@ -1,6 +1,6 @@
 import { CheckCircleIcon } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
-import type { Booking, Room, Property } from '@/types'
+import type { Booking, Room, Property, BookingFee } from '@/types'
 
 type BookingWithRoom = Booking & {
   room: Room & { property: Property }
@@ -28,7 +28,13 @@ const SHORT_TERM_POLICY =
 const LONG_TERM_POLICY =
   'Deposit is non-refundable. Please review your lease agreement for full cancellation terms.'
 
-export default function BookingConfirmation({ booking }: { booking: BookingWithRoom }) {
+export default function BookingConfirmation({
+  booking,
+  bookingFees,
+}: {
+  booking: BookingWithRoom
+  bookingFees: BookingFee[]
+}) {
   const { room } = booking
   const property = room.property
   const isLongTerm = booking.booking_type === 'long_term'
@@ -103,6 +109,30 @@ export default function BookingConfirmation({ booking }: { booking: BookingWithR
       <section className="mb-6 bg-surface-high/40 rounded-xl p-5">
         <h2 className="font-display text-lg font-semibold text-primary mb-3">Payment Summary</h2>
         <div className="space-y-2 font-body">
+          {!isLongTerm && booking.cleaning_fee > 0 && (
+            <div className="flex justify-between text-on-surface-variant">
+              <span>Cleaning fee</span>
+              <span>{formatCurrency(booking.cleaning_fee)}</span>
+            </div>
+          )}
+          {isLongTerm && booking.security_deposit > 0 && (
+            <div className="flex justify-between text-on-surface-variant">
+              <span>Security deposit</span>
+              <span>{formatCurrency(booking.security_deposit)}</span>
+            </div>
+          )}
+          {booking.extra_guest_fee > 0 && (
+            <div className="flex justify-between text-on-surface-variant">
+              <span>Extra guest fee</span>
+              <span>{formatCurrency(booking.extra_guest_fee)}</span>
+            </div>
+          )}
+          {bookingFees.map((f) => (
+            <div key={f.id} className="flex justify-between text-on-surface-variant">
+              <span>{f.label}</span>
+              <span>{formatCurrency(f.amount)}</span>
+            </div>
+          ))}
           <div className="flex justify-between text-on-surface-variant">
             <span>Total amount</span>
             <span>{formatCurrency(booking.total_amount)}</span>
