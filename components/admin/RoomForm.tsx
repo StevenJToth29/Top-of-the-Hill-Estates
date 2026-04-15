@@ -66,7 +66,9 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
   const [extraGuestFee, setExtraGuestFee] = useState(room?.extra_guest_fee ?? 0)
   const [additionalFees, setAdditionalFees] = useState<
     { label: string; amount: number; booking_type: 'short_term' | 'long_term' | 'both' }[]
-  >(room?.fees ?? [])
+  >(
+    (room?.fees ?? []).map(({ label, amount, booking_type }) => ({ label, amount, booking_type }))
+  )
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -112,6 +114,11 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setError(null)
+
+    if (additionalFees.some((f) => f.label.trim() === '')) {
+      setError('All additional fees must have a label.')
+      return
+    }
 
     const payload = {
       id: roomId,
