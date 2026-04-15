@@ -38,6 +38,9 @@ export async function POST(request: Request) {
       marketing_consent,
     } = body
 
+    const safeGuestCount = Math.max(1, Math.floor(Number(guest_count) || 1))
+    const safeTotalNights = Math.max(1, Math.floor(Number(total_nights) || 1))
+
     const supabase = createServiceRoleClient()
 
     // Fetch authoritative room rates and fees — never trust client-supplied prices
@@ -59,11 +62,16 @@ export async function POST(request: Request) {
     }
 
     // Fetch applicable generic fees from DB
-    const { data: roomFees } = await supabase
+    const { data: roomFees, error: feesError } = await supabase
       .from('room_fees')
       .select('id, label, amount, booking_type')
       .eq('room_id', room_id)
       .in('booking_type', [booking_type, 'both'])
+
+    if (feesError) {
+      console.error('Failed to fetch room fees:', feesError)
+      return NextResponse.json({ error: 'Failed to fetch room fees' }, { status: 500 })
+    }
 
     const applicableFees = roomFees ?? []
     const genericFeesTotal = applicableFees.reduce((sum, f) => sum + Number(f.amount), 0)
@@ -73,7 +81,7 @@ export async function POST(request: Request) {
     const cleaning_fee = room.cleaning_fee ?? 0
     const security_deposit = room.security_deposit ?? 0
     const extra_guest_fee = room.extra_guest_fee ?? 0
-    const extraGuests = Math.max(0, guest_count - 1)
+    const extraGuests = Math.max(0, safeGuestCount - 1)
 
     let total_amount: number
     let snapshotCleaningFee: number
@@ -81,8 +89,8 @@ export async function POST(request: Request) {
     let snapshotExtraGuestFee: number
 
     if (booking_type === 'short_term') {
-      const extra_guest_total = extraGuests * extra_guest_fee * total_nights
-      total_amount = total_nights * nightly_rate + cleaning_fee + extra_guest_total + genericFeesTotal
+      const extra_guest_total = extraGuests * extra_guest_fee * safeTotalNights
+      total_amount = safeTotalNights * nightly_rate + cleaning_fee + extra_guest_total + genericFeesTotal
       snapshotCleaningFee = cleaning_fee
       snapshotSecurityDeposit = 0
       snapshotExtraGuestFee = extra_guest_total
@@ -114,13 +122,13 @@ export async function POST(request: Request) {
         guest_phone,
         check_in,
         check_out,
-        total_nights,
+        total_nights: safeTotalNights,
         nightly_rate,
         monthly_rate,
         cleaning_fee: snapshotCleaningFee,
         security_deposit: snapshotSecurityDeposit,
         extra_guest_fee: snapshotExtraGuestFee,
-        guest_count,
+        guest_count: safeGuestCount,
         total_amount,
         amount_paid: 0,
         amount_due_at_checkin,
@@ -139,13 +147,17 @@ export async function POST(request: Request) {
 
     // Snapshot applicable generic fees
     if (applicableFees.length > 0) {
-      await supabase.from('booking_fees').insert(
+      const { error: feesInsertError } = await supabase.from('booking_fees').insert(
         applicableFees.map((f) => ({
           booking_id: booking.id,
           label: f.label,
           amount: f.amount,
         }))
       )
+      if (feesInsertError) {
+        console.error('Failed to snapshot booking fees:', feesInsertError)
+        return NextResponse.json({ error: 'Failed to record booking fees' }, { status: 500 })
+      }
     }
 
     return NextResponse.json({
