@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { differenceInCalendarDays, parseISO, format } from 'date-fns'
 import type { Room, BookingType } from '@/types'
 import { createClient } from '@/lib/supabase-browser'
-import { formatCurrency } from '@/lib/format'
+import { formatCurrency, OPEN_ENDED_DATE } from '@/lib/format'
 import DatePicker from '@/components/public/DatePicker'
 
 const today = format(new Date(), 'yyyy-MM-dd')
@@ -28,6 +28,7 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
   const [marketingConsent, setMarketingConsent] = useState(false)
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
+  const [noEndDate, setNoEndDate] = useState(false)
   const [guests, setGuests] = useState(1)
 
   const [loading, setLoading] = useState(false)
@@ -64,11 +65,12 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
     e.preventDefault()
     setError(null)
 
-    if (!roomId || !checkIn || !checkOut || !firstName || !lastName || !email || !phone) {
+    const requiresCheckOut = !(bookingType === 'long_term' && noEndDate)
+    if (!roomId || !checkIn || (requiresCheckOut && !checkOut) || !firstName || !lastName || !email || !phone) {
       setError('Please fill in all required fields.')
       return
     }
-    if (nights < 1) {
+    if (requiresCheckOut && nights < 1) {
       setError('Check-out must be after check-in.')
       return
     }
@@ -88,7 +90,7 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
           sms_consent: smsConsent,
           marketing_consent: marketingConsent,
           check_in: checkIn,
-          check_out: checkOut,
+          check_out: bookingType === 'long_term' && noEndDate ? OPEN_ENDED_DATE : checkOut,
           guests,
           total_nights: nights,
           nightly_rate: selectedRoom?.nightly_rate ?? 0,
@@ -142,7 +144,7 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
             <button
               key={t}
               type="button"
-              onClick={() => setBookingType(t)}
+              onClick={() => { setBookingType(t); if (t !== 'long_term') setNoEndDate(false) }}
               className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
                 bookingType === t
                   ? 'bg-secondary/20 text-secondary'
@@ -202,7 +204,7 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
         <input
           type="tel"
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => setPhone(e.target.value.replace(/[^\d\s\+\-\(\)\.]/g, ''))}
           required
           className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 outline-none"
         />
@@ -244,15 +246,34 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
           />
         </div>
         <div className="bg-surface-highest/40 rounded-xl px-4 py-3">
-          <DatePicker
-            label="Check-out"
-            value={checkOut}
-            onChange={setCheckOut}
-            min={checkIn || today}
-            placeholder="Select date"
-          />
+          {bookingType === 'long_term' && noEndDate ? (
+            <div>
+              <p className="text-xs text-on-surface-variant mb-1">Check-out</p>
+              <p className="text-sm text-on-surface-variant italic">Open-ended</p>
+            </div>
+          ) : (
+            <DatePicker
+              label="Check-out"
+              value={checkOut}
+              onChange={setCheckOut}
+              min={checkIn || today}
+              placeholder="Select date"
+            />
+          )}
         </div>
       </div>
+
+      {bookingType === 'long_term' && (
+        <label className="flex items-start gap-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={noEndDate}
+            onChange={(e) => { setNoEndDate(e.target.checked); if (e.target.checked) setCheckOut('') }}
+            className="mt-0.5 rounded"
+          />
+          <span className="text-sm text-on-surface-variant">No end date (open-ended tenancy)</span>
+        </label>
+      )}
 
       <div className="space-y-1">
         <label className="text-xs text-on-surface-variant">Number of Guests</label>
@@ -266,7 +287,7 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
         />
       </div>
 
-      {selectedRoom && nights > 0 && (
+      {selectedRoom && (nights > 0 || (bookingType === 'long_term' && noEndDate)) && (
         <div className="rounded-xl bg-surface-highest/40 p-4 space-y-2">
           <h3 className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
             Price Summary

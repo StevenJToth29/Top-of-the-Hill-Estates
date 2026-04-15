@@ -224,7 +224,7 @@ export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
                   name="phone"
                   autoComplete="tel"
                   value={guestInfo.guest_phone}
-                  onChange={(e) => updateField('guest_phone', e.target.value)}
+                  onChange={(e) => updateField('guest_phone', e.target.value.replace(/[^\d\s\+\-\(\)\.]/g, ''))}
                   className={inputClass('guest_phone')}
                   placeholder="+1 (555) 000-0000"
                 />

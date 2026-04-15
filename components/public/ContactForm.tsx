@@ -27,10 +27,12 @@ export default function ContactForm() {
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) {
     const { name, value, type } = e.target
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value,
-    }))
+    const next = type === 'checkbox'
+      ? (e.target as HTMLInputElement).checked
+      : name === 'phone'
+        ? value.replace(/[^\d\s\+\-\(\)\.]/g, '')
+        : value
+    setForm((prev) => ({ ...prev, [name]: next }))
   }
 
   async function handleSubmit(e: React.FormEvent) {
