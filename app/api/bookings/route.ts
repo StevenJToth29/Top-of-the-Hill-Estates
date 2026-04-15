@@ -49,6 +49,7 @@ export async function POST(request: Request) {
       .single()
 
     if (roomError || !room) {
+      console.error('Room lookup failed:', roomError)
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
 
