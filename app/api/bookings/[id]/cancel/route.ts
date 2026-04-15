@@ -45,9 +45,11 @@ export async function POST(
     let refundResult = policyRefund
     if (refund_override !== undefined) {
       const amountPaid = (booking as Booking).amount_paid
+      const processingFee = (booking as Booking).processing_fee ?? 0
+      const refundableBase = amountPaid - processingFee
       const overrideAmount =
-        refund_override === 'full' ? amountPaid
-        : refund_override === 'half' ? Math.round(amountPaid * 0.5 * 100) / 100
+        refund_override === 'full' ? Math.round(refundableBase * 100) / 100
+        : refund_override === 'half' ? Math.round(refundableBase * 0.5 * 100) / 100
         : 0
       refundResult = {
         ...policyRefund,
