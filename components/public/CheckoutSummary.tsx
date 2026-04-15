@@ -5,6 +5,19 @@ interface CheckoutSummaryProps {
   params: BookingParams
   roomName: string
   propertyName: string
+  checkinTime?: string   // 24-hour "HH:mm"
+  checkoutTime?: string  // 24-hour "HH:mm"
+}
+
+function fmt12(time: string): string {
+  try {
+    const [h, m] = time.split(':').map(Number)
+    const ampm = h < 12 ? 'AM' : 'PM'
+    const h12 = h % 12 || 12
+    return `${h12}:${String(m).padStart(2, '0')} ${ampm}`
+  } catch {
+    return time
+  }
 }
 
 function formatDate(dateStr: string): string {
@@ -19,7 +32,7 @@ function formatCurrency(amount: number): string {
   return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-export default function CheckoutSummary({ params, roomName, propertyName }: CheckoutSummaryProps) {
+export default function CheckoutSummary({ params, roomName, propertyName, checkinTime, checkoutTime }: CheckoutSummaryProps) {
   const isLongTerm = params.booking_type === 'long_term'
   const extraGuests = Math.max(0, params.guests - 1)
   const fees: RoomFee[] = params.fees ?? []
@@ -34,15 +47,27 @@ export default function CheckoutSummary({ params, roomName, propertyName }: Chec
         <p className="text-on-surface-variant text-sm mt-1">{propertyName}</p>
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-2">
         <div className="flex justify-between text-sm">
           <span className="text-on-surface-variant">Check-in</span>
-          <span className="text-on-surface">{formatDate(params.check_in)}</span>
+          <div className="text-right">
+            <span className="text-on-surface">{formatDate(params.check_in)}</span>
+            {!isLongTerm && checkinTime && (
+              <p className="text-xs text-on-surface-variant/70 mt-0.5">after {fmt12(checkinTime)}</p>
+            )}
+          </div>
         </div>
-        <div className="flex justify-between text-sm">
-          <span className="text-on-surface-variant">Check-out</span>
-          <span className="text-on-surface">{formatDate(params.check_out)}</span>
-        </div>
+        {!isLongTerm && (
+          <div className="flex justify-between text-sm">
+            <span className="text-on-surface-variant">Check-out</span>
+            <div className="text-right">
+              <span className="text-on-surface">{formatDate(params.check_out)}</span>
+              {checkoutTime && (
+                <p className="text-xs text-on-surface-variant/70 mt-0.5">before {fmt12(checkoutTime)}</p>
+              )}
+            </div>
+          </div>
+        )}
         <div className="flex justify-between text-sm">
           <span className="text-on-surface-variant">Guests</span>
           <span className="text-on-surface">{params.guests}</span>

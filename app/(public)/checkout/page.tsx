@@ -6,7 +6,12 @@ import CheckoutForm from '@/components/public/CheckoutForm'
 import CheckoutSummary from '@/components/public/CheckoutSummary'
 import { BookingParams, BookingType, RoomFee } from '@/types'
 
-function CheckoutPageInner() {
+interface CheckoutPageInnerProps {
+  checkinTime: string
+  checkoutTime: string
+}
+
+function CheckoutPageInner({ checkinTime, checkoutTime }: CheckoutPageInnerProps) {
   const searchParams = useSearchParams()
 
   function getParam(key: string): string {
@@ -109,6 +114,8 @@ function CheckoutPageInner() {
               params={bookingParams}
               roomName={roomName}
               propertyName={propertyName}
+              checkinTime={checkinTime}
+              checkoutTime={checkoutTime}
             />
           </div>
         </div>
@@ -117,7 +124,23 @@ function CheckoutPageInner() {
   )
 }
 
-export default function CheckoutPage() {
+export default async function CheckoutPage() {
+  // Fetch settings server-side so times are available without an extra client fetch
+  let checkinTime = '15:00'
+  let checkoutTime = '10:00'
+  try {
+    const { createServerSupabaseClient } = await import('@/lib/supabase')
+    const supabase = await createServerSupabaseClient()
+    const { data } = await supabase
+      .from('site_settings')
+      .select('checkin_time, checkout_time')
+      .maybeSingle()
+    if (data?.checkin_time) checkinTime = data.checkin_time
+    if (data?.checkout_time) checkoutTime = data.checkout_time
+  } catch {
+    // fall through to defaults
+  }
+
   return (
     <Suspense
       fallback={
@@ -126,7 +149,7 @@ export default function CheckoutPage() {
         </main>
       }
     >
-      <CheckoutPageInner />
+      <CheckoutPageInner checkinTime={checkinTime} checkoutTime={checkoutTime} />
     </Suspense>
   )
 }
