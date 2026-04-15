@@ -13,8 +13,8 @@ interface CreateBookingBody {
   guest_phone: string
   check_in: string
   check_out: string
-  guests: number
   total_nights: number
+  guest_count: number
   sms_consent: boolean
   marketing_consent: boolean
 }
@@ -33,16 +33,17 @@ export async function POST(request: NextRequest) {
       check_in,
       check_out,
       total_nights,
+      guest_count = 1,
       sms_consent,
       marketing_consent,
     } = body
 
     const supabase = createServiceRoleClient()
 
-    // Fetch authoritative room rates — never trust client-supplied prices
+    // Fetch authoritative room rates and fees — never trust client-supplied prices
     const { data: room, error: roomError } = await supabase
       .from('rooms')
-      .select('nightly_rate, monthly_rate')
+      .select('nightly_rate, monthly_rate, cleaning_fee, security_deposit, extra_guest_fee')
       .eq('id', room_id)
       .eq('is_active', true)
       .single()
@@ -56,23 +57,44 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Room is not available for the selected dates' }, { status: 409 })
     }
 
-    // Compute all amounts server-side from authoritative room data
+    // Fetch applicable generic fees from DB
+    const { data: roomFees } = await supabase
+      .from('room_fees')
+      .select('id, label, amount, booking_type')
+      .eq('room_id', room_id)
+      .in('booking_type', [booking_type, 'both'])
+
+    const applicableFees = roomFees ?? []
+    const genericFeesTotal = applicableFees.reduce((sum, f) => sum + Number(f.amount), 0)
+
     const nightly_rate = room.nightly_rate
     const monthly_rate = room.monthly_rate
+    const cleaning_fee = room.cleaning_fee ?? 0
+    const security_deposit = room.security_deposit ?? 0
+    const extra_guest_fee = room.extra_guest_fee ?? 0
+    const extraGuests = Math.max(0, guest_count - 1)
+
     let total_amount: number
-    let amount_to_pay: number
-    let amount_due_at_checkin: number
+    let snapshotCleaningFee: number
+    let snapshotSecurityDeposit: number
+    let snapshotExtraGuestFee: number
 
     if (booking_type === 'short_term') {
-      total_amount = total_nights * nightly_rate
-      amount_to_pay = total_amount
-      amount_due_at_checkin = 0
+      const extra_guest_total = extraGuests * extra_guest_fee * total_nights
+      total_amount = total_nights * nightly_rate + cleaning_fee + extra_guest_total + genericFeesTotal
+      snapshotCleaningFee = cleaning_fee
+      snapshotSecurityDeposit = 0
+      snapshotExtraGuestFee = extra_guest_total
     } else {
-      // Long-term: collect first month's rent as deposit; balance due at check-in
-      amount_to_pay = monthly_rate
-      amount_due_at_checkin = monthly_rate
-      total_amount = amount_to_pay + amount_due_at_checkin
+      const extra_guest_total = extraGuests * extra_guest_fee
+      total_amount = monthly_rate + security_deposit + extra_guest_total + genericFeesTotal
+      snapshotCleaningFee = 0
+      snapshotSecurityDeposit = security_deposit
+      snapshotExtraGuestFee = extra_guest_total
     }
+
+    const amount_to_pay = total_amount
+    const amount_due_at_checkin = 0
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount_to_pay * 100),
@@ -94,6 +116,10 @@ export async function POST(request: NextRequest) {
         total_nights,
         nightly_rate,
         monthly_rate,
+        cleaning_fee: snapshotCleaningFee,
+        security_deposit: snapshotSecurityDeposit,
+        extra_guest_fee: snapshotExtraGuestFee,
+        guest_count,
         total_amount,
         amount_paid: 0,
         amount_due_at_checkin,
@@ -108,6 +134,17 @@ export async function POST(request: NextRequest) {
     if (error || !booking) {
       console.error('Failed to create booking record:', error)
       return NextResponse.json({ error: 'Failed to create booking' }, { status: 500 })
+    }
+
+    // Snapshot applicable generic fees
+    if (applicableFees.length > 0) {
+      await supabase.from('booking_fees').insert(
+        applicableFees.map((f) => ({
+          booking_id: booking.id,
+          label: f.label,
+          amount: f.amount,
+        }))
+      )
     }
 
     return NextResponse.json({
