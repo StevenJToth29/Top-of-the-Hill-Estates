@@ -38,8 +38,8 @@ export default async function RoomDetailPage({ params }: Props) {
     format(sixMonthsOut, 'yyyy-MM-dd'),
   )
 
-  const address = room.property
-    ? `${room.property.address}, ${room.property.city}, ${room.property.state}`
+  const generalLocation = room.property
+    ? `${room.property.city}, ${room.property.state}`
     : null
 
   return (
@@ -120,16 +120,21 @@ export default async function RoomDetailPage({ params }: Props) {
 
             <CancellationPolicyDisplay variant="short_term" />
 
-            {address && (
+            {generalLocation && (
               <div className="space-y-3">
-                <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
-                  Location
-                </p>
+                <div className="flex items-baseline justify-between">
+                  <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
+                    Location
+                  </p>
+                  <p className="text-xs text-on-surface-variant/50">
+                    Exact address provided after booking
+                  </p>
+                </div>
                 <iframe
-                  src={`https://maps.google.com/maps?q=${encodeURIComponent(address)}&output=embed`}
+                  src={`https://maps.google.com/maps?q=${encodeURIComponent(generalLocation)}&output=embed`}
                   className="w-full h-64 rounded-xl ring-1 ring-white/10"
                   loading="lazy"
-                  title="Property location map"
+                  title="General area map"
                 />
               </div>
             )}
