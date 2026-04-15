@@ -29,7 +29,8 @@ function makeRequest(body: Record<string, unknown>) {
 
 function setupMocks(
   room: Record<string, unknown>,
-  fees: { id: string; label: string; amount: number; booking_type: string }[] = []
+  fees: { id: string; label: string; amount: number; booking_type: string }[] = [],
+  siteSettings: { stripe_fee_percent: number; stripe_fee_flat: number } = { stripe_fee_percent: 0, stripe_fee_flat: 0 }
 ) {
   const bookingInsert = {
     select: jest.fn().mockReturnThis(),
@@ -44,6 +45,13 @@ function setupMocks(
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
           single: jest.fn().mockResolvedValue({ data: room, error: null }),
+        }
+      }
+      if (table === 'site_settings') {
+        return {
+          select: jest.fn().mockReturnThis(),
+          limit: jest.fn().mockReturnThis(),
+          single: jest.fn().mockResolvedValue({ data: siteSettings, error: null }),
         }
       }
       if (table === 'room_fees') {
@@ -128,6 +136,42 @@ describe('POST /api/bookings — short-term pricing', () => {
         expect.objectContaining({ label: 'Pet fee', amount: 50, booking_id: 'booking-1' }),
       ])
     )
+  })
+})
+
+describe('POST /api/bookings — processing fee', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  it('adds processing fee (2.9% + $0.30) to total_amount and returns processing_fee', async () => {
+    setupMocks(
+      { nightly_rate: 100, monthly_rate: 900, cleaning_fee: 75, security_deposit: 0, extra_guest_fee: 0 },
+      [],
+      { stripe_fee_percent: 2.9, stripe_fee_flat: 0.30 }
+    )
+
+    const res = await POST(makeRequest({ ...baseBody, booking_type: 'short_term' }))
+    const data = await res.json()
+
+    // subtotal = 5 × 100 + 75 = 575
+    // fee = round(575 × 0.029 + 0.30, 2) = round(16.675 + 0.30, 2) = round(16.975, 2) = 16.97
+    // (floating point: 16.975 * 100 = 1697.4999... → Math.round → 1697)
+    // grand_total = 575 + 16.97 = 591.97
+    expect(data.processing_fee).toBe(16.97)
+    expect(data.total_amount).toBe(591.97)
+  })
+
+  it('returns processing_fee of 0 when fee config is zeroed out', async () => {
+    setupMocks(
+      { nightly_rate: 100, monthly_rate: 900, cleaning_fee: 0, security_deposit: 0, extra_guest_fee: 0 },
+      [],
+      { stripe_fee_percent: 0, stripe_fee_flat: 0 }
+    )
+
+    const res = await POST(makeRequest({ ...baseBody, booking_type: 'short_term' }))
+    const data = await res.json()
+
+    expect(data.processing_fee).toBe(0)
+    expect(data.total_amount).toBe(500) // no fee added
   })
 })
 
