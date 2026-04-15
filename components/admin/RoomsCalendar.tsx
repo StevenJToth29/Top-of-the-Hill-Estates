@@ -82,7 +82,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
 
   const days = eachDayOfInterval({
     start: startOfMonth(currentMonth),
-    end: endOfMonth(addMonths(currentMonth, 1)),
+    end: endOfMonth(currentMonth),
   })
 
   return (
@@ -99,8 +99,6 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
 
         <h2 className="font-display text-lg font-semibold text-on-surface">
           {format(currentMonth, 'MMMM yyyy')}
-          <span className="text-on-surface-variant font-normal mx-2">–</span>
-          {format(addMonths(currentMonth, 1), 'MMMM yyyy')}
         </h2>
 
         <button
@@ -119,7 +117,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
             <thead>
               <tr>
                 {/* Room column header */}
-                <th className="sticky left-0 top-0 z-30 bg-surface-container/95 backdrop-blur-sm px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant border-b border-r border-outline-variant/60 w-[240px] min-w-[240px]">
+                <th className="sticky left-0 top-0 z-30 bg-surface-container/95 backdrop-blur-sm px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant border-b border-r border-outline-variant/60 w-[160px] min-w-[160px]">
                   Room
                 </th>
 
@@ -131,17 +129,12 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                     <th
                       key={format(day, 'yyyy-MM-dd')}
                       className={clsx(
-                        'sticky top-0 z-20 bg-surface-container/95 backdrop-blur-sm w-8 min-w-[32px] py-2 border-b border-outline-variant/60 text-center',
+                        'sticky top-0 z-20 bg-surface-container/95 backdrop-blur-sm w-5 min-w-[20px] py-2 border-b border-outline-variant/60 text-center',
                         isFirst && 'border-l-2 border-l-primary/25',
                         isSun && !isFirst && 'border-l border-l-outline-variant/40',
                       )}
                     >
                       <div className="flex flex-col items-center gap-0.5">
-                        {isFirst && (
-                          <span className="text-[9px] font-semibold text-primary/70 uppercase tracking-wide leading-none">
-                            {format(day, 'MMM')}
-                          </span>
-                        )}
                         <span
                           className={clsx(
                             'text-[10px] font-medium leading-none',
@@ -169,7 +162,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                   )}
                 >
                   {/* Room label */}
-                  <td className="sticky left-0 z-10 bg-surface-container/90 backdrop-blur-sm px-4 py-2.5 border-r border-outline-variant/60 w-[240px] min-w-[240px] max-w-[240px]">
+                  <td className="sticky left-0 z-10 bg-surface-container/90 backdrop-blur-sm px-3 py-2.5 border-r border-outline-variant/60 w-[160px] min-w-[160px] max-w-[160px]">
                     <button
                       onClick={() => setSelectedRoom(room)}
                       className="text-sm font-semibold text-secondary hover:text-primary w-full text-left transition-colors underline underline-offset-2 leading-tight line-clamp-2"
@@ -196,7 +189,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                         key={dateStr}
                         title={tooltip}
                         className={clsx(
-                          'w-8 h-8 min-w-[32px] p-0 text-center cursor-default transition-colors',
+                          'w-5 h-7 min-w-[20px] p-0 text-center cursor-default transition-colors',
                           isFirst && 'border-l-2 border-l-primary/25',
                           isSun && !isFirst && 'border-l border-l-outline-variant/40',
                           status === 'booking' &&
