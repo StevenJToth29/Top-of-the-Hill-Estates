@@ -19,7 +19,7 @@ export default function LocationMap({ lat, lng }: Props) {
     if (!containerRef.current || mapRef.current) return
 
     setOptions({
-      apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+      key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
       version: 'weekly',
     })
 
