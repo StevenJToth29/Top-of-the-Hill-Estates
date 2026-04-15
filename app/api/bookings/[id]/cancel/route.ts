@@ -16,7 +16,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { reason } = (await request.json()) as { reason: string }
+    const body = (await request.json()) as { reason: string; refund_override?: 'full' | 'half' | 'none' }
+    const { reason, refund_override } = body
     if (!reason) {
       return NextResponse.json({ error: 'reason is required' }, { status: 400 })
     }
@@ -38,7 +39,22 @@ export async function POST(
     }
 
     const now = new Date()
-    const refundResult = calculateRefund(booking as Booking, now)
+    const policyRefund = calculateRefund(booking as Booking, now)
+
+    // Admin can override the policy refund amount
+    let refundResult = policyRefund
+    if (refund_override !== undefined) {
+      const amountPaid = (booking as Booking).amount_paid
+      const overrideAmount =
+        refund_override === 'full' ? amountPaid
+        : refund_override === 'half' ? Math.round(amountPaid * 0.5 * 100) / 100
+        : 0
+      refundResult = {
+        ...policyRefund,
+        refund_amount: overrideAmount,
+        refund_percentage: refund_override === 'full' ? 100 : refund_override === 'half' ? 50 : 0,
+      }
+    }
 
     // Update DB first — if the Stripe refund fails we can retry, but we can't
     // un-issue a refund if the DB update fails after the refund is already sent.
