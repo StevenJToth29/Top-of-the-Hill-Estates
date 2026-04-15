@@ -1,4 +1,4 @@
-import { BookingParams } from '@/types'
+import type { BookingParams, RoomFee } from '@/types'
 import { format, parseISO } from 'date-fns'
 
 interface CheckoutSummaryProps {
@@ -21,6 +21,11 @@ function formatCurrency(amount: number): string {
 
 export default function CheckoutSummary({ params, roomName, propertyName }: CheckoutSummaryProps) {
   const isLongTerm = params.booking_type === 'long_term'
+  const extraGuests = Math.max(0, params.guests - 1)
+  const fees: RoomFee[] = params.fees ?? []
+  const applicableFees = fees.filter(
+    (f) => f.booking_type === params.booking_type || f.booking_type === 'both'
+  )
 
   return (
     <div className="bg-surface-container rounded-2xl p-6 space-y-6">
@@ -47,9 +52,7 @@ export default function CheckoutSummary({ params, roomName, propertyName }: Chec
       <div>
         <span
           className={`inline-block rounded-full px-3 py-1 text-xs font-semibold ${
-            isLongTerm
-              ? 'bg-secondary/20 text-secondary'
-              : 'bg-primary/20 text-primary'
+            isLongTerm ? 'bg-secondary/20 text-secondary' : 'bg-primary/20 text-primary'
           }`}
         >
           {isLongTerm ? 'Long-term' : 'Short-term'}
@@ -63,23 +66,61 @@ export default function CheckoutSummary({ params, roomName, propertyName }: Chec
         {isLongTerm ? (
           <>
             <div className="flex justify-between text-sm">
-              <span className="text-on-surface-variant">First month deposit</span>
+              <span className="text-on-surface-variant">First month</span>
               <span className="text-on-surface">{formatCurrency(params.monthly_rate)}</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-on-surface-variant">Balance due at check-in</span>
-              <span className="text-on-surface">{formatCurrency(params.monthly_rate)}</span>
-            </div>
+            {params.security_deposit > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-on-surface-variant">Security deposit</span>
+                <span className="text-on-surface">{formatCurrency(params.security_deposit)}</span>
+              </div>
+            )}
+            {extraGuests > 0 && params.extra_guest_fee > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-on-surface-variant">
+                  Extra guests ({extraGuests} × {formatCurrency(params.extra_guest_fee)}/month)
+                </span>
+                <span className="text-on-surface">
+                  {formatCurrency(extraGuests * params.extra_guest_fee)}
+                </span>
+              </div>
+            )}
           </>
         ) : (
-          <div className="flex justify-between text-sm">
-            <span className="text-on-surface-variant">
-              {params.total_nights} night{params.total_nights !== 1 ? 's' : ''} ×{' '}
-              {formatCurrency(params.nightly_rate)}/night
-            </span>
-            <span className="text-on-surface">{formatCurrency(params.total_amount)}</span>
-          </div>
+          <>
+            <div className="flex justify-between text-sm">
+              <span className="text-on-surface-variant">
+                {params.total_nights} night{params.total_nights !== 1 ? 's' : ''} ×{' '}
+                {formatCurrency(params.nightly_rate)}/night
+              </span>
+              <span className="text-on-surface">
+                {formatCurrency(params.total_nights * params.nightly_rate)}
+              </span>
+            </div>
+            {params.cleaning_fee > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-on-surface-variant">Cleaning fee</span>
+                <span className="text-on-surface">{formatCurrency(params.cleaning_fee)}</span>
+              </div>
+            )}
+            {extraGuests > 0 && params.extra_guest_fee > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-on-surface-variant">
+                  Extra guests ({extraGuests} × {formatCurrency(params.extra_guest_fee)}/night)
+                </span>
+                <span className="text-on-surface">
+                  {formatCurrency(extraGuests * params.extra_guest_fee * params.total_nights)}
+                </span>
+              </div>
+            )}
+          </>
         )}
+        {applicableFees.map((f) => (
+          <div key={f.id} className="flex justify-between text-sm">
+            <span className="text-on-surface-variant">{f.label}</span>
+            <span className="text-on-surface">{formatCurrency(f.amount)}</span>
+          </div>
+        ))}
       </div>
 
       <div className="pt-4 border-t border-outline-variant">

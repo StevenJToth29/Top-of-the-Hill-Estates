@@ -119,6 +119,7 @@ export default function CheckoutForm({ bookingParams }: CheckoutFormProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...bookingParams,
+          guest_count: bookingParams.guests,
           ...guestInfo,
           sms_consent: smsConsent,
           marketing_consent: marketingConsent,

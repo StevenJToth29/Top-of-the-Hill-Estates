@@ -35,7 +35,13 @@ function CheckoutPageInner() {
     cleaning_fee: getNumParam('cleaning_fee'),
     security_deposit: getNumParam('security_deposit'),
     extra_guest_fee: getNumParam('extra_guest_fee'),
-    fees: [],
+    fees: (() => {
+      try {
+        return JSON.parse(getParam('fees') || '[]')
+      } catch {
+        return []
+      }
+    })(),
   }
 
   const roomName = getParam('room_name') || bookingParams.room_slug || 'Your Room'
