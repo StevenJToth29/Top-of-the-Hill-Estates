@@ -4,7 +4,7 @@ import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 import CheckoutForm from '@/components/public/CheckoutForm'
 import CheckoutSummary from '@/components/public/CheckoutSummary'
-import { BookingParams, BookingType } from '@/types'
+import { BookingParams, BookingType, RoomFee } from '@/types'
 
 function CheckoutPageInner() {
   const searchParams = useSearchParams()
@@ -37,7 +37,22 @@ function CheckoutPageInner() {
     extra_guest_fee: getNumParam('extra_guest_fee'),
     fees: (() => {
       try {
-        return JSON.parse(getParam('fees') || '[]')
+        const parsed = JSON.parse(getParam('fees') || '[]')
+        if (
+          !Array.isArray(parsed) ||
+          !parsed.every(
+            (f) =>
+              typeof f === 'object' &&
+              f !== null &&
+              typeof f.id === 'string' &&
+              typeof f.label === 'string' &&
+              typeof f.amount === 'number' &&
+              ['short_term', 'long_term', 'both'].includes(f.booking_type)
+          )
+        ) {
+          return []
+        }
+        return parsed as RoomFee[]
       } catch {
         return []
       }
