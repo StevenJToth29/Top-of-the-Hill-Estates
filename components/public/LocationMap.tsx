@@ -18,10 +18,7 @@ export default function LocationMap({ lat, lng }: Props) {
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
 
-    setOptions({
-      key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
-      version: 'weekly',
-    })
+    setOptions({ key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '' })
 
     importLibrary('maps')
       .then(({ Map, Circle }) => {
