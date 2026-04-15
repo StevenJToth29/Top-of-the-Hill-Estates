@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef } from 'react'
-import 'leaflet/dist/leaflet.css'
+import { Loader } from '@googlemaps/js-api-loader'
 
 interface Props {
   lat: number
@@ -10,51 +10,61 @@ interface Props {
 
 const CIRCLE_RADIUS_M = 400
 
+let loaderInstance: Loader | null = null
+function getLoader() {
+  if (!loaderInstance) {
+    loaderInstance = new Loader({
+      apiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+      version: 'weekly',
+    })
+  }
+  return loaderInstance
+}
+
 export default function LocationMap({ lat, lng }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<unknown>(null)
+  const mapRef = useRef<google.maps.Map | null>(null)
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return
 
-    import('leaflet').then((L) => {
-      if (!containerRef.current || mapRef.current) return
+    getLoader()
+      .importLibrary('maps')
+      .then(({ Map, Circle }) => {
+        if (!containerRef.current || mapRef.current) return
 
-      const map = L.map(containerRef.current, {
-        center: [lat, lng],
-        zoom: 14,
-        zoomControl: false,
-        scrollWheelZoom: false,
-        dragging: false,
-        doubleClickZoom: false,
-        touchZoom: false,
-        attributionControl: false,
+        const map = new Map(containerRef.current, {
+          center: { lat, lng },
+          zoom: 14,
+          disableDefaultUI: true,
+          gestureHandling: 'none',
+          keyboardShortcuts: false,
+          styles: [
+            { featureType: 'poi', stylers: [{ visibility: 'off' }] },
+            { featureType: 'transit', stylers: [{ visibility: 'off' }] },
+          ],
+        })
+
+        new Circle({
+          map,
+          center: { lat, lng },
+          radius: CIRCLE_RADIUS_M,
+          strokeColor: '#2dd4bf',
+          strokeOpacity: 0.8,
+          strokeWeight: 2,
+          fillColor: '#2dd4bf',
+          fillOpacity: 0.15,
+          clickable: false,
+        })
+
+        mapRef.current = map
       })
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        opacity: 0.75,
-      }).addTo(map)
-
-      L.circle([lat, lng], {
-        radius: CIRCLE_RADIUS_M,
-        color: '#2dd4bf',
-        fillColor: '#2dd4bf',
-        fillOpacity: 0.15,
-        weight: 2,
-        opacity: 0.7,
-      }).addTo(map)
-
-      mapRef.current = map
-    })
-
-    return () => {
-      if (mapRef.current) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(mapRef.current as any).remove()
-        mapRef.current = null
-      }
-    }
   }, [lat, lng])
 
-  return <div ref={containerRef} className="w-full h-64 rounded-xl overflow-hidden ring-1 ring-white/10" />
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-64 rounded-xl overflow-hidden ring-1 ring-white/10"
+    />
+  )
 }

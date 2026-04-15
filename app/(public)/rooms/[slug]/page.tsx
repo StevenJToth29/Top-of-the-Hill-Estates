@@ -41,19 +41,20 @@ export default async function RoomDetailPage({ params }: Props) {
     format(sixMonthsOut, 'yyyy-MM-dd'),
   )
 
-  // Geocode exact address for accurate circle placement; street is never shown to the user
+  // Geocode exact address server-side; coordinates are passed to the map but street is never rendered
   let mapCoords: { lat: number; lng: number } | null = null
-  if (room.property) {
+  if (room.property && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
     try {
-      const query = encodeURIComponent(`${room.property.address}, ${room.property.city}, ${room.property.state}`)
+      const address = encodeURIComponent(
+        `${room.property.address}, ${room.property.city}, ${room.property.state}`,
+      )
       const geoRes = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
-        { headers: { 'User-Agent': 'tothrooms.com' }, next: { revalidate: 86400 } },
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${address}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`,
+        { next: { revalidate: 86400 } },
       )
       const geoData = await geoRes.json()
-      if (geoData?.[0]) {
-        mapCoords = { lat: parseFloat(geoData[0].lat), lng: parseFloat(geoData[0].lon) }
-      }
+      const loc = geoData?.results?.[0]?.geometry?.location
+      if (loc) mapCoords = { lat: loc.lat, lng: loc.lng }
     } catch {
       // silently skip map if geocoding fails
     }
