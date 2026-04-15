@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       cleaning_fee: cleaningFee,
       security_deposit: securityDeposit,
       extra_guest_fee: extraGuestFee,
+      cancellation_window_hours: Number(body.cancellation_window_hours ?? 72),
     })
     .select('id')
     .single()
@@ -104,6 +105,7 @@ export async function PATCH(request: Request) {
       cleaning_fee: cleaningFee,
       security_deposit: securityDeposit,
       extra_guest_fee: extraGuestFee,
+      cancellation_window_hours: Number(fields.cancellation_window_hours ?? 72),
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)

@@ -64,6 +64,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
   const [cleaningFee, setCleaningFee] = useState(room?.cleaning_fee ?? 0)
   const [securityDeposit, setSecurityDeposit] = useState(room?.security_deposit ?? 0)
   const [extraGuestFee, setExtraGuestFee] = useState(room?.extra_guest_fee ?? 0)
+  const [cancellationWindowHours, setCancellationWindowHours] = useState(room?.cancellation_window_hours ?? 72)
   const [additionalFees, setAdditionalFees] = useState<
     { label: string; amount: number; booking_type: 'short_term' | 'long_term' | 'both' }[]
   >(
@@ -143,6 +144,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
       security_deposit: securityDeposit,
       extra_guest_fee: extraGuestFee,
       fees: additionalFees,
+      cancellation_window_hours: cancellationWindowHours,
     }
 
     startTransition(async () => {
@@ -364,6 +366,20 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
               className={`${inputClass} pl-8`}
             />
           </div>
+        </div>
+        <div>
+          <label className={labelClass}>Cancellation Window (hours)</label>
+          <input
+            type="number"
+            min={0}
+            step={1}
+            value={cancellationWindowHours}
+            onChange={(e) => setCancellationWindowHours(Number(e.target.value))}
+            className={`${inputClass} max-w-xs`}
+          />
+          <p className="text-xs text-on-surface-variant/60 mt-1">
+            Guests cannot cancel or modify within this many hours of check-in. Default: 72.
+          </p>
         </div>
       </section>
 
