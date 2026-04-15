@@ -14,6 +14,13 @@ export async function POST(request: Request) {
   const supabase = createServiceRoleClient()
   const body = await request.json()
 
+  const cleaningFee = Number(body.cleaning_fee ?? 0)
+  const securityDeposit = Number(body.security_deposit ?? 0)
+  const extraGuestFee = Number(body.extra_guest_fee ?? 0)
+  if (isNaN(cleaningFee) || cleaningFee < 0 || isNaN(securityDeposit) || securityDeposit < 0 || isNaN(extraGuestFee) || extraGuestFee < 0) {
+    return NextResponse.json({ error: 'Fee amounts must be non-negative numbers' }, { status: 400 })
+  }
+
   const { data, error } = await supabase
     .from('rooms')
     .insert({
@@ -34,16 +41,20 @@ export async function POST(request: Request) {
       is_active: Boolean(body.is_active),
       amenities: body.amenities ?? [],
       images: body.images ?? [],
-      cleaning_fee: Number(body.cleaning_fee ?? 0),
-      security_deposit: Number(body.security_deposit ?? 0),
-      extra_guest_fee: Number(body.extra_guest_fee ?? 0),
+      cleaning_fee: cleaningFee,
+      security_deposit: securityDeposit,
+      extra_guest_fee: extraGuestFee,
     })
     .select('id')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const fees: { label: string; amount: number; booking_type: string }[] = body.fees ?? []
+  const fees: { label: string; amount: number; booking_type: 'short_term' | 'long_term' | 'both' }[] = body.fees ?? []
+  const validBookingTypes = new Set(['short_term', 'long_term', 'both'])
+  if (fees.some((f) => !validBookingTypes.has(f.booking_type))) {
+    return NextResponse.json({ error: 'Invalid booking_type — must be short_term, long_term, or both' }, { status: 400 })
+  }
   if (fees.length > 0) {
     const { error: feesError } = await supabase
       .from('room_fees')
@@ -64,6 +75,13 @@ export async function PATCH(request: Request) {
 
   if (!id) return NextResponse.json({ error: 'Missing room id' }, { status: 400 })
 
+  const cleaningFee = Number(fields.cleaning_fee ?? 0)
+  const securityDeposit = Number(fields.security_deposit ?? 0)
+  const extraGuestFee = Number(fields.extra_guest_fee ?? 0)
+  if (isNaN(cleaningFee) || cleaningFee < 0 || isNaN(securityDeposit) || securityDeposit < 0 || isNaN(extraGuestFee) || extraGuestFee < 0) {
+    return NextResponse.json({ error: 'Fee amounts must be non-negative numbers' }, { status: 400 })
+  }
+
   const { error } = await supabase
     .from('rooms')
     .update({
@@ -83,20 +101,24 @@ export async function PATCH(request: Request) {
       is_active: Boolean(fields.is_active),
       amenities: fields.amenities,
       images: fields.images,
-      cleaning_fee: Number(fields.cleaning_fee ?? 0),
-      security_deposit: Number(fields.security_deposit ?? 0),
-      extra_guest_fee: Number(fields.extra_guest_fee ?? 0),
+      cleaning_fee: cleaningFee,
+      security_deposit: securityDeposit,
+      extra_guest_fee: extraGuestFee,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Atomic replace: delete all existing fees for this room, then insert new set
+  // Two-step replace (not transactional): delete all existing fees, then insert new set
   const { error: deleteError } = await supabase.from('room_fees').delete().eq('room_id', id)
   if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
 
-  const fees: { label: string; amount: number; booking_type: string }[] = fields.fees ?? []
+  const fees: { label: string; amount: number; booking_type: 'short_term' | 'long_term' | 'both' }[] = fields.fees ?? []
+  const validBookingTypes = new Set(['short_term', 'long_term', 'both'])
+  if (fees.some((f) => !validBookingTypes.has(f.booking_type))) {
+    return NextResponse.json({ error: 'Invalid booking_type — must be short_term, long_term, or both' }, { status: 400 })
+  }
   if (fees.length > 0) {
     const { error: feesError } = await supabase
       .from('room_fees')

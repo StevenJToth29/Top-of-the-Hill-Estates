@@ -158,4 +158,20 @@ describe('PATCH /api/admin/rooms', () => {
       ])
     )
   })
+
+  it('PATCH with empty fees array still deletes existing room_fees', async () => {
+    mockAuthed()
+    const { roomFeesDelete, roomFeesInsert } = createDbMocks()
+
+    const req = new Request('http://localhost/api/admin/rooms', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'room-1', fees: [] }),
+    })
+
+    await PATCH(req)
+
+    expect(roomFeesDelete).toHaveBeenCalled()
+    expect(roomFeesInsert).not.toHaveBeenCalled()
+  })
 })
