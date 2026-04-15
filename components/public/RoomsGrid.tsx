@@ -5,43 +5,12 @@ import type { Property, Room } from '@/types'
 
 export type RoomWithProperty = Room & { property: Property }
 
-function groupByProperty(
-  rooms: RoomWithProperty[],
-): Map<string, { property: Property; rooms: RoomWithProperty[] }> {
-  const map = new Map<string, { property: Property; rooms: RoomWithProperty[] }>()
-  for (const room of rooms) {
-    let group = map.get(room.property_id)
-    if (!group) {
-      group = { property: room.property, rooms: [] }
-      map.set(room.property_id, group)
-    }
-    group.rooms.push(room)
-  }
-  return map
-}
 
 export default function RoomsGrid({ rooms }: { rooms: RoomWithProperty[] }) {
-  const entries = Array.from(groupByProperty(rooms).values())
-
   return (
-    <div className="space-y-16">
-      {entries.map(({ property, rooms: groupRooms }) => (
-        <section key={property.id}>
-          <div className="bg-surface-low rounded-2xl px-6 py-5 mb-8">
-            <h2 className="font-display font-bold text-2xl text-primary">
-              {property.name}
-            </h2>
-            <p className="font-body text-sm text-on-surface-variant mt-1">
-              {property.address}, {property.city}, {property.state}
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {groupRooms.map((room) => (
-              <InlineRoomCard key={room.id} room={room} />
-            ))}
-          </div>
-        </section>
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {rooms.map((room) => (
+        <InlineRoomCard key={room.id} room={room} />
       ))}
     </div>
   )
@@ -69,10 +38,6 @@ function InlineRoomCard({ room }: { room: RoomWithProperty }) {
       </div>
 
       <div className="p-5 flex flex-col gap-3 flex-1">
-        <span className="text-secondary uppercase text-xs tracking-widest font-body">
-          {room.property?.name}
-        </span>
-
         <h3 className="font-display font-bold text-lg text-on-surface leading-snug">
           {room.name}
         </h3>
