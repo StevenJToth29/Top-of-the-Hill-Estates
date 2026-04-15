@@ -61,6 +61,12 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
   const [isActive, setIsActive] = useState(room?.is_active ?? true)
   const [amenities, setAmenities] = useState<string[]>(room?.amenities ?? [])
   const [images, setImages] = useState<string[]>(room?.images ?? [])
+  const [cleaningFee, setCleaningFee] = useState(room?.cleaning_fee ?? 0)
+  const [securityDeposit, setSecurityDeposit] = useState(room?.security_deposit ?? 0)
+  const [extraGuestFee, setExtraGuestFee] = useState(room?.extra_guest_fee ?? 0)
+  const [additionalFees, setAdditionalFees] = useState<
+    { label: string; amount: number; booking_type: 'short_term' | 'long_term' | 'both' }[]
+  >(room?.fees ?? [])
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -126,6 +132,10 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
       is_active: isActive,
       amenities,
       images,
+      cleaning_fee: cleaningFee,
+      security_deposit: securityDeposit,
+      extra_guest_fee: extraGuestFee,
+      fees: additionalFees,
     }
 
     startTransition(async () => {
@@ -282,6 +292,19 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
               </div>
             </div>
             <div className={showNightlyRate ? '' : 'opacity-40 pointer-events-none'}>
+              <label className={labelClass}>Cleaning Fee</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60">$</span>
+                <input
+                  type="number"
+                  value={cleaningFee}
+                  onChange={(e) => setCleaningFee(Number(e.target.value))}
+                  min={0}
+                  className={`${inputClass} pl-8`}
+                />
+              </div>
+            </div>
+            <div className={showNightlyRate ? '' : 'opacity-40 pointer-events-none'}>
               <label className={labelClass}>Min Nights (Short-term)</label>
               <input type="number" value={minNightsShort} onChange={(e) => setMinNightsShort(Number(e.target.value))} min={1} className={inputClass} />
             </div>
@@ -298,11 +321,113 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
               </div>
             </div>
             <div className={showMonthlyRate ? '' : 'opacity-40 pointer-events-none'}>
+              <label className={labelClass}>Security Deposit</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60">$</span>
+                <input
+                  type="number"
+                  value={securityDeposit}
+                  onChange={(e) => setSecurityDeposit(Number(e.target.value))}
+                  min={0}
+                  className={`${inputClass} pl-8`}
+                />
+              </div>
+            </div>
+            <div className={showMonthlyRate ? '' : 'opacity-40 pointer-events-none'}>
               <label className={labelClass}>Min Nights (Long-term)</label>
               <input type="number" value={minNightsLong} onChange={(e) => setMinNightsLong(Number(e.target.value))} min={1} className={inputClass} />
             </div>
           </div>
         </div>
+
+        <div>
+          <label className={labelClass}>
+            Extra Guest Fee{' '}
+            <span className="font-normal text-xs text-on-surface-variant/50">
+              (per additional guest / night or month)
+            </span>
+          </label>
+          <div className="relative max-w-xs">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60">$</span>
+            <input
+              type="number"
+              value={extraGuestFee}
+              onChange={(e) => setExtraGuestFee(Number(e.target.value))}
+              min={0}
+              className={`${inputClass} pl-8`}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Additional Fees */}
+      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
+        <h2 className="font-display text-lg font-semibold text-on-surface">Additional Fees</h2>
+        <p className="text-xs text-on-surface-variant/60">
+          Custom fees charged to guests at booking, in addition to the cleaning fee, security deposit, and extra guest fee above.
+        </p>
+
+        <div className="space-y-3">
+          {additionalFees.map((fee, idx) => (
+            <div key={idx} className="grid grid-cols-[1fr_auto_auto_auto] gap-3 items-center">
+              <input
+                type="text"
+                value={fee.label}
+                onChange={(e) => {
+                  const next = [...additionalFees]
+                  next[idx] = { ...next[idx], label: e.target.value }
+                  setAdditionalFees(next)
+                }}
+                placeholder="e.g. Pet fee"
+                className={inputClass}
+              />
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-sm">$</span>
+                <input
+                  type="number"
+                  value={fee.amount}
+                  onChange={(e) => {
+                    const next = [...additionalFees]
+                    next[idx] = { ...next[idx], amount: Number(e.target.value) }
+                    setAdditionalFees(next)
+                  }}
+                  min={0}
+                  className={`${inputClass} pl-7 w-28`}
+                />
+              </div>
+              <select
+                value={fee.booking_type}
+                onChange={(e) => {
+                  const next = [...additionalFees]
+                  next[idx] = { ...next[idx], booking_type: e.target.value as 'short_term' | 'long_term' | 'both' }
+                  setAdditionalFees(next)
+                }}
+                className={`${inputClass} w-36`}
+              >
+                <option value="short_term">Short-term</option>
+                <option value="long_term">Long-term</option>
+                <option value="both">Both</option>
+              </select>
+              <button
+                type="button"
+                onClick={() => setAdditionalFees(additionalFees.filter((_, i) => i !== idx))}
+                className="text-error hover:opacity-70 transition-opacity text-sm px-2"
+              >
+                Remove
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            setAdditionalFees([...additionalFees, { label: '', amount: 0, booking_type: 'both' }])
+          }
+          className="text-sm text-secondary hover:opacity-80 transition-opacity border border-secondary/30 rounded-xl px-4 py-2"
+        >
+          + Add Fee
+        </button>
       </section>
 
       {/* Amenities */}
