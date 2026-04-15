@@ -41,11 +41,11 @@ export default async function RoomDetailPage({ params }: Props) {
     format(sixMonthsOut, 'yyyy-MM-dd'),
   )
 
-  // Geocode to city+state level for a general area (no street address exposed)
+  // Geocode exact address for accurate circle placement; street is never shown to the user
   let mapCoords: { lat: number; lng: number } | null = null
   if (room.property) {
     try {
-      const query = encodeURIComponent(`${room.property.city}, ${room.property.state}`)
+      const query = encodeURIComponent(`${room.property.address}, ${room.property.city}, ${room.property.state}`)
       const geoRes = await fetch(
         `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
         { headers: { 'User-Agent': 'tothrooms.com' }, next: { revalidate: 86400 } },
