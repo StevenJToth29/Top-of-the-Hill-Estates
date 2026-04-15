@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { SparklesIcon, XMarkIcon, ArrowPathIcon, CheckIcon } from '@heroicons/react/24/outline'
 
 interface AIWriteButtonProps {
-  fieldType: 'short_description' | 'room_description' | 'property_description'
+  fieldType: 'short_description' | 'room_description' | 'property_description' | 'about_us'
   context: string
   onAccept: (text: string) => void
 }

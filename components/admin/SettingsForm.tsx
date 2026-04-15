@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { PhotoIcon } from '@heroicons/react/24/outline'
 import { createClient } from '@/lib/supabase-browser'
 import type { SiteSettings, BusinessHours } from '@/types'
+import AIWriteButton from './AIWriteButton'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -260,6 +261,22 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
             onChange={handleChange}
             className={`${inputClass} resize-y`}
           />
+          <div className="mt-2">
+            <AIWriteButton
+              fieldType="about_us"
+              context={[
+                form.business_name && `Business name: ${form.business_name}`,
+                form.contact_address && `Address: ${form.contact_address}`,
+                form.contact_phone && `Phone: ${form.contact_phone}`,
+                form.contact_email && `Email: ${form.contact_email}`,
+                'Type of business: short-term and long-term residential rentals',
+              ].filter(Boolean).join('\n')}
+              onAccept={(text) => {
+                setForm((prev) => ({ ...prev, about_text: text }))
+                setSaved(false)
+              }}
+            />
+          </div>
         </div>
       </section>
 

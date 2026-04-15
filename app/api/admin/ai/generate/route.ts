@@ -40,6 +40,14 @@ Context about the property:
 ${context}
 ${hint ? `Additional instructions: ${hint}` : ''}
 Reply with only the description text, nothing else.`
+  } else if (fieldType === 'about_us') {
+    userPrompt = `Write an "About Us" paragraph (3–5 sentences) for the following short-term and long-term rental business.
+This text will appear on the public website to introduce the company to prospective guests.
+Be warm, trustworthy, and welcoming. Highlight what makes this property management company special.
+Context about the business:
+${context}
+${hint ? `Additional instructions: ${hint}` : ''}
+Reply with only the About Us text, nothing else.`
   } else {
     userPrompt = `Write a description for a rental listing.
 Context:
@@ -50,7 +58,7 @@ Reply with only the description text, nothing else.`
 
   const stream = await client.messages.stream({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 300,
+    max_tokens: fieldType === 'about_us' ? 600 : 300,
     system: systemPrompt,
     messages: [{ role: 'user', content: userPrompt }],
   })
