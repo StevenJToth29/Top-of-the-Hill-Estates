@@ -1,0 +1,121 @@
+/// <reference types="@types/google.maps" />
+'use client'
+
+import { useEffect, useRef } from 'react'
+import { setOptions, importLibrary } from '@googlemaps/js-api-loader'
+
+export interface PlacesAddressInputProps {
+  value: string
+  onChange: (value: string) => void
+  onCityChange: (city: string) => void
+  onStateChange: (state: string) => void
+  className?: string
+  placeholder?: string
+  required?: boolean
+}
+
+interface AddressComponent {
+  types: string[]
+  long_name: string
+  short_name: string
+}
+
+export interface ParsedAddress {
+  address?: string
+  city?: string
+  state?: string
+}
+
+export function parseAddressComponents(components: AddressComponent[]): ParsedAddress {
+  const get = (type: string, nameType: 'long_name' | 'short_name'): string | undefined => {
+    const comp = components.find((c) => c.types.includes(type))
+    return comp ? comp[nameType] : undefined
+  }
+
+  const streetNumber = get('street_number', 'long_name')
+  const route = get('route', 'long_name')
+  const locality = get('locality', 'long_name') ?? get('sublocality', 'long_name')
+  const adminArea = get('administrative_area_level_1', 'short_name')
+
+  const result: ParsedAddress = {}
+  if (route) result.address = streetNumber ? `${streetNumber} ${route}` : route
+  if (locality) result.city = locality
+  if (adminArea) result.state = adminArea
+
+  return result
+}
+
+export default function PlacesAddressInput({
+  value,
+  onChange,
+  onCityChange,
+  onStateChange,
+  className,
+  placeholder,
+  required,
+}: PlacesAddressInputProps) {
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Stable refs for callbacks — avoids re-initialising autocomplete when parent re-renders
+  const onChangeRef = useRef(onChange)
+  const onCityChangeRef = useRef(onCityChange)
+  const onStateChangeRef = useRef(onStateChange)
+  useEffect(() => {
+    onChangeRef.current = onChange
+    onCityChangeRef.current = onCityChange
+    onStateChangeRef.current = onStateChange
+  })
+
+  useEffect(() => {
+    if (!inputRef.current) return
+
+    let isMounted = true
+    let listener: google.maps.MapsEventListener | undefined
+
+    setOptions({
+      key: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
+      libraries: ['places'],
+    })
+
+    importLibrary('places')
+      .then(() => {
+        if (!isMounted || !inputRef.current) return
+
+        const autocomplete = new google.maps.places.Autocomplete(inputRef.current, {
+          types: ['address'],
+          componentRestrictions: { country: 'us' },
+          fields: ['address_components'],
+        })
+
+        listener = autocomplete.addListener('place_changed', () => {
+          const place = autocomplete.getPlace()
+          if (!place.address_components) return
+
+          const parsed = parseAddressComponents(place.address_components)
+          if (parsed.address !== undefined) onChangeRef.current(parsed.address)
+          if (parsed.city !== undefined) onCityChangeRef.current(parsed.city)
+          if (parsed.state !== undefined) onStateChangeRef.current(parsed.state)
+        })
+      })
+      .catch(() => {
+        // Graceful degradation — input works as plain text if Places fails to load
+      })
+
+    return () => {
+      isMounted = false
+      if (listener) google.maps.event.removeListener(listener)
+    }
+  }, []) // Intentionally empty — runs once on mount; callbacks accessed via refs
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      className={className}
+      required={required}
+    />
+  )
+}
