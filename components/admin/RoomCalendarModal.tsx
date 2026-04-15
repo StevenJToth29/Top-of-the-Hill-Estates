@@ -153,7 +153,7 @@ export default function RoomCalendarModal({ room, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-      <div className="bg-surface-container w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+      <div className="bg-surface-container w-full max-w-6xl max-h-[95vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-outline-variant/40 shrink-0">
@@ -225,7 +225,7 @@ export default function RoomCalendarModal({ room, onClose }: Props) {
                             <div
                               key={format(day, 'yyyy-MM-dd')}
                               className={[
-                                'h-8 flex items-start justify-end pr-2 pt-1 text-xs border-t border-outline-variant/30',
+                                'h-16 flex items-start justify-end pr-2 pt-1.5 text-sm border-t border-outline-variant/30',
                                 !inMonth ? 'text-on-surface-variant/30' : today ? 'font-bold' : 'text-on-surface',
                               ].join(' ')}
                             >
@@ -243,7 +243,7 @@ export default function RoomCalendarModal({ room, onClose }: Props) {
 
                       {/* Event bars */}
                       {lanes.map((lane, li) => (
-                        <div key={li} className="grid grid-cols-7 h-6">
+                        <div key={li} className="grid grid-cols-7 h-7">
                           {(() => {
                             const cells: React.ReactNode[] = []
                             let col = 1
@@ -264,7 +264,7 @@ export default function RoomCalendarModal({ room, onClose }: Props) {
                                   title={bar.label}
                                   style={{ gridColumn: `${bar.colStart} / span ${bar.span}` }}
                                   className={[
-                                    'h-5 flex items-center px-1.5 text-[10px] font-medium overflow-hidden whitespace-nowrap mx-0.5',
+                                    'h-6 flex items-center px-2 text-xs font-medium overflow-hidden whitespace-nowrap mx-0.5',
                                     bar.isStart ? 'rounded-l-full' : '',
                                     bar.isEnd ? 'rounded-r-full' : '',
                                     bar.type === 'booking'
