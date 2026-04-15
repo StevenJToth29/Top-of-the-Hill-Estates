@@ -28,11 +28,15 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
     room: Room & { property: Property }
   }
 
-  const { data: bookingFees } = await supabase
+  const { data: bookingFees, error: feesError } = await supabase
     .from('booking_fees')
     .select('*')
     .eq('booking_id', bookingId)
     .order('created_at')
+
+  if (feesError) {
+    console.error('Failed to fetch booking_fees:', feesError)
+  }
 
   return (
     <main className="min-h-screen bg-background py-16 px-4">
