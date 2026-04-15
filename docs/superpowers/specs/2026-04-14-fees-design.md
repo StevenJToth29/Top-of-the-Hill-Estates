@@ -1,4 +1,4 @@
-# Fees Design — Cleaning Fee, Security Deposit, and Generic Room Fees
+# Fees Design — Cleaning Fee, Security Deposit, Extra Guest Fee, and Generic Room Fees
 
 **Date:** 2026-04-14
 **Status:** Approved
@@ -7,7 +7,12 @@
 
 ## Overview
 
-Add two specific per-room fees — a **cleaning fee** for short-term stays and a **security deposit** for long-term stays — both charged immediately at booking. Also introduce a **generic room fees system** (`room_fees` table) so admins can add free-form fees (label + amount + booking type) per room beyond the two specific ones.
+Add three specific per-room fees:
+- **Cleaning fee** — flat fee on short-term stays, charged upfront at booking
+- **Security deposit** — replaces the prior "second month at check-in" model; charged immediately alongside the first month on long-term stays
+- **Extra guest fee** — flat rate per additional guest above 1, multiplied by nights (short-term) or applied once per month (long-term)
+
+Also introduce a **generic room fees system** (`room_fees` table) so admins can add free-form fees (label + amount + booking type) per room beyond the three specific ones.
 
 ---
 
@@ -19,12 +24,15 @@ Add two specific per-room fees — a **cleaning fee** for short-term stays and a
 -- Option A: Specific fees on rooms
 ALTER TABLE rooms
   ADD COLUMN cleaning_fee NUMERIC NOT NULL DEFAULT 0,
-  ADD COLUMN security_deposit NUMERIC NOT NULL DEFAULT 0;
+  ADD COLUMN security_deposit NUMERIC NOT NULL DEFAULT 0,
+  ADD COLUMN extra_guest_fee NUMERIC NOT NULL DEFAULT 0;
 
--- Snapshot specific fees at booking time
+-- Snapshot specific fees at booking time; guest_count not currently stored on bookings
 ALTER TABLE bookings
   ADD COLUMN cleaning_fee NUMERIC NOT NULL DEFAULT 0,
-  ADD COLUMN security_deposit NUMERIC NOT NULL DEFAULT 0;
+  ADD COLUMN security_deposit NUMERIC NOT NULL DEFAULT 0,
+  ADD COLUMN extra_guest_fee NUMERIC NOT NULL DEFAULT 0,
+  ADD COLUMN guest_count INTEGER NOT NULL DEFAULT 1;
 
 -- Option B: Generic per-room fees
 CREATE TABLE room_fees (
@@ -71,16 +79,20 @@ export interface BookingFee {
 **Updated `Room`:**
 - Add `cleaning_fee?: number`
 - Add `security_deposit?: number`
+- Add `extra_guest_fee?: number`
 - Add `fees?: RoomFee[]`
 
 **Updated `Booking`:**
 - Add `cleaning_fee: number`
 - Add `security_deposit: number`
+- Add `extra_guest_fee: number`
+- Add `guest_count: number`
 - Add `fees?: BookingFee[]`
 
 **Updated `BookingParams`:**
 - Add `cleaning_fee: number`
 - Add `security_deposit: number`
+- Add `extra_guest_fee: number`
 
 ---
 
@@ -90,8 +102,11 @@ The `/api/bookings` route is the **authoritative pricing calculator**. It fetche
 
 ### Short-term
 ```
+extra_guest_total = max(0, guest_count - 1) × extra_guest_fee × total_nights
+
 total_amount = (total_nights × nightly_rate)
              + cleaning_fee
+             + extra_guest_total
              + sum(room_fees where booking_type IN ('short_term', 'both'))
 
 amount_due_at_checkin = 0
@@ -100,8 +115,11 @@ amount_to_pay = total_amount
 
 ### Long-term
 ```
+extra_guest_total = max(0, guest_count - 1) × extra_guest_fee
+
 total_amount = monthly_rate
              + security_deposit
+             + extra_guest_total
              + sum(room_fees where booking_type IN ('long_term', 'both'))
 
 amount_due_at_checkin = 0   ← replaces the prior "second month at check-in" model
@@ -109,7 +127,7 @@ amount_to_pay = total_amount
 ```
 
 After calculating the total, the booking route:
-1. Inserts the `bookings` row with snapshotted `cleaning_fee` and `security_deposit`
+1. Inserts the `bookings` row with snapshotted `cleaning_fee`, `security_deposit`, `extra_guest_fee`, and `guest_count`
 2. Inserts a `booking_fees` row for each applied `room_fee` (label + amount snapshot)
 
 ---
@@ -123,6 +141,9 @@ After calculating the total, the booking route:
 
 **Monthly rate block** gains:
 - `Security Deposit` — number input with `$` prefix, shown/grayed alongside the monthly rate toggle
+
+**Standalone field** (applies to both booking types):
+- `Extra Guest Fee` — number input with `$` prefix and label "per additional guest / night (or month)" — sits between the nightly and monthly blocks, always visible
 
 ### New "Additional Fees" section
 
@@ -151,10 +172,10 @@ Each fee row:
 
 ### `app/api/bookings/route.ts`
 
-1. Fetch the room row including `cleaning_fee` and `security_deposit`
+1. Fetch the room row including `cleaning_fee`, `security_deposit`, and `extra_guest_fee`
 2. Fetch all `room_fees` for the room where `booking_type` matches the booking's type (or is `'both'`)
-3. Calculate `total_amount` per the pricing logic above
-4. Insert `bookings` row with snapshotted fee values
+3. Calculate `total_amount` per the pricing logic above (using `guest_count` from the request body)
+4. Insert `bookings` row with snapshotted fee values including `guest_count`
 5. Bulk-insert `booking_fees` rows from the fetched `room_fees`
 
 ---
@@ -167,25 +188,27 @@ Fetches `room_fees` alongside the room. Passes them to `BookingWidget`.
 ### BookingWidget (`components/public/BookingWidget.tsx`)
 Displays fee line items below the subtotal in the live pricing preview:
 
-**Short-term preview:**
+**Short-term preview (3 guests, 5 nights):**
 ```
-X nights × $Y/night    $Z
-Cleaning fee           $X
-Pet fee (if any)       $X
-─────────────────────────
-Total                  $Z
-```
-
-**Long-term preview:**
-```
-First month            $Y
-Security deposit       $X
-Pet fee (if any)       $X
-─────────────────────────
-Total due today        $Z
+5 nights × $100/night       $500
+Cleaning fee                 $75
+Extra guests (2 × $15/night) $150
+Pet fee (if any)              $50
+──────────────────────────────────
+Total                        $775
 ```
 
-Updates `BookingParams` passed to the checkout URL to include `cleaning_fee` and `security_deposit` (for display in CheckoutSummary before booking is created).
+**Long-term preview (2 guests):**
+```
+First month                  $900
+Security deposit             $500
+Extra guests (1 × $50/month)  $50
+Pet fee (if any)              $50
+──────────────────────────────────
+Total due today             $1,500
+```
+
+Updates `BookingParams` passed to the checkout URL to include `cleaning_fee`, `security_deposit`, and `extra_guest_fee` (for display in CheckoutSummary before booking is created).
 
 ### Checkout page (`app/(public)/checkout/page.tsx`)
 Re-fetches `room_fees` server-side using `room_id` from URL params. Passes fees to `CheckoutSummary`.
@@ -204,9 +227,9 @@ Fetches `booking_fees` where `booking_id = booking.id` and renders them as label
 |---|---|
 | `supabase/migrations/004_add_fees.sql` | New migration |
 | `types/index.ts` | New `RoomFee`, `BookingFee` interfaces; update `Room`, `Booking`, `BookingParams` |
-| `app/api/admin/rooms/route.ts` | Accept + persist `cleaning_fee`, `security_deposit`, `fees[]` |
-| `app/api/bookings/route.ts` | Updated pricing logic; snapshot `booking_fees` |
-| `components/admin/RoomForm.tsx` | Cleaning fee + security deposit inputs; Additional Fees section |
+| `app/api/admin/rooms/route.ts` | Accept + persist `cleaning_fee`, `security_deposit`, `extra_guest_fee`, `fees[]` |
+| `app/api/bookings/route.ts` | Updated pricing logic; snapshot `booking_fees`; store `guest_count` |
+| `components/admin/RoomForm.tsx` | Cleaning fee, security deposit, extra guest fee inputs; Additional Fees section |
 | `app/(public)/rooms/[slug]/page.tsx` | Fetch `room_fees` |
 | `components/public/BookingWidget.tsx` | Fee line items in pricing preview |
 | `app/(public)/checkout/page.tsx` | Fetch `room_fees` server-side |
@@ -219,4 +242,5 @@ Fetches `booking_fees` where `booking_id = booking.id` and renders them as label
 
 - Fee refund tracking (security deposit return workflow)
 - Tax calculation
-- Per-guest or percentage-based fees
+- Tiered guest pricing (different rate for guest 2 vs guest 3, etc.)
+- Percentage-based fees
