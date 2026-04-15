@@ -34,6 +34,10 @@ export interface Room {
   is_active: boolean
   show_nightly_rate: boolean
   show_monthly_rate: boolean
+  cleaning_fee?: number
+  security_deposit?: number
+  extra_guest_fee?: number
+  fees?: RoomFee[]
   ical_export_token: string
   created_at: string
   updated_at: string
@@ -57,6 +61,11 @@ export interface Booking {
   total_nights: number
   nightly_rate: number
   monthly_rate: number
+  cleaning_fee: number
+  security_deposit: number
+  extra_guest_fee: number
+  guest_count: number
+  fees?: BookingFee[]
   total_amount: number
   amount_paid: number
   amount_due_at_checkin: number
@@ -98,6 +107,23 @@ export interface ICalSource {
   created_at: string
 }
 
+export interface RoomFee {
+  id: string
+  room_id: string
+  label: string
+  amount: number
+  booking_type: 'short_term' | 'long_term' | 'both'
+  created_at: string
+}
+
+export interface BookingFee {
+  id: string
+  booking_id: string
+  label: string
+  amount: number
+  created_at: string
+}
+
 export interface DayHours {
   open: string    // 'HH:mm' or ''
   close: string   // 'HH:mm' or ''
@@ -134,6 +160,10 @@ export interface BookingParams {
   total_amount: number
   amount_to_pay: number
   amount_due_at_checkin: number
+  cleaning_fee: number
+  security_deposit: number
+  extra_guest_fee: number
+  fees: RoomFee[]
 }
 
 // Availability

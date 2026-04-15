@@ -30,6 +30,10 @@ function CheckoutPageInner() {
     total_amount: getNumParam('total_amount'),
     amount_to_pay: getNumParam('amount_to_pay'),
     amount_due_at_checkin: getNumParam('amount_due'),
+    cleaning_fee: getNumParam('cleaning_fee'),
+    security_deposit: getNumParam('security_deposit'),
+    extra_guest_fee: getNumParam('extra_guest_fee'),
+    fees: [],
   }
 
   const roomName = getParam('room_name') || bookingParams.room_slug || 'Your Room'
