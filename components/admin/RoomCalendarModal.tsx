@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   format, addMonths, subMonths, startOfMonth, endOfMonth,
   startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth,
-  isToday, parseISO, isBefore, isAfter, isSameDay,
+  isToday, parseISO, isBefore, isAfter, isSameDay, addDays,
 } from 'date-fns'
 import { XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import type { Room, Property } from '@/types'
@@ -77,7 +77,8 @@ function getBarsForWeek(
 
   for (const b of bookings) {
     const s = parseISO(b.check_in)
-    const e = parseISO(b.check_out)
+    // check_out is exclusive (last occupied night is the day before)
+    const e = addDays(parseISO(b.check_out), -1)
     if (isAfter(s, weekEnd) || isBefore(e, weekStart)) continue
     const { colStart, span, isStart, isEnd } = clampToWeek(s, e, weekDays)
     bars.push({
@@ -93,7 +94,8 @@ function getBarsForWeek(
 
   for (const block of icalBlocks) {
     const s = parseISO(block.start_date)
-    const e = parseISO(block.end_date)
+    // end_date is exclusive (matches iCal DTEND convention and our availability logic)
+    const e = addDays(parseISO(block.end_date), -1)
     if (isAfter(s, weekEnd) || isBefore(e, weekStart)) continue
     const { colStart, span, isStart, isEnd } = clampToWeek(s, e, weekDays)
     bars.push({

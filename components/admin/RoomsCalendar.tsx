@@ -10,7 +10,7 @@ import {
   format,
   parseISO,
   isToday,
-  isWithinInterval,
+  isBefore,
   isSunday,
 } from 'date-fns'
 import clsx from 'clsx'
@@ -43,12 +43,9 @@ function getDayInfo(
   for (const booking of bookings) {
     if (booking.room_id !== roomId) continue
     try {
-      if (
-        isWithinInterval(date, {
-          start: parseISO(booking.check_in),
-          end: parseISO(booking.check_out),
-        })
-      ) {
+      const start = parseISO(booking.check_in)
+      const end = parseISO(booking.check_out)
+      if (!isBefore(date, start) && isBefore(date, end)) {
         return {
           status: 'booking',
           tooltip: `${booking.guest_first_name} ${booking.guest_last_name} (${booking.check_in} – ${booking.check_out}) [${booking.status}]`,
@@ -63,12 +60,9 @@ function getDayInfo(
   for (const block of icalBlocks) {
     if (block.room_id !== roomId) continue
     try {
-      if (
-        isWithinInterval(date, {
-          start: parseISO(block.start_date),
-          end: parseISO(block.end_date),
-        })
-      ) {
+      const start = parseISO(block.start_date)
+      const end = parseISO(block.end_date)
+      if (!isBefore(date, start) && isBefore(date, end)) {
         return {
           status: 'ical',
           tooltip: `${block.platform}: ${block.summary} (${block.start_date} – ${block.end_date})`,
