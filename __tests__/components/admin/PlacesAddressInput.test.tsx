@@ -1,14 +1,11 @@
 /** @jest-environment jsdom */
 
 jest.mock('@googlemaps/js-api-loader', () => ({
-  Loader: jest.fn().mockImplementation(() => ({
-    importLibrary: jest.fn().mockResolvedValue({}),
-  })),
   setOptions: jest.fn(),
   importLibrary: jest.fn().mockResolvedValue({}),
 }))
 
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, act, cleanup } from '@testing-library/react'
 import { parseAddressComponents } from '@/components/admin/PlacesAddressInput'
 import PlacesAddressInput from '@/components/admin/PlacesAddressInput'
 
@@ -88,5 +85,77 @@ describe('PlacesAddressInput', () => {
     )
     fireEvent.change(screen.getByRole('textbox'), { target: { value: '456 Oak Ave' } })
     expect(onChange).toHaveBeenCalledWith('456 Oak Ave')
+  })
+})
+
+describe('PlacesAddressInput — place_changed integration', () => {
+  let mockAddListener: jest.Mock
+  let mockGetPlace: jest.Mock
+  let mockAutocompleteConstructor: jest.Mock
+  let placeChangedCallback: (() => void) | undefined
+
+  beforeEach(() => {
+    placeChangedCallback = undefined
+    mockGetPlace = jest.fn().mockReturnValue({
+      address_components: [
+        { types: ['street_number'], long_name: '123', short_name: '123' },
+        { types: ['route'], long_name: 'Main St', short_name: 'Main St' },
+        { types: ['locality'], long_name: 'Phoenix', short_name: 'Phoenix' },
+        { types: ['administrative_area_level_1'], long_name: 'Arizona', short_name: 'AZ' },
+      ],
+    })
+    mockAddListener = jest.fn().mockImplementation((_event: string, cb: () => void) => {
+      placeChangedCallback = cb
+      return {} // MapsEventListener stub
+    })
+    mockAutocompleteConstructor = jest.fn().mockImplementation(() => ({
+      addListener: mockAddListener,
+      getPlace: mockGetPlace,
+    }))
+
+    ;(window as unknown as Record<string, unknown>).google = {
+      maps: {
+        places: {
+          Autocomplete: mockAutocompleteConstructor,
+        },
+        event: {
+          removeListener: jest.fn(),
+        },
+      },
+    }
+  })
+
+  afterEach(() => {
+    // Explicitly unmount before removing window.google so the component's
+    // useEffect cleanup (google.maps.event.removeListener) can run safely.
+    cleanup()
+    delete (window as unknown as Record<string, unknown>).google
+  })
+
+  it('calls onChange, onCityChange, onStateChange when place_changed fires', async () => {
+    const onChange = jest.fn()
+    const onCityChange = jest.fn()
+    const onStateChange = jest.fn()
+
+    render(
+      <PlacesAddressInput
+        value=""
+        onChange={onChange}
+        onCityChange={onCityChange}
+        onStateChange={onStateChange}
+      />
+    )
+
+    await waitFor(() => {
+      expect(mockAutocompleteConstructor).toHaveBeenCalled()
+    })
+
+    act(() => {
+      placeChangedCallback?.()
+    })
+
+    expect(onChange).toHaveBeenCalledWith('123 Main St')
+    expect(onCityChange).toHaveBeenCalledWith('Phoenix')
+    expect(onStateChange).toHaveBeenCalledWith('AZ')
   })
 })
