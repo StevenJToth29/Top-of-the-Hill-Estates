@@ -22,6 +22,7 @@ export default function PropertyForm({ property, propertyId }: PropertyFormProps
   const [bedrooms, setBedrooms] = useState(property?.bedrooms ?? 0)
   const [bathrooms, setBathrooms] = useState(property?.bathrooms ?? 0)
   const [amenities, setAmenities] = useState<string[]>(property?.amenities ?? [])
+  const [houseRules, setHouseRules] = useState(property?.house_rules ?? '')
   const [images, setImages] = useState<string[]>(property?.images ?? [])
   const [error, setError] = useState<string | null>(null)
 
@@ -43,6 +44,7 @@ export default function PropertyForm({ property, propertyId }: PropertyFormProps
       bedrooms,
       bathrooms,
       amenities,
+      house_rules: houseRules,
       images,
     }
 
@@ -165,7 +167,20 @@ export default function PropertyForm({ property, propertyId }: PropertyFormProps
       {/* Amenities */}
       <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
         <h2 className="font-display text-lg font-semibold text-on-surface">Amenities</h2>
+        <p className="text-xs text-on-surface-variant/60">These apply to all rooms in this property.</p>
         <AmenitiesTagInput value={amenities} onChange={setAmenities} />
+      </section>
+
+      {/* House Rules */}
+      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
+        <h2 className="font-display text-lg font-semibold text-on-surface">House Rules</h2>
+        <textarea
+          value={houseRules}
+          onChange={(e) => setHouseRules(e.target.value)}
+          rows={4}
+          placeholder="No smoking, pets welcome, quiet hours after 10pm…"
+          className={inputClass}
+        />
       </section>
 
       {/* Images */}

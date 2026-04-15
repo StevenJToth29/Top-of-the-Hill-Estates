@@ -66,11 +66,13 @@ export default function RoomCard({ room }: Props) {
         {/* Pricing + CTA */}
         <div className="mt-auto flex items-end justify-between pt-2 border-t border-surface">
           <div>
-            <p className="text-on-surface font-bold text-lg">
-              ${room.nightly_rate.toFixed(0)}
-              <span className="text-on-surface-variant font-normal text-sm"> / night</span>
-            </p>
-            {room.monthly_rate > 0 && (
+            {(room.show_nightly_rate ?? true) && (
+              <p className="text-on-surface font-bold text-lg">
+                ${room.nightly_rate.toFixed(0)}
+                <span className="text-on-surface-variant font-normal text-sm"> / night</span>
+              </p>
+            )}
+            {(room.show_monthly_rate ?? true) && room.monthly_rate > 0 && (
               <p className="text-on-surface-variant font-body text-xs">
                 ${room.monthly_rate.toFixed(0)} / month
               </p>

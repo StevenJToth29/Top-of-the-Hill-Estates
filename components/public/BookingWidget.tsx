@@ -34,7 +34,10 @@ export default function BookingWidget({ room, blockedDates }: Props) {
   const router = useRouter()
   const blockedSet = useMemo(() => new Set(blockedDates), [blockedDates])
 
-  const [bookingType, setBookingType] = useState<BookingType>('short_term')
+  const showNightly = room.show_nightly_rate ?? true
+  const showMonthly = room.show_monthly_rate ?? true
+  const defaultType: BookingType = showNightly ? 'short_term' : 'long_term'
+  const [bookingType, setBookingType] = useState<BookingType>(defaultType)
   const [checkIn, setCheckIn] = useState('')
   const [checkOut, setCheckOut] = useState('')
   const [moveIn, setMoveIn] = useState('')
@@ -124,20 +127,22 @@ export default function BookingWidget({ room, blockedDates }: Props) {
 
   return (
     <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(45,212,191,0.06)] rounded-2xl p-5 space-y-5 sticky top-6">
-      <div className="flex gap-2 p-1 bg-surface-container rounded-2xl">
-        <button
-          className={`${pillBase} ${bookingType === 'short_term' ? pillActive : pillInactive}`}
-          onClick={() => { setBookingType('short_term'); setError('') }}
-        >
-          Short-term (Nightly)
-        </button>
-        <button
-          className={`${pillBase} ${bookingType === 'long_term' ? pillActive : pillInactive}`}
-          onClick={() => { setBookingType('long_term'); setError('') }}
-        >
-          Long-term (Monthly)
-        </button>
-      </div>
+      {showNightly && showMonthly && (
+        <div className="flex gap-2 p-1 bg-surface-container rounded-2xl">
+          <button
+            className={`${pillBase} ${bookingType === 'short_term' ? pillActive : pillInactive}`}
+            onClick={() => { setBookingType('short_term'); setError('') }}
+          >
+            Short-term (Nightly)
+          </button>
+          <button
+            className={`${pillBase} ${bookingType === 'long_term' ? pillActive : pillInactive}`}
+            onClick={() => { setBookingType('long_term'); setError('') }}
+          >
+            Long-term (Monthly)
+          </button>
+        </div>
+      )}
 
       {bookingType === 'short_term' && (
         <div className="space-y-3">

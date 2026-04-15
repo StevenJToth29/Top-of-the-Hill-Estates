@@ -80,21 +80,31 @@ export default async function RoomDetailPage({ params }: Props) {
               monthlyRate={room.monthly_rate}
               minNightsShortTerm={room.minimum_nights_short_term}
               minNightsLongTerm={room.minimum_nights_long_term}
+              showNightlyRate={room.show_nightly_rate ?? true}
+              showMonthlyRate={room.show_monthly_rate ?? true}
             />
 
-            {room.amenities && room.amenities.length > 0 && (
-              <AmenitiesGrid amenities={room.amenities} />
-            )}
+            {(() => {
+              const allAmenities = [
+                ...new Set([
+                  ...(room.property?.amenities ?? []),
+                  ...(room.amenities ?? []),
+                ]),
+              ]
+              return allAmenities.length > 0 ? (
+                <AmenitiesGrid amenities={allAmenities} />
+              ) : null
+            })()}
 
             <AvailabilityCalendar blockedDates={blockedDates} />
 
-            {room.house_rules && (
+            {room.property?.house_rules && (
               <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(45,212,191,0.06)] rounded-2xl p-5 space-y-3">
                 <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
                   House Rules
                 </p>
                 <p className="text-on-surface-variant text-sm leading-relaxed whitespace-pre-line">
-                  {room.house_rules}
+                  {room.property.house_rules}
                 </p>
               </div>
             )}

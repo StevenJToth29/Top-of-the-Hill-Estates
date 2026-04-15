@@ -9,6 +9,7 @@ export interface Property {
   amenities: string[]
   bedrooms: number
   bathrooms: number
+  house_rules?: string
   created_at: string
 }
 
@@ -30,6 +31,8 @@ export interface Room {
   amenities: string[]
   house_rules: string
   is_active: boolean
+  show_nightly_rate: boolean
+  show_monthly_rate: boolean
   ical_export_token: string
   created_at: string
   updated_at: string

@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
         bedrooms: Number(body.bedrooms ?? 0),
         bathrooms: Number(body.bathrooms ?? 0),
         amenities: body.amenities ?? [],
+        house_rules: body.house_rules ?? '',
         images: body.images ?? [],
       })
       .select('id')
@@ -49,6 +50,7 @@ export async function PATCH(request: NextRequest) {
         bedrooms: Number(fields.bedrooms ?? 0),
         bathrooms: Number(fields.bathrooms ?? 0),
         amenities: fields.amenities ?? [],
+        house_rules: fields.house_rules ?? '',
         images: fields.images ?? [],
       })
       .eq('id', id)

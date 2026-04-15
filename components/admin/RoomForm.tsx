@@ -22,6 +22,25 @@ function slugify(s: string) {
     .replace(/^-+|-+$/g, '')
 }
 
+function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <div className="flex items-center gap-3">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:ring-offset-2 focus:ring-offset-background ${
+          checked ? 'bg-secondary' : 'bg-surface-container'
+        }`}
+      >
+        <span className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
+      </button>
+      <span className="text-sm text-on-surface-variant">{label}</span>
+    </div>
+  )
+}
+
 export default function RoomForm({ room, properties, icalSources, roomId, onSave }: RoomFormProps) {
   const [isPending, startTransition] = useTransition()
   const [name, setName] = useState(room?.name ?? '')
@@ -35,9 +54,10 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
   const [bathrooms, setBathrooms] = useState(room?.bathrooms ?? 1)
   const [nightlyRate, setNightlyRate] = useState(room?.nightly_rate ?? 0)
   const [monthlyRate, setMonthlyRate] = useState(room?.monthly_rate ?? 0)
+  const [showNightlyRate, setShowNightlyRate] = useState(room?.show_nightly_rate ?? true)
+  const [showMonthlyRate, setShowMonthlyRate] = useState(room?.show_monthly_rate ?? true)
   const [minNightsShort, setMinNightsShort] = useState(room?.minimum_nights_short_term ?? 1)
   const [minNightsLong, setMinNightsLong] = useState(room?.minimum_nights_long_term ?? 30)
-  const [houseRules, setHouseRules] = useState(room?.house_rules ?? '')
   const [isActive, setIsActive] = useState(room?.is_active ?? true)
   const [amenities, setAmenities] = useState<string[]>(room?.amenities ?? [])
   const [images, setImages] = useState<string[]>(room?.images ?? [])
@@ -71,7 +91,6 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
     e.preventDefault()
     setError(null)
     const fd = new FormData(e.currentTarget)
-    // Append controlled fields
     fd.set('name', name)
     fd.set('slug', slug)
     fd.set('property_id', propertyId)
@@ -82,9 +101,10 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
     fd.set('bathrooms', String(bathrooms))
     fd.set('nightly_rate', String(nightlyRate))
     fd.set('monthly_rate', String(monthlyRate))
+    fd.set('show_nightly_rate', showNightlyRate ? 'true' : 'false')
+    fd.set('show_monthly_rate', showMonthlyRate ? 'true' : 'false')
     fd.set('minimum_nights_short_term', String(minNightsShort))
     fd.set('minimum_nights_long_term', String(minNightsLong))
-    fd.set('house_rules', houseRules)
     fd.set('is_active', isActive ? 'true' : 'false')
     fd.set('amenities', JSON.stringify(amenities))
     fd.set('images', JSON.stringify(images))
@@ -184,25 +204,7 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
           />
         </div>
 
-        <div className="flex items-center gap-4">
-          <label className={`${labelClass} mb-0`}>Active</label>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isActive}
-            onClick={() => setIsActive((v) => !v)}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-secondary/50 focus:ring-offset-2 focus:ring-offset-background ${
-              isActive ? 'bg-secondary' : 'bg-surface-container'
-            }`}
-          >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${
-                isActive ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
-          </button>
-          <span className="text-sm text-on-surface-variant">{isActive ? 'Active' : 'Inactive'}</span>
-        </div>
+        <Toggle checked={isActive} onChange={setIsActive} label={isActive ? 'Active' : 'Inactive'} />
       </section>
 
       {/* Room details */}
@@ -212,34 +214,15 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
         <div className="grid grid-cols-3 gap-5">
           <div>
             <label className={labelClass}>Guests</label>
-            <input
-              type="number"
-              value={guestCapacity}
-              onChange={(e) => setGuestCapacity(Number(e.target.value))}
-              min={1}
-              className={inputClass}
-            />
+            <input type="number" value={guestCapacity} onChange={(e) => setGuestCapacity(Number(e.target.value))} min={1} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Bedrooms</label>
-            <input
-              type="number"
-              value={bedrooms}
-              onChange={(e) => setBedrooms(Number(e.target.value))}
-              min={1}
-              className={inputClass}
-            />
+            <input type="number" value={bedrooms} onChange={(e) => setBedrooms(Number(e.target.value))} min={1} className={inputClass} />
           </div>
           <div>
             <label className={labelClass}>Bathrooms</label>
-            <input
-              type="number"
-              value={bathrooms}
-              onChange={(e) => setBathrooms(Number(e.target.value))}
-              min={0.5}
-              step={0.5}
-              className={inputClass}
-            />
+            <input type="number" value={bathrooms} onChange={(e) => setBathrooms(Number(e.target.value))} min={0.5} step={0.5} className={inputClass} />
           </div>
         </div>
       </section>
@@ -249,51 +232,36 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
         <h2 className="font-display text-lg font-semibold text-on-surface">Pricing &amp; Minimums</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-          <div>
-            <label className={labelClass}>Nightly Rate</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60">$</span>
-              <input
-                type="number"
-                value={nightlyRate}
-                onChange={(e) => setNightlyRate(Number(e.target.value))}
-                min={0}
-                className={`${inputClass} pl-8`}
-              />
+          {/* Nightly */}
+          <div className="space-y-3">
+            <Toggle checked={showNightlyRate} onChange={setShowNightlyRate} label="Show nightly rate" />
+            <div className={showNightlyRate ? '' : 'opacity-40 pointer-events-none'}>
+              <label className={labelClass}>Nightly Rate</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60">$</span>
+                <input type="number" value={nightlyRate} onChange={(e) => setNightlyRate(Number(e.target.value))} min={0} className={`${inputClass} pl-8`} />
+              </div>
+            </div>
+            <div className={showNightlyRate ? '' : 'opacity-40 pointer-events-none'}>
+              <label className={labelClass}>Min Nights (Short-term)</label>
+              <input type="number" value={minNightsShort} onChange={(e) => setMinNightsShort(Number(e.target.value))} min={1} className={inputClass} />
             </div>
           </div>
-          <div>
-            <label className={labelClass}>Monthly Rate</label>
-            <div className="relative">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60">$</span>
-              <input
-                type="number"
-                value={monthlyRate}
-                onChange={(e) => setMonthlyRate(Number(e.target.value))}
-                min={0}
-                className={`${inputClass} pl-8`}
-              />
+
+          {/* Monthly */}
+          <div className="space-y-3">
+            <Toggle checked={showMonthlyRate} onChange={setShowMonthlyRate} label="Show monthly rate" />
+            <div className={showMonthlyRate ? '' : 'opacity-40 pointer-events-none'}>
+              <label className={labelClass}>Monthly Rate</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60">$</span>
+                <input type="number" value={monthlyRate} onChange={(e) => setMonthlyRate(Number(e.target.value))} min={0} className={`${inputClass} pl-8`} />
+              </div>
             </div>
-          </div>
-          <div>
-            <label className={labelClass}>Min Nights (Short-term)</label>
-            <input
-              type="number"
-              value={minNightsShort}
-              onChange={(e) => setMinNightsShort(Number(e.target.value))}
-              min={1}
-              className={inputClass}
-            />
-          </div>
-          <div>
-            <label className={labelClass}>Min Nights (Long-term)</label>
-            <input
-              type="number"
-              value={minNightsLong}
-              onChange={(e) => setMinNightsLong(Number(e.target.value))}
-              min={1}
-              className={inputClass}
-            />
+            <div className={showMonthlyRate ? '' : 'opacity-40 pointer-events-none'}>
+              <label className={labelClass}>Min Nights (Long-term)</label>
+              <input type="number" value={minNightsLong} onChange={(e) => setMinNightsLong(Number(e.target.value))} min={1} className={inputClass} />
+            </div>
           </div>
         </div>
       </section>
@@ -301,29 +269,14 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
       {/* Amenities */}
       <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
         <h2 className="font-display text-lg font-semibold text-on-surface">Amenities</h2>
+        <p className="text-xs text-on-surface-variant/60">Room-specific amenities. Property amenities are inherited automatically.</p>
         <AmenitiesTagInput value={amenities} onChange={setAmenities} />
-      </section>
-
-      {/* House rules */}
-      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold text-on-surface">House Rules</h2>
-        <textarea
-          value={houseRules}
-          onChange={(e) => setHouseRules(e.target.value)}
-          rows={4}
-          placeholder="No smoking, pets welcome, quiet hours after 10pm…"
-          className={inputClass}
-        />
       </section>
 
       {/* Images */}
       <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
         <h2 className="font-display text-lg font-semibold text-on-surface">Images</h2>
-        <PropertyImagePicker
-          propertyImages={propertyImages}
-          selectedImages={images}
-          onChange={setImages}
-        />
+        <PropertyImagePicker propertyImages={propertyImages} selectedImages={images} onChange={setImages} />
       </section>
 
       {/* iCal export */}
@@ -331,25 +284,9 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
         <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-3">
           <h2 className="font-display text-lg font-semibold text-on-surface">iCal Export</h2>
           <div className="flex items-center gap-3 bg-surface-container rounded-xl px-4 py-3">
-            <p className="flex-1 text-sm text-on-surface-variant/70 truncate font-mono">
-              {icalExportUrl}
-            </p>
-            <button
-              type="button"
-              onClick={copyICalUrl}
-              className="flex items-center gap-1.5 shrink-0 text-sm text-secondary hover:text-on-surface transition-colors"
-            >
-              {copied ? (
-                <>
-                  <CheckIcon className="w-4 h-4 text-secondary" />
-                  Copied
-                </>
-              ) : (
-                <>
-                  <ClipboardDocumentIcon className="w-4 h-4" />
-                  Copy
-                </>
-              )}
+            <p className="flex-1 text-sm text-on-surface-variant/70 truncate font-mono">{icalExportUrl}</p>
+            <button type="button" onClick={copyICalUrl} className="flex items-center gap-1.5 shrink-0 text-sm text-secondary hover:text-on-surface transition-colors">
+              {copied ? (<><CheckIcon className="w-4 h-4 text-secondary" />Copied</>) : (<><ClipboardDocumentIcon className="w-4 h-4" />Copy</>)}
             </button>
           </div>
         </section>
@@ -363,16 +300,10 @@ export default function RoomForm({ room, properties, icalSources, roomId, onSave
         </section>
       )}
 
-      {error && (
-        <p className="text-sm text-error bg-error-container/30 rounded-xl px-4 py-3">{error}</p>
-      )}
+      {error && <p className="text-sm text-error bg-error-container/30 rounded-xl px-4 py-3">{error}</p>}
 
       <div className="flex justify-end">
-        <button
-          type="submit"
-          disabled={isPending}
-          className="bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-8 py-3 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-        >
+        <button type="submit" disabled={isPending} className="bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-8 py-3 hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
           {isPending ? 'Saving…' : room ? 'Save Changes' : 'Create Room'}
         </button>
       </div>
