@@ -25,6 +25,8 @@ export async function PATCH(request: Request) {
   if (body.global_house_rules !== undefined) fields.global_house_rules = body.global_house_rules
   if (body.checkin_time !== undefined) fields.checkin_time = body.checkin_time
   if (body.checkout_time !== undefined) fields.checkout_time = body.checkout_time
+  if (body.stripe_fee_percent !== undefined) fields.stripe_fee_percent = body.stripe_fee_percent
+  if (body.stripe_fee_flat !== undefined) fields.stripe_fee_flat = body.stripe_fee_flat
 
   let error
   if (body.id) {
