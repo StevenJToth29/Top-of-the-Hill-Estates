@@ -66,6 +66,7 @@ export interface Booking {
   cleaning_fee: number
   security_deposit: number
   extra_guest_fee: number
+  processing_fee: number
   guest_count: number
   fees?: BookingFee[]
   total_amount: number
@@ -123,6 +124,7 @@ export interface BookingFee {
   booking_id: string
   label: string
   amount: number
+  is_refundable: boolean
   created_at: string
 }
 
@@ -161,6 +163,8 @@ export interface SiteSettings {
   global_house_rules?: string
   checkin_time?: string   // 24-hour "HH:mm", e.g. "15:00"
   checkout_time?: string  // 24-hour "HH:mm", e.g. "11:00"
+  stripe_fee_percent?: number
+  stripe_fee_flat?: number
   updated_at: string
 }
 

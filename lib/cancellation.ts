@@ -4,10 +4,11 @@ import { parseISO } from 'date-fns/parseISO'
 
 /**
  * Calculates the refund amount based on the cancellation policy.
+ * The Stripe processing fee is always excluded from any refund.
  *
  * Short-term policy:
- *   - Cancelled > 7 days before check-in → 100% refund
- *   - Cancelled > windowHours but within 7 days before check-in → 50% refund
+ *   - Cancelled > 7 days before check-in → 100% refund (excl. processing fee)
+ *   - Cancelled > windowHours but within 7 days before check-in → 50% refund (excl. processing fee)
  *   - Cancelled within windowHours of check-in → 0% refund
  *
  * Long-term policy:
@@ -22,6 +23,8 @@ export function calculateRefund(
 ): RefundResult {
   const checkInDate = parseISO(booking.check_in)
   const hoursUntilCheckIn = differenceInHours(checkInDate, cancelledAt)
+  const processingFee = booking.processing_fee ?? 0
+  const refundableAmount = booking.amount_paid - processingFee
 
   if (booking.booking_type === 'long_term') {
     return {
@@ -33,17 +36,17 @@ export function calculateRefund(
 
   if (hoursUntilCheckIn > 7 * 24) {
     return {
-      refund_amount: booking.amount_paid,
+      refund_amount: Math.round(refundableAmount * 100) / 100,
       refund_percentage: 100,
-      policy_description: 'Cancelled more than 7 days before check-in — full refund issued.',
+      policy_description: 'Cancelled more than 7 days before check-in — full refund issued (processing fee excluded).',
     }
   }
 
   if (hoursUntilCheckIn > windowHours) {
     return {
-      refund_amount: Math.round(booking.amount_paid * 0.5 * 100) / 100,
+      refund_amount: Math.round(refundableAmount * 0.5 * 100) / 100,
       refund_percentage: 50,
-      policy_description: `Cancelled within 7 days but more than ${windowHours} hours before check-in — 50% refund issued.`,
+      policy_description: `Cancelled within 7 days but more than ${windowHours} hours before check-in — 50% refund issued (processing fee excluded).`,
     }
   }
 

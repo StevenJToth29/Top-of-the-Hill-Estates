@@ -7,6 +7,7 @@ interface CheckoutSummaryProps {
   propertyName: string
   checkinTime?: string   // 24-hour "HH:mm"
   checkoutTime?: string  // 24-hour "HH:mm"
+  processingFee?: number
 }
 
 function fmt12(time: string): string {
@@ -32,7 +33,7 @@ function formatCurrency(amount: number): string {
   return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-export default function CheckoutSummary({ params, roomName, propertyName, checkinTime, checkoutTime }: CheckoutSummaryProps) {
+export default function CheckoutSummary({ params, roomName, propertyName, checkinTime, checkoutTime, processingFee = 0 }: CheckoutSummaryProps) {
   const isLongTerm = params.booking_type === 'long_term'
   const extraGuests = Math.max(0, params.guests - 1)
   const fees: RoomFee[] = params.fees ?? []
@@ -146,6 +147,12 @@ export default function CheckoutSummary({ params, roomName, propertyName, checki
             <span className="text-on-surface">{formatCurrency(f.amount)}</span>
           </div>
         ))}
+        {processingFee > 0 && (
+          <div className="flex justify-between text-sm">
+            <span className="text-on-surface-variant">Processing fee</span>
+            <span className="text-on-surface">{formatCurrency(processingFee)}</span>
+          </div>
+        )}
       </div>
 
       <div className="pt-4 border-t border-outline-variant">
@@ -158,6 +165,11 @@ export default function CheckoutSummary({ params, roomName, propertyName, checki
         {params.amount_due_at_checkin > 0 && (
           <p className="text-on-surface-variant text-xs mt-1 text-right">
             + {formatCurrency(params.amount_due_at_checkin)} due at check-in
+          </p>
+        )}
+        {processingFee > 0 && (
+          <p className="text-on-surface-variant/60 text-xs mt-2 text-right italic">
+            Processing fees are non-refundable.
           </p>
         )}
       </div>

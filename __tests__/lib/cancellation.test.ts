@@ -19,6 +19,7 @@ function makeBooking(overrides: Partial<Booking> = {}): Booking {
     cleaning_fee: 50,
     security_deposit: 0,
     extra_guest_fee: 0,
+    processing_fee: 0,
     guest_count: 1,
     total_amount: 550,
     amount_paid: 550,
@@ -83,6 +84,36 @@ describe('calculateRefund', () => {
     const result = calculateRefund(booking, cancelledAt)
     expect(result.refund_amount).toBe(0)
     expect(result.refund_percentage).toBe(0)
+  })
+
+  describe('processing fee exclusion', () => {
+    it('excludes processing_fee from full refund', () => {
+      const booking = makeBooking({ check_in: '2030-06-20', amount_paid: 539.25, processing_fee: 14.25 })
+      const cancelledAt = new Date('2030-06-10T12:00:00Z') // 10 days before
+      const result = calculateRefund(booking, cancelledAt)
+      expect(result.refund_amount).toBe(525.00)  // 539.25 - 14.25
+      expect(result.refund_percentage).toBe(100)
+    })
+
+    it('excludes processing_fee from 50% refund', () => {
+      const booking = makeBooking({ check_in: '2030-06-20', amount_paid: 539.25, processing_fee: 14.25 })
+      const cancelledAt = new Date('2030-06-15T12:00:00Z') // 5 days before
+      const result = calculateRefund(booking, cancelledAt)
+      expect(result.refund_amount).toBe(262.50)  // (539.25 - 14.25) * 0.5
+      expect(result.refund_percentage).toBe(50)
+    })
+
+    it('returns 0 when cancelled within 72h regardless of processing_fee', () => {
+      const booking = makeBooking({ check_in: '2030-06-20', amount_paid: 539.25, processing_fee: 14.25 })
+      const cancelledAt = new Date('2030-06-19T12:00:00Z') // 1 day before
+      expect(calculateRefund(booking, cancelledAt).refund_amount).toBe(0)
+    })
+
+    it('full refund equals amount_paid when processing_fee is 0', () => {
+      const booking = makeBooking({ check_in: '2030-06-20', amount_paid: 525.00, processing_fee: 0 })
+      const cancelledAt = new Date('2030-06-10T12:00:00Z')
+      expect(calculateRefund(booking, cancelledAt).refund_amount).toBe(525.00)
+    })
   })
 })
 
