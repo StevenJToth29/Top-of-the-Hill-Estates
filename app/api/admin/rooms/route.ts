@@ -34,11 +34,23 @@ export async function POST(request: Request) {
       is_active: Boolean(body.is_active),
       amenities: body.amenities ?? [],
       images: body.images ?? [],
+      cleaning_fee: Number(body.cleaning_fee ?? 0),
+      security_deposit: Number(body.security_deposit ?? 0),
+      extra_guest_fee: Number(body.extra_guest_fee ?? 0),
     })
     .select('id')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  const fees: { label: string; amount: number; booking_type: string }[] = body.fees ?? []
+  if (fees.length > 0) {
+    const { error: feesError } = await supabase
+      .from('room_fees')
+      .insert(fees.map((f) => ({ room_id: data.id, label: f.label, amount: f.amount, booking_type: f.booking_type })))
+    if (feesError) return NextResponse.json({ error: feesError.message }, { status: 500 })
+  }
+
   return NextResponse.json({ id: data.id })
 }
 
@@ -71,10 +83,26 @@ export async function PATCH(request: Request) {
       is_active: Boolean(fields.is_active),
       amenities: fields.amenities,
       images: fields.images,
+      cleaning_fee: Number(fields.cleaning_fee ?? 0),
+      security_deposit: Number(fields.security_deposit ?? 0),
+      extra_guest_fee: Number(fields.extra_guest_fee ?? 0),
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  // Atomic replace: delete all existing fees for this room, then insert new set
+  const { error: deleteError } = await supabase.from('room_fees').delete().eq('room_id', id)
+  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
+
+  const fees: { label: string; amount: number; booking_type: string }[] = fields.fees ?? []
+  if (fees.length > 0) {
+    const { error: feesError } = await supabase
+      .from('room_fees')
+      .insert(fees.map((f) => ({ room_id: id, label: f.label, amount: f.amount, booking_type: f.booking_type })))
+    if (feesError) return NextResponse.json({ error: feesError.message }, { status: 500 })
+  }
+
   return NextResponse.json({ success: true })
 }
