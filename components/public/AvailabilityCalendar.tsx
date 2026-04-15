@@ -19,6 +19,7 @@ import { ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 
 interface Props {
   blockedDates: string[]
+  roomName?: string
   selectedCheckIn?: string | null
   selectedCheckOut?: string | null
   onDateSelect?: (date: string) => void
@@ -128,6 +129,7 @@ const THIS_MONTH = startOfMonth(TODAY)
 
 export default function AvailabilityCalendar({
   blockedDates,
+  roomName,
   selectedCheckIn,
   selectedCheckOut,
   onDateSelect,
@@ -162,9 +164,16 @@ export default function AvailabilityCalendar({
         >
           <ChevronLeftIcon className="w-5 h-5" />
         </button>
-        <span className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
-          Availability
-        </span>
+        <div className="text-center">
+          {roomName && (
+            <p className="font-display font-semibold text-on-surface text-sm leading-tight">
+              {roomName}
+            </p>
+          )}
+          <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
+            Availability
+          </p>
+        </div>
         <button
           onClick={goNext}
           className="p-1.5 rounded-lg text-secondary hover:bg-surface-container transition-colors"

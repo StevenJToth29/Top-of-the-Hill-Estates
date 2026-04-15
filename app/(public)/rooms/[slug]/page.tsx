@@ -117,7 +117,7 @@ export default async function RoomDetailPage({ params }: Props) {
               ) : null
             })()}
 
-            <AvailabilityCalendar blockedDates={blockedDates} />
+            <AvailabilityCalendar blockedDates={blockedDates} roomName={room.name} />
 
             {(() => {
               const useGlobal = room.property?.use_global_house_rules ?? true
