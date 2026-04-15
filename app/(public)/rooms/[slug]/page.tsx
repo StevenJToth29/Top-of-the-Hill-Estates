@@ -3,12 +3,15 @@ import { format, addMonths } from 'date-fns'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getBlockedDatesForRoom } from '@/lib/availability'
 import type { Room } from '@/types'
+import dynamic from 'next/dynamic'
 import ImageGallery from '@/components/public/ImageGallery'
 import BookingWidget from '@/components/public/BookingWidget'
 import AvailabilityCalendar from '@/components/public/AvailabilityCalendar'
 import AmenitiesGrid from '@/components/public/AmenitiesGrid'
 import PricingSection from '@/components/public/PricingSection'
 import CancellationPolicyDisplay from '@/components/public/CancellationPolicyDisplay'
+
+const LocationMap = dynamic(() => import('@/components/public/LocationMap'), { ssr: false })
 
 interface Props {
   params: { slug: string }
@@ -38,9 +41,23 @@ export default async function RoomDetailPage({ params }: Props) {
     format(sixMonthsOut, 'yyyy-MM-dd'),
   )
 
-  const generalLocation = room.property
-    ? `${room.property.city}, ${room.property.state}`
-    : null
+  // Geocode to city+state level for a general area (no street address exposed)
+  let mapCoords: { lat: number; lng: number } | null = null
+  if (room.property) {
+    try {
+      const query = encodeURIComponent(`${room.property.city}, ${room.property.state}`)
+      const geoRes = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`,
+        { headers: { 'User-Agent': 'tothrooms.com' }, next: { revalidate: 86400 } },
+      )
+      const geoData = await geoRes.json()
+      if (geoData?.[0]) {
+        mapCoords = { lat: parseFloat(geoData[0].lat), lng: parseFloat(geoData[0].lon) }
+      }
+    } catch {
+      // silently skip map if geocoding fails
+    }
+  }
 
   return (
     <main className="min-h-screen bg-background">
@@ -120,7 +137,7 @@ export default async function RoomDetailPage({ params }: Props) {
 
             <CancellationPolicyDisplay variant="short_term" />
 
-            {generalLocation && (
+            {mapCoords && (
               <div className="space-y-3">
                 <div className="flex items-baseline justify-between">
                   <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
@@ -130,12 +147,7 @@ export default async function RoomDetailPage({ params }: Props) {
                     Exact address provided after booking
                   </p>
                 </div>
-                <iframe
-                  src={`https://maps.google.com/maps?q=${encodeURIComponent(generalLocation)}&output=embed`}
-                  className="w-full h-64 rounded-xl ring-1 ring-white/10"
-                  loading="lazy"
-                  title="General area map"
-                />
+                <LocationMap lat={mapCoords.lat} lng={mapCoords.lng} />
               </div>
             )}
           </div>
