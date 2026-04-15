@@ -154,6 +154,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
                 onChange={(d) => { setCheckIn(d); setCheckOut(''); setError('') }}
                 min={today}
                 placeholder="Add date"
+                blockedDates={blockedDates}
               />
             </div>
             <div className="bg-surface-highest/40 rounded-xl px-3 py-2.5">
@@ -163,6 +164,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
                 onChange={(d) => { setCheckOut(d); setError('') }}
                 min={checkIn ? format(addDays(parseISO(checkIn), room.minimum_nights_short_term), 'yyyy-MM-dd') : today}
                 placeholder="Add date"
+                blockedDates={blockedDates}
               />
             </div>
           </div>
@@ -197,6 +199,7 @@ export default function BookingWidget({ room, blockedDates }: Props) {
               onChange={(d) => { setMoveIn(d); setError('') }}
               min={today}
               placeholder="Add date"
+              blockedDates={blockedDates}
             />
           </div>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import {
   format,
@@ -25,11 +25,13 @@ interface DatePickerProps {
   onChange: (date: string) => void
   min?: string
   placeholder?: string
+  blockedDates?: string[]
 }
 
 const DAY_HEADERS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
 
-export default function DatePicker({ label, value, onChange, min, placeholder = 'Select date' }: DatePickerProps) {
+export default function DatePicker({ label, value, onChange, min, placeholder = 'Select date', blockedDates }: DatePickerProps) {
+  const blockedSet = useMemo(() => new Set(blockedDates ?? []), [blockedDates])
   const [open, setOpen] = useState(false)
   const [viewMonth, setViewMonth] = useState<Date>(() => {
     if (value) try { return startOfMonth(parseISO(value)) } catch { /* fall through */ }
@@ -90,8 +92,10 @@ export default function DatePicker({ label, value, onChange, min, placeholder = 
   const selectedDate = value ? parseISO(value) : null
 
   function selectDay(day: Date) {
+    const iso = format(day, 'yyyy-MM-dd')
     if (minDate && isBefore(day, minDate)) return
-    onChange(format(day, 'yyyy-MM-dd'))
+    if (blockedSet.has(iso)) return
+    onChange(iso)
     setOpen(false)
   }
 
@@ -137,12 +141,12 @@ export default function DatePicker({ label, value, onChange, min, placeholder = 
         {/* Day grid */}
         <div className="grid grid-cols-7 gap-y-0.5">
           {gridDays.map((day) => {
+            const iso = format(day, 'yyyy-MM-dd')
             const isCurrentMonth = day.getMonth() === viewMonth.getMonth()
-            const isSelected = selectedDate
-              ? format(day, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd')
-              : false
+            const isSelected = selectedDate ? iso === format(selectedDate, 'yyyy-MM-dd') : false
             const todayFlag = isToday(day)
-            const disabled = !!minDate && isBefore(startOfDay(day), minDate)
+            const isBlocked = blockedSet.has(iso)
+            const disabled = (!!minDate && isBefore(startOfDay(day), minDate)) || isBlocked
 
             return (
               <button
@@ -155,8 +159,9 @@ export default function DatePicker({ label, value, onChange, min, placeholder = 
                   !isCurrentMonth && 'text-on-surface-variant/30',
                   isCurrentMonth && !isSelected && !disabled && 'text-on-surface hover:bg-primary/10 hover:text-primary',
                   isSelected && 'bg-primary text-white font-semibold shadow-sm',
-                  todayFlag && !isSelected && 'ring-1 ring-primary/40 text-primary font-medium',
-                  disabled && 'text-on-surface-variant/25 cursor-not-allowed',
+                  todayFlag && !isSelected && !disabled && 'ring-1 ring-primary/40 text-primary font-medium',
+                  isBlocked && isCurrentMonth && 'bg-surface-low text-on-surface-variant/40 line-through cursor-not-allowed',
+                  !isBlocked && disabled && 'text-on-surface-variant/25 cursor-not-allowed',
                 )}
               >
                 {format(day, 'd')}
