@@ -125,7 +125,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
             <thead>
               <tr>
                 {/* Room column header */}
-                <th className="sticky left-0 top-0 z-30 bg-surface-container/95 backdrop-blur-sm px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant border-b border-r border-outline-variant/60 min-w-[200px]">
+                <th className="sticky left-0 top-0 z-30 bg-surface-container/95 backdrop-blur-sm px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant border-b border-r border-outline-variant/60 w-[240px] min-w-[240px]">
                   Room
                 </th>
 
@@ -175,15 +175,15 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                   )}
                 >
                   {/* Room label */}
-                  <td className="sticky left-0 z-10 bg-surface-container/90 backdrop-blur-sm px-4 py-2.5 border-r border-outline-variant/60 min-w-[200px]">
+                  <td className="sticky left-0 z-10 bg-surface-container/90 backdrop-blur-sm px-4 py-2.5 border-r border-outline-variant/60 w-[240px] min-w-[240px] max-w-[240px]">
                     <button
                       onClick={() => setSelectedRoom(room)}
-                      className="text-xs font-semibold text-secondary hover:text-primary whitespace-normal leading-snug text-left transition-colors underline underline-offset-2"
+                      className="text-sm font-semibold text-secondary hover:text-primary w-full text-left transition-colors underline underline-offset-2 leading-tight line-clamp-2"
                     >
                       {room.name}
                     </button>
                     {room.property && (
-                      <div className="text-[10px] text-on-surface-variant/70 mt-0.5">
+                      <div className="text-[11px] text-on-surface-variant/70 mt-0.5 truncate">
                         {room.property.name}
                       </div>
                     )}
