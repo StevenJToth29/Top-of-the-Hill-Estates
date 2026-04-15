@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { isRoomAvailable } from '@/lib/availability'
@@ -19,7 +19,7 @@ interface CreateBookingBody {
   marketing_consent: boolean
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   try {
     const body = (await request.json()) as CreateBookingBody
 
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url)
     const booking_id = searchParams.get('booking_id')
