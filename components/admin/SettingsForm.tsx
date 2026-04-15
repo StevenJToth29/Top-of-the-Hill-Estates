@@ -71,6 +71,8 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
     global_house_rules: settings.global_house_rules ?? '',
     checkin_time: settings.checkin_time ?? '15:00',
     checkout_time: settings.checkout_time ?? '10:00',
+    stripe_fee_percent: settings.stripe_fee_percent ?? 2.9,
+    stripe_fee_flat: settings.stripe_fee_flat ?? 0.30,
   })
   const [hours, setHours] = useState<BusinessHours>(() => parseHours(settings.business_hours))
   const [saving, setSaving] = useState(false)
@@ -476,6 +478,56 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
                 <span className="text-sm text-on-surface-variant">{fmt12(form.checkout_time)}</span>
               )}
             </div>
+          </div>
+        </div>
+      </section>
+
+      <div className="h-px bg-outline-variant" />
+
+      {/* Payment Processing */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="font-display text-base font-semibold text-on-surface">Payment Processing</h2>
+          <p className="text-xs text-on-surface-variant/60 mt-0.5">
+            Stripe's standard rate is 2.9% + $0.30 per transaction.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-5">
+          <div className="space-y-1.5">
+            <label htmlFor="stripe_fee_percent" className={labelClass}>
+              Processing fee (%)
+            </label>
+            <input
+              id="stripe_fee_percent"
+              name="stripe_fee_percent"
+              type="number"
+              step="0.01"
+              min="0"
+              value={form.stripe_fee_percent}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, stripe_fee_percent: Number(e.target.value) }))
+              }
+              className={inputClass}
+            />
+            <p className="text-xs text-on-surface-variant/50">e.g. 2.9 for 2.9%</p>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="stripe_fee_flat" className={labelClass}>
+              Processing fee (flat, $)
+            </label>
+            <input
+              id="stripe_fee_flat"
+              name="stripe_fee_flat"
+              type="number"
+              step="0.01"
+              min="0"
+              value={form.stripe_fee_flat}
+              onChange={(e) =>
+                setForm((prev) => ({ ...prev, stripe_fee_flat: Number(e.target.value) }))
+              }
+              className={inputClass}
+            />
+            <p className="text-xs text-on-surface-variant/50">e.g. 0.30 for $0.30</p>
           </div>
         </div>
       </section>
