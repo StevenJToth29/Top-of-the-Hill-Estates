@@ -12,11 +12,15 @@ CREATE TABLE payment_method_configs (
   UNIQUE (booking_type, method_key)
 );
 
+CREATE TRIGGER update_payment_method_configs_updated_at
+  BEFORE UPDATE ON payment_method_configs
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 ALTER TABLE payment_method_configs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "service_role_all" ON payment_method_configs
-  USING (auth.role() = 'service_role')
-  WITH CHECK (auth.role() = 'service_role');
+CREATE POLICY "Service role full access on payment_method_configs"
+  ON payment_method_configs
+  USING (auth.role() = 'service_role');
 
 INSERT INTO payment_method_configs
   (booking_type, method_key, label, is_enabled, fee_percent, fee_flat, sort_order)
