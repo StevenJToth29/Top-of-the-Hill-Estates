@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
         images: body.images ?? [],
         stripe_account_id: body.stripe_account_id ?? null,
         platform_fee_percent: Number(body.platform_fee_percent ?? 0),
+        cancellation_policy: body.cancellation_policy ?? null,
+        use_global_cancellation_policy: body.use_global_cancellation_policy ?? true,
       })
       .select('id')
       .single()
@@ -60,6 +62,8 @@ export async function PATCH(request: NextRequest) {
         images: fields.images ?? [],
         stripe_account_id: fields.stripe_account_id ?? null,
         platform_fee_percent: Number(fields.platform_fee_percent ?? 0),
+        cancellation_policy: fields.cancellation_policy ?? null,
+        use_global_cancellation_policy: fields.use_global_cancellation_policy ?? true,
       })
       .eq('id', id)
       .select()
