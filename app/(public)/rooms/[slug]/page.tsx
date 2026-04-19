@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import { format, addMonths } from 'date-fns'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getBlockedDatesForRoom } from '@/lib/availability'
+import { resolvePolicy } from '@/lib/cancellation'
 import type { Room } from '@/types'
 import dynamic from 'next/dynamic'
 import ImageGallery from '@/components/public/ImageGallery'
@@ -27,10 +28,13 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
       .eq('slug', params.slug)
       .eq('is_active', true)
       .single(),
-    supabase.from('site_settings').select('global_house_rules, stripe_fee_percent, stripe_fee_flat').maybeSingle(),
+    supabase.from('site_settings').select('global_house_rules, stripe_fee_percent, stripe_fee_flat, cancellation_policy').maybeSingle(),
   ])
 
   if (!rawRoom) notFound()
+
+  const settings = siteSettings ?? null
+  const resolvedPolicy = resolvePolicy(rawRoom, rawRoom.property ?? {}, settings)
 
   const today = new Date()
   const sixMonthsOut = addMonths(today, 6)
@@ -153,7 +157,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
               ) : null
             })()}
 
-            <CancellationPolicyDisplay variant="short_term" />
+            <CancellationPolicyDisplay variant="short_term" policy={resolvedPolicy} />
 
             {mapCoords && (
               <div className="space-y-3">
@@ -179,6 +183,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
               initialGuests={searchParams.guests ? parseInt(searchParams.guests, 10) : undefined}
               stripeFeePercent={siteSettings?.stripe_fee_percent != null ? Number(siteSettings.stripe_fee_percent) : 2.9}
               stripeFeeFlat={siteSettings?.stripe_fee_flat != null ? Number(siteSettings.stripe_fee_flat) : 0.30}
+              cancellationPolicy={resolvedPolicy}
             />
           </div>
         </div>
