@@ -5,8 +5,8 @@ function formatFee(percent: number, flat: number): string {
   const f = Number(flat)
   if (p === 0 && f === 0) return 'No processing fee'
   if (p === 0) return `$${f.toFixed(2)} flat`
-  if (f === 0) return `${p}%`
-  return `${p}% + $${f.toFixed(2)}`
+  if (f === 0) return `${p.toFixed(2)}%`
+  return `${p.toFixed(2)}% + $${f.toFixed(2)}`
 }
 
 interface PaymentMethodFeeInfoProps {
@@ -18,10 +18,10 @@ export default function PaymentMethodFeeInfo({ methods }: PaymentMethodFeeInfoPr
 
   return (
     <div className="bg-surface-highest/40 rounded-xl p-4 space-y-2">
-      <p className="text-on-surface-variant text-xs font-semibold uppercase tracking-wide">
+      <h3 id="pmf-heading" className="text-on-surface-variant text-xs font-semibold uppercase tracking-wide">
         Payment Method Fees
-      </p>
-      <ul className="space-y-1">
+      </h3>
+      <ul aria-labelledby="pmf-heading" className="space-y-1">
         {methods.map((m) => (
           <li key={m.method_key} className="flex justify-between text-sm">
             <span className="text-on-surface-variant">{m.label}</span>
