@@ -25,12 +25,11 @@ export default async function CheckoutPage() {
       .eq('is_enabled', true)
       .order('sort_order')
 
-    for (const c of (configs ?? []) as PaymentMethodConfig[]) {
-      if (c.booking_type === 'short_term') shortTermMethods.push(c)
-      else if (c.booking_type === 'long_term') longTermMethods.push(c)
-    }
-  } catch {
-    // fall through to empty defaults
+    const enabledConfigs = (configs ?? []) as PaymentMethodConfig[]
+    shortTermMethods = enabledConfigs.filter((c) => c.booking_type === 'short_term')
+    longTermMethods = enabledConfigs.filter((c) => c.booking_type === 'long_term')
+  } catch (err) {
+    console.error('[CheckoutPage] Failed to load payment config:', err)
   }
 
   return (

@@ -336,10 +336,6 @@ export default function CheckoutForm({ bookingParams, onProcessingFeeSet, availa
             </p>
           )}
 
-          <p className="text-on-surface-variant/60 text-xs italic">
-            Processing fees are non-refundable.
-          </p>
-
           <Elements stripe={stripePromise} options={{ clientSecret, appearance }}>
             <StripePaymentSection
               bookingId={bookingId}
