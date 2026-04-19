@@ -22,7 +22,7 @@ export default async function PayoutAccountsPage() {
         <div>
           <h1 className="font-display text-3xl font-bold text-on-surface">Payout Accounts</h1>
           <p className="text-on-surface-variant mt-1">
-            Stripe connected accounts for per-property payout routing. Set these up in your Stripe dashboard first, then paste the account ID here.
+            Stripe connected accounts for per-property payout routing. Add an account to create it automatically and complete onboarding.
           </p>
         </div>
         <PayoutAccountsTable accounts={(accounts ?? []) as StripeAccount[]} />

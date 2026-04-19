@@ -24,8 +24,13 @@ export default async function PayoutAccountDetailPage({ params }: PageProps) {
 
   if (!account) notFound()
 
-  const stripeAccount = await stripe.accounts.retrieve(account.stripe_account_id)
-  const detailsSubmitted = stripeAccount.details_submitted ?? false
+  let detailsSubmitted = false
+  try {
+    const stripeAccount = await stripe.accounts.retrieve(account.stripe_account_id)
+    detailsSubmitted = stripeAccount.details_submitted ?? false
+  } catch {
+    // Stripe unreachable or account deleted — show onboarding component as fallback
+  }
   const publishableKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ''
 
   return (
