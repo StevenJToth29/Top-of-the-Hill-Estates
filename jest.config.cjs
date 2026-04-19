@@ -13,8 +13,9 @@ const config = {
     '<rootDir>/node_modules/',
     '<rootDir>/.next/',
     '<rootDir>/.claude/',
+    '<rootDir>/.worktrees/',
   ],
-  watchPathIgnorePatterns: ['<rootDir>/.claude/'],
+  watchPathIgnorePatterns: ['<rootDir>/.claude/', '<rootDir>/.worktrees/'],
 }
 
 module.exports = createJestConfig(config)
