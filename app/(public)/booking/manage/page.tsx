@@ -1,5 +1,5 @@
 import { createServiceRoleClient } from '@/lib/supabase'
-import { isWithinCancellationWindow, calculateRefund } from '@/lib/cancellation'
+import { isWithinCancellationWindow, calculateRefund, resolvePolicy } from '@/lib/cancellation'
 import { getBlockedDatesForRoom } from '@/lib/availability'
 import { addYears, addDays, eachDayOfInterval, parseISO, format } from 'date-fns'
 import BookingManageView from '@/components/public/BookingManageView'
@@ -53,10 +53,10 @@ export default async function BookingManagePage({ searchParams }: PageProps) {
   }
 
   const booking = bookingRaw as unknown as Booking & { room: Room & { property: Property } }
-  const windowHours: number = booking.room.cancellation_window_hours ?? 72
+  const policy = resolvePolicy(booking.room, booking.room.property, null)
   const now = new Date()
-  const withinWindow = isWithinCancellationWindow(booking, now, windowHours)
-  const refund = calculateRefund(booking, now, windowHours)
+  const withinWindow = isWithinCancellationWindow(booking, now, policy.partial_refund_hours)
+  const refund = calculateRefund(booking, now, policy)
 
   // Fetch the most recent pending or rejected modification request
   const { data: modRequests } = await supabase
@@ -98,7 +98,7 @@ export default async function BookingManagePage({ searchParams }: PageProps) {
     <main className="min-h-screen bg-background py-16 px-4">
       <BookingManageView
         booking={booking}
-        windowHours={windowHours}
+        windowHours={policy.partial_refund_hours}
         withinWindow={withinWindow}
         refundAmount={refund.refund_amount}
         refundPercentage={refund.refund_percentage}

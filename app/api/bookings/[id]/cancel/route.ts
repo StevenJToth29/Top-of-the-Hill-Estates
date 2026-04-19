@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
-import { calculateRefund } from '@/lib/cancellation'
+import { calculateRefund, resolvePolicy } from '@/lib/cancellation'
 import type { Booking } from '@/types'
 
 export async function POST(
@@ -38,8 +38,29 @@ export async function POST(
       return NextResponse.json({ error: 'Booking is already cancelled' }, { status: 400 })
     }
 
+    const { data: cancelRoom } = await supabase
+      .from('rooms')
+      .select('property_id, cancellation_policy, use_property_cancellation_policy')
+      .eq('id', (booking as Booking).room_id)
+      .single()
+
+    const [{ data: cancelProperty }, { data: cancelSettings }] = await Promise.all([
+      cancelRoom?.property_id
+        ? supabase
+            .from('properties')
+            .select('cancellation_policy, use_global_cancellation_policy')
+            .eq('id', cancelRoom.property_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      supabase
+        .from('site_settings')
+        .select('cancellation_policy')
+        .maybeSingle(),
+    ])
+
     const now = new Date()
-    const policyRefund = calculateRefund(booking as Booking, now)
+    const policy = resolvePolicy(cancelRoom ?? {}, cancelProperty ?? {}, cancelSettings)
+    const policyRefund = calculateRefund(booking as Booking, now, policy)
 
     // Admin can override the policy refund amount
     let refundResult = policyRefund

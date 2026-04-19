@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
-import { calculateRefund } from '@/lib/cancellation'
+import { calculateRefund, resolvePolicy } from '@/lib/cancellation'
 import type { Booking } from '@/types'
 
 export async function POST(
@@ -41,13 +41,27 @@ export async function POST(
 
     const { data: room } = await supabase
       .from('rooms')
-      .select('cancellation_window_hours')
+      .select('property_id, cancellation_policy, use_property_cancellation_policy')
       .eq('id', booking.room_id)
       .single()
 
-    const windowHours: number = room?.cancellation_window_hours ?? 72
+    const [{ data: property }, { data: siteSettings }] = await Promise.all([
+      room?.property_id
+        ? supabase
+            .from('properties')
+            .select('cancellation_policy, use_global_cancellation_policy')
+            .eq('id', room.property_id)
+            .maybeSingle()
+        : Promise.resolve({ data: null }),
+      supabase
+        .from('site_settings')
+        .select('cancellation_policy')
+        .maybeSingle(),
+    ])
+
+    const policy = resolvePolicy(room ?? {}, property ?? {}, siteSettings)
     const now = new Date()
-    const refund = calculateRefund(booking as Booking, now, windowHours)
+    const refund = calculateRefund(booking as Booking, now, policy)
 
     const { error: updateError } = await supabase
       .from('bookings')
