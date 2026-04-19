@@ -6,7 +6,7 @@ import {
   ConnectAccountOnboarding,
   ConnectAccountManagement,
 } from '@stripe/react-connect-js'
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface StripeConnectPanelProps {
@@ -34,11 +34,14 @@ export default function StripeConnectPanel({
     return data.client_secret as string
   }, [dbAccountId])
 
-  const stripeConnectInstance = loadConnectAndInitialize({
-    publishableKey,
-    fetchClientSecret,
-    appearance: { overlays: 'dialog', variables: { colorPrimary: '#7c3aed' } },
-  })
+  const stripeConnectInstance = useMemo(
+    () => loadConnectAndInitialize({
+      publishableKey,
+      fetchClientSecret,
+      appearance: { overlays: 'dialog', variables: { colorPrimary: '#7c3aed' } },
+    }),
+    [publishableKey, fetchClientSecret],
+  )
 
   return (
     <ConnectComponentsProvider connectInstance={stripeConnectInstance}>
