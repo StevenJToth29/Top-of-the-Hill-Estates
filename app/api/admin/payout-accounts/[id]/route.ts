@@ -37,12 +37,10 @@ export async function DELETE(request: Request, { params }: RouteContext) {
   const supabase = createServiceRoleClient()
 
   // Check if any properties reference this account before deleting
-  const propertiesQuery = supabase
+  const { count } = await supabase
     .from('properties')
-    .select('id')
+    .select('id', { count: 'exact', head: true })
     .eq('stripe_account_id', params.id)
-
-  const { count } = await (propertiesQuery as any).select('*', { count: 'exact', head: true }).head()
 
   if (count && count > 0) {
     return NextResponse.json(
@@ -51,11 +49,7 @@ export async function DELETE(request: Request, { params }: RouteContext) {
     )
   }
 
-  // In production, .eq() returns a PostgrestFilterBuilder (thenable).
-  // In tests, the mock makes it a callable that returns the promise.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const deleteOp: any = supabase.from('stripe_accounts').delete().eq('id', params.id)
-  const { error } = await (typeof deleteOp === 'function' ? deleteOp() : deleteOp)
+  const { error } = await supabase.from('stripe_accounts').delete().eq('id', params.id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ success: true })
 }

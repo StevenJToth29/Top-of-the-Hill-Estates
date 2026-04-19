@@ -159,16 +159,16 @@ function makePatchDbMock(opts: { updateData?: unknown; updateError?: unknown } =
 }
 
 function makeDeleteDbMock(opts: { propertyCount?: number; deleteError?: unknown } = {}) {
-  const head = jest.fn().mockResolvedValue({ count: opts.propertyCount ?? 0, error: null })
-  const propertiesSelect = jest.fn().mockReturnValue({ head })
-  const propertiesEq = jest.fn().mockReturnValue({ select: propertiesSelect })
+  // Mock for: supabase.from('properties').select('id', { count: 'exact', head: true }).eq(...)
+  const propertiesEq = jest.fn().mockResolvedValue({ count: opts.propertyCount ?? 0, error: null })
+  const propertiesSelect = jest.fn().mockReturnValue({ eq: propertiesEq })
 
-  const deleteResult = jest.fn().mockResolvedValue({ error: opts.deleteError ?? null })
-  const accountsEq = jest.fn().mockReturnValue(deleteResult)
+  // Mock for: supabase.from('stripe_accounts').delete().eq(...)
+  const accountsEq = jest.fn().mockResolvedValue({ error: opts.deleteError ?? null })
   const deleteFn = jest.fn().mockReturnValue({ eq: accountsEq })
 
   const from = jest.fn().mockImplementation((table: string) => {
-    if (table === 'properties') return { select: jest.fn().mockReturnValue({ eq: propertiesEq }) }
+    if (table === 'properties') return { select: propertiesSelect }
     return { delete: deleteFn }
   })
   return { from, propertiesEq, deleteFn, accountsEq }
