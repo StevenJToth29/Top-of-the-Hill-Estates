@@ -43,6 +43,8 @@ describe('GET /api/admin/payment-method-configs – auth', () => {
         getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
       },
     })
+    const db = createDbMocks()
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
     const res = await GET()
     expect(res.status).toBe(401)
     expect(await res.json()).toEqual({ error: 'Unauthorized' })
@@ -50,7 +52,7 @@ describe('GET /api/admin/payment-method-configs – auth', () => {
 })
 
 describe('GET /api/admin/payment-method-configs – success', () => {
-  test('returns configs array', async () => {
+  test('returns configs array ordered by booking_type then sort_order', async () => {
     const configs = [
       { id: '1', booking_type: 'short_term', method_key: 'card', label: 'Credit / Debit Card', is_enabled: true, fee_percent: 2.9, fee_flat: 0.30, sort_order: 1 },
       { id: '2', booking_type: 'long_term', method_key: 'us_bank_account', label: 'ACH Bank Transfer', is_enabled: true, fee_percent: 0, fee_flat: 0, sort_order: 2 },
@@ -64,6 +66,8 @@ describe('GET /api/admin/payment-method-configs – success', () => {
     const body = await res.json()
     expect(body.configs).toHaveLength(2)
     expect(body.configs[0].method_key).toBe('card')
+    expect(db.orderFirst).toHaveBeenCalledWith('booking_type')
+    expect(db.orderFinal).toHaveBeenCalledWith('sort_order')
   })
 
   test('returns 500 on database error', async () => {
@@ -73,6 +77,7 @@ describe('GET /api/admin/payment-method-configs – success', () => {
     const res = await GET()
 
     expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'connection refused' })
   })
 })
 
