@@ -159,7 +159,7 @@ export default function CheckoutSummary({ params, roomName, propertyName, checki
         <div className="flex justify-between items-baseline">
           <span className="text-on-surface-variant text-sm font-semibold">Due today</span>
           <span className="text-primary font-bold text-3xl font-display">
-            {formatCurrency(params.amount_to_pay)}
+            {formatCurrency(params.amount_to_pay + processingFee)}
           </span>
         </div>
         {params.amount_due_at_checkin > 0 && (

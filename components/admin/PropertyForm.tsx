@@ -7,6 +7,7 @@ import AmenitiesTagInput from './AmenitiesTagInput'
 import ImageUploader from './ImageUploader'
 import AIWriteButton from './AIWriteButton'
 import PlacesAddressInput from './PlacesAddressInput'
+import CollapsibleSection from './CollapsibleSection'
 
 interface PropertyFormProps {
   property?: Property
@@ -98,10 +99,7 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Basic Info */}
-      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-5">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Basic Information</h2>
-
+      <CollapsibleSection title="Basic Information" defaultOpen={!propertyId}>
         <div>
           <label className={labelClass}>Property Name</label>
           <input
@@ -179,11 +177,9 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
             />
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      {/* Property Details */}
-      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-5">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Property Details</h2>
+      <CollapsibleSection title="Property Details" defaultOpen={!propertyId}>
         <div className="grid grid-cols-2 gap-5">
           <div>
             <label className={labelClass}>Total Bedrooms</label>
@@ -207,20 +203,14 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
             />
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      {/* Amenities */}
-      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Amenities</h2>
+      <CollapsibleSection title="Amenities" defaultOpen={!propertyId}>
         <p className="text-xs text-on-surface-variant/60">These apply to all rooms in this property.</p>
         <AmenitiesTagInput value={amenities} onChange={setAmenities} />
-      </section>
+      </CollapsibleSection>
 
-      {/* House Rules */}
-      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold text-on-surface">House Rules</h2>
-
-        {/* Toggle */}
+      <CollapsibleSection title="House Rules" defaultOpen={!propertyId}>
         <button
           type="button"
           role="switch"
@@ -265,11 +255,9 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
             />
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
-      {/* Images */}
-      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Property Images</h2>
+      <CollapsibleSection title="Property Images" defaultOpen={!propertyId}>
         <p className="text-xs text-on-surface-variant/60">
           Upload the full image library for this property. Rooms will select from these images.
         </p>
@@ -279,18 +267,14 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
           uploadFolder={propertyId ?? 'new'}
           onChange={setImages}
         />
-      </section>
+      </CollapsibleSection>
 
-      {/* Payout Routing */}
-      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-5">
-        <div>
-          <h2 className="font-display text-lg font-semibold text-on-surface">Payout Routing</h2>
-          <p className="text-xs text-on-surface-variant/60 mt-1">
-            Select which Stripe connected account receives payments for this property.
-            Manage accounts under{' '}
-            <a href="/admin/payout-accounts" className="text-secondary underline">Payout Accounts</a>.
-          </p>
-        </div>
+      <CollapsibleSection title="Payout Routing" defaultOpen={!propertyId}>
+        <p className="text-xs text-on-surface-variant/60">
+          Select which Stripe connected account receives payments for this property.
+          Manage accounts under{' '}
+          <a href="/admin/payout-accounts" className="text-secondary underline">Payout Accounts</a>.
+        </p>
 
         <div>
           <label className={labelClass}>Payout Account</label>
@@ -326,7 +310,7 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
             </p>
           </div>
         )}
-      </section>
+      </CollapsibleSection>
 
       {error && (
         <p className="text-sm text-error bg-error-container/30 rounded-xl px-4 py-3">{error}</p>

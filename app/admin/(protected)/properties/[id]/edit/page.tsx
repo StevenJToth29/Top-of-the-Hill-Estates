@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
 
 import { notFound, redirect } from 'next/navigation'
-import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import PropertyForm from '@/components/admin/PropertyForm'
@@ -32,13 +31,13 @@ export default async function EditPropertyPage({ params }: EditPropertyPageProps
     <div className="min-h-screen bg-background px-4 py-10 sm:px-8">
       <div className="max-w-3xl mx-auto space-y-8">
         <div className="flex items-center gap-4">
-          <Link
+          <a
             href="/admin/properties"
             className="flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-on-surface transition-colors"
           >
             <ArrowLeftIcon className="w-4 h-4" />
             Back to Properties
-          </Link>
+          </a>
         </div>
 
         <div>

@@ -15,9 +15,10 @@ const LocationMap = dynamic(() => import('@/components/public/LocationMap'), { s
 
 interface Props {
   params: { slug: string }
+  searchParams: { checkin?: string; checkout?: string; guests?: string }
 }
 
-export default async function RoomDetailPage({ params }: Props) {
+export default async function RoomDetailPage({ params, searchParams }: Props) {
   const supabase = await createServerSupabaseClient()
   const [{ data: rawRoom }, { data: siteSettings }] = await Promise.all([
     supabase
@@ -26,7 +27,7 @@ export default async function RoomDetailPage({ params }: Props) {
       .eq('slug', params.slug)
       .eq('is_active', true)
       .single(),
-    supabase.from('site_settings').select('global_house_rules').maybeSingle(),
+    supabase.from('site_settings').select('global_house_rules, stripe_fee_percent, stripe_fee_flat').maybeSingle(),
   ])
 
   if (!rawRoom) notFound()
@@ -170,7 +171,15 @@ export default async function RoomDetailPage({ params }: Props) {
           </div>
 
           <div className="lg:col-span-1">
-            <BookingWidget room={room} blockedDates={blockedDates} />
+            <BookingWidget
+              room={room}
+              blockedDates={blockedDates}
+              initialCheckin={searchParams.checkin}
+              initialCheckout={searchParams.checkout}
+              initialGuests={searchParams.guests ? parseInt(searchParams.guests, 10) : undefined}
+              stripeFeePercent={siteSettings?.stripe_fee_percent != null ? Number(siteSettings.stripe_fee_percent) : 2.9}
+              stripeFeeFlat={siteSettings?.stripe_fee_flat != null ? Number(siteSettings.stripe_fee_flat) : 0.30}
+            />
           </div>
         </div>
       </div>

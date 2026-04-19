@@ -5,19 +5,33 @@ import type { Property, Room } from '@/types'
 
 export type RoomWithProperty = Room & { property: Property }
 
+interface SearchContext {
+  checkin?: string
+  checkout?: string
+  guests?: string
+}
 
-export default function RoomsGrid({ rooms }: { rooms: RoomWithProperty[] }) {
+export default function RoomsGrid({ rooms, searchContext }: { rooms: RoomWithProperty[]; searchContext?: SearchContext }) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {rooms.map((room) => (
-        <InlineRoomCard key={room.id} room={room} />
+        <InlineRoomCard key={room.id} room={room} searchContext={searchContext} />
       ))}
     </div>
   )
 }
 
-function InlineRoomCard({ room }: { room: RoomWithProperty }) {
+function InlineRoomCard({ room, searchContext }: { room: RoomWithProperty; searchContext?: SearchContext }) {
   const primaryImage = room.images?.[0] ?? null
+
+  const bookHref = (() => {
+    const params = new URLSearchParams()
+    if (searchContext?.checkin) params.set('checkin', searchContext.checkin)
+    if (searchContext?.checkout) params.set('checkout', searchContext.checkout)
+    if (searchContext?.guests) params.set('guests', searchContext.guests)
+    const qs = params.toString()
+    return `/rooms/${room.slug}${qs ? `?${qs}` : ''}`
+  })()
 
   return (
     <article className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl overflow-hidden hover:shadow-[0_8px_40px_rgba(45,212,191,0.12)] transition-shadow flex flex-col">
@@ -71,7 +85,7 @@ function InlineRoomCard({ room }: { room: RoomWithProperty }) {
         </div>
 
         <Link
-          href={`/rooms/${room.slug}`}
+          href={bookHref}
           className="mt-2 block text-center bg-gradient-to-r from-primary to-secondary text-background font-semibold font-body rounded-2xl px-6 py-2.5 shadow-[0_0_10px_rgba(45,212,191,0.30)] hover:opacity-90 transition-opacity w-full"
         >
           Book Now

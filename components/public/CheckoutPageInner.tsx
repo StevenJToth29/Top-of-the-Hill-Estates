@@ -9,9 +9,11 @@ import { BookingParams, BookingType, RoomFee } from '@/types'
 interface CheckoutPageInnerProps {
   checkinTime: string
   checkoutTime: string
+  stripeFeePercent: number
+  stripeFeeFlat: number
 }
 
-export default function CheckoutPageInner({ checkinTime, checkoutTime }: CheckoutPageInnerProps) {
+export default function CheckoutPageInner({ checkinTime, checkoutTime, stripeFeePercent, stripeFeeFlat }: CheckoutPageInnerProps) {
   const searchParams = useSearchParams()
 
   function getParam(key: string): string {
@@ -66,7 +68,11 @@ export default function CheckoutPageInner({ checkinTime, checkoutTime }: Checkou
 
   const roomName = getParam('room_name') || bookingParams.room_slug || 'Your Room'
   const propertyName = getParam('property_name') || 'Top of the Hill Estates'
-  const [processingFee, setProcessingFee] = useState(0)
+
+  const estimatedProcessingFee = Math.round(
+    (bookingParams.amount_to_pay * (stripeFeePercent / 100) + stripeFeeFlat) * 100
+  ) / 100
+  const [processingFee, setProcessingFee] = useState(estimatedProcessingFee)
 
   // Guard against direct/invalid URL access
   const paramError = (() => {

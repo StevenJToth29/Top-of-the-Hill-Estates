@@ -5,14 +5,18 @@ import CheckoutPageInner from '@/components/public/CheckoutPageInner'
 export default async function CheckoutPage() {
   let checkinTime = '15:00'
   let checkoutTime = '10:00'
+  let stripeFeePercent = 2.9
+  let stripeFeeFlat = 0.30
   try {
     const supabase = await createServerSupabaseClient()
     const { data } = await supabase
       .from('site_settings')
-      .select('checkin_time, checkout_time')
+      .select('checkin_time, checkout_time, stripe_fee_percent, stripe_fee_flat')
       .maybeSingle()
     if (data?.checkin_time) checkinTime = data.checkin_time
     if (data?.checkout_time) checkoutTime = data.checkout_time
+    if (data?.stripe_fee_percent != null) stripeFeePercent = Number(data.stripe_fee_percent)
+    if (data?.stripe_fee_flat != null) stripeFeeFlat = Number(data.stripe_fee_flat)
   } catch {
     // fall through to defaults
   }
@@ -25,7 +29,12 @@ export default async function CheckoutPage() {
         </main>
       }
     >
-      <CheckoutPageInner checkinTime={checkinTime} checkoutTime={checkoutTime} />
+      <CheckoutPageInner
+        checkinTime={checkinTime}
+        checkoutTime={checkoutTime}
+        stripeFeePercent={stripeFeePercent}
+        stripeFeeFlat={stripeFeeFlat}
+      />
     </Suspense>
   )
 }

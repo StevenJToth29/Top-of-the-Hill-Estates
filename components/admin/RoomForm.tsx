@@ -7,6 +7,7 @@ import AmenitiesTagInput from './AmenitiesTagInput'
 import ICalSourcesManager from './ICalSourcesManager'
 import PropertyImagePicker from './PropertyImagePicker'
 import AIWriteButton from './AIWriteButton'
+import CollapsibleSection from './CollapsibleSection'
 
 interface RoomFormProps {
   room?: Room
@@ -169,9 +170,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
-      {/* Basic info */}
-      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-5">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Basic Information</h2>
+      <CollapsibleSection title="Basic Information" defaultOpen={!roomId}>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           <div>
@@ -263,11 +262,9 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
         </div>
 
         <Toggle checked={isActive} onChange={setIsActive} label={isActive ? 'Active' : 'Inactive'} />
-      </section>
+      </CollapsibleSection>
 
-      {/* Room details */}
-      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-5">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Room Details</h2>
+      <CollapsibleSection title="Room Details" defaultOpen={!roomId}>
 
         <div className="grid grid-cols-3 gap-5">
           <div>
@@ -283,11 +280,9 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
             <input type="number" value={bathrooms} onChange={(e) => setBathrooms(Number(e.target.value))} min={0} step={0.5} className={inputClass} />
           </div>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      {/* Pricing */}
-      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-5">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Pricing &amp; Minimums</h2>
+      <CollapsibleSection title="Pricing & Minimums" defaultOpen={!roomId}>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {/* Nightly */}
@@ -381,11 +376,9 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
             Guests cannot cancel or modify within this many hours of check-in. Default: 72.
           </p>
         </div>
-      </section>
+      </CollapsibleSection>
 
-      {/* Additional Fees */}
-      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Additional Fees</h2>
+      <CollapsibleSection title="Additional Fees" defaultOpen={!roomId}>
         <p className="text-xs text-on-surface-variant/60">
           Custom fees charged to guests at booking, in addition to the cleaning fee, security deposit, and extra guest fee above.
         </p>
@@ -451,11 +444,9 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
         >
           + Add Fee
         </button>
-      </section>
+      </CollapsibleSection>
 
-      {/* Amenities */}
-      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Amenities</h2>
+      <CollapsibleSection title="Amenities" defaultOpen={!roomId}>
 
         {propertyAmenities.length > 0 && (
           <div className="space-y-2">
@@ -482,33 +473,27 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
           <p className="text-xs text-on-surface-variant/60">Add amenities unique to this room. Duplicates of property amenities will be merged automatically.</p>
           <AmenitiesTagInput value={amenities} onChange={setAmenities} context="room" />
         </div>
-      </section>
+      </CollapsibleSection>
 
-      {/* Images */}
-      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
-        <h2 className="font-display text-lg font-semibold text-on-surface">Images</h2>
+      <CollapsibleSection title="Images" defaultOpen={!roomId}>
         <PropertyImagePicker propertyImages={propertyImages} selectedImages={images} onChange={setImages} />
-      </section>
+      </CollapsibleSection>
 
-      {/* iCal export */}
       {icalExportUrl && (
-        <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-3">
-          <h2 className="font-display text-lg font-semibold text-on-surface">iCal Export</h2>
+        <CollapsibleSection title="iCal Export" defaultOpen={!roomId}>
           <div className="flex items-center gap-3 bg-surface-container rounded-xl px-4 py-3">
             <p className="flex-1 text-sm text-on-surface-variant/70 truncate font-mono">{icalExportUrl}</p>
             <button type="button" onClick={copyICalUrl} className="flex items-center gap-1.5 shrink-0 text-sm text-secondary hover:text-on-surface transition-colors">
               {copied ? (<><CheckIcon className="w-4 h-4 text-secondary" />Copied</>) : (<><ClipboardDocumentIcon className="w-4 h-4" />Copy</>)}
             </button>
           </div>
-        </section>
+        </CollapsibleSection>
       )}
 
-      {/* iCal sources */}
       {roomId && (
-        <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
-          <h2 className="font-display text-lg font-semibold text-on-surface">iCal Import Sources</h2>
+        <CollapsibleSection title="iCal Import Sources" defaultOpen={false}>
           <ICalSourcesManager roomId={roomId} sources={icalSources ?? []} />
-        </section>
+        </CollapsibleSection>
       )}
 
       {error && <p className="text-sm text-error bg-error-container/30 rounded-xl px-4 py-3">{error}</p>}

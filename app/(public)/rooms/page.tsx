@@ -89,7 +89,14 @@ export default async function RoomsPage({
             </p>
           </div>
         ) : (
-          <RoomsGrid rooms={filtered} />
+          <RoomsGrid
+            rooms={filtered}
+            searchContext={{
+              checkin: searchParams.checkin,
+              checkout: searchParams.checkout,
+              guests: searchParams.guests,
+            }}
+          />
         )}
       </div>
     </main>

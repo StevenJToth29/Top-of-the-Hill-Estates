@@ -21,13 +21,13 @@ export default async function NewRoomPage() {
     <div className="min-h-screen bg-background px-4 py-10 sm:px-8">
       <div className="max-w-3xl mx-auto space-y-8">
         <div className="flex items-center gap-4">
-          <Link
+          <a
             href="/admin/rooms"
             className="flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-on-surface transition-colors"
           >
             <ArrowLeftIcon className="w-4 h-4" />
             Back to Rooms
-          </Link>
+          </a>
         </div>
 
         <div>

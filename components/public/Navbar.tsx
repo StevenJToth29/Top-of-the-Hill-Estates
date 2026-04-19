@@ -10,6 +10,7 @@ const navLinks = [
   { label: 'Rooms', href: '/rooms' },
   { label: 'About Us', href: '/#about' },
   { label: 'Contact', href: '/contact' },
+  { label: 'Manage Booking', href: '/booking/manage' },
 ]
 
 interface NavbarProps {

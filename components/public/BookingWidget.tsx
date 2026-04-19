@@ -9,6 +9,11 @@ import DatePicker from './DatePicker'
 interface Props {
   room: Room
   blockedDates: string[]
+  initialCheckin?: string
+  initialCheckout?: string
+  initialGuests?: number
+  stripeFeePercent?: number
+  stripeFeeFlat?: number
 }
 
 function formatDate(d: Date) {
@@ -29,7 +34,7 @@ const pillBase =
 const pillActive = 'bg-secondary/20 text-secondary border border-secondary/50'
 const pillInactive = 'bg-surface-container text-on-surface-variant hover:text-on-surface'
 
-export default function BookingWidget({ room, blockedDates }: Props) {
+export default function BookingWidget({ room, blockedDates, initialCheckin, initialCheckout, initialGuests, stripeFeePercent = 2.9, stripeFeeFlat = 0.30 }: Props) {
   const router = useRouter()
   const blockedSet = useMemo(() => new Set(blockedDates), [blockedDates])
 
@@ -37,10 +42,14 @@ export default function BookingWidget({ room, blockedDates }: Props) {
   const showMonthly = room.show_monthly_rate ?? true
   const defaultType: BookingType = showNightly ? 'short_term' : 'long_term'
   const [bookingType, setBookingType] = useState<BookingType>(defaultType)
-  const [checkIn, setCheckIn] = useState('')
-  const [checkOut, setCheckOut] = useState('')
-  const [moveIn, setMoveIn] = useState('')
-  const [guests, setGuests] = useState(1)
+  const [checkIn, setCheckIn] = useState(initialCheckin ?? '')
+  const [checkOut, setCheckOut] = useState(initialCheckout ?? '')
+  const [moveIn, setMoveIn] = useState(initialCheckin ?? '')
+  const [guests, setGuests] = useState(() => {
+    const cap = Math.max(room.guest_capacity ?? 1, 1)
+    if (initialGuests && initialGuests >= 1 && initialGuests <= cap) return initialGuests
+    return 1
+  })
   const [error, setError] = useState('')
 
   const today = useMemo(() => formatDate(new Date()), [])
@@ -66,12 +75,16 @@ export default function BookingWidget({ room, blockedDates }: Props) {
   const stGenericFees = roomFees.filter((f) => f.booking_type === 'short_term' || f.booking_type === 'both')
   const stGenericTotal = stGenericFees.reduce((sum, f) => sum + f.amount, 0)
   const stTotal = subtotal + cleaningFee + stExtraGuestTotal + stGenericTotal
+  const stProcessingFee = nights > 0 ? Math.round((stTotal * (stripeFeePercent / 100) + stripeFeeFlat) * 100) / 100 : 0
+  const stGrandTotal = stTotal + stProcessingFee
 
   // Long-term fee totals
   const ltExtraGuestTotal = extraGuests * extraGuestFee
   const ltGenericFees = roomFees.filter((f) => f.booking_type === 'long_term' || f.booking_type === 'both')
   const ltGenericTotal = ltGenericFees.reduce((sum, f) => sum + f.amount, 0)
   const ltTotal = room.monthly_rate + securityDeposit + ltExtraGuestTotal + ltGenericTotal
+  const ltProcessingFee = Math.round((ltTotal * (stripeFeePercent / 100) + stripeFeeFlat) * 100) / 100
+  const ltGrandTotal = ltTotal + ltProcessingFee
 
   const validate = useCallback((): boolean => {
     setError('')
@@ -127,14 +140,14 @@ export default function BookingWidget({ room, blockedDates }: Props) {
       params.set('checkin', checkIn)
       params.set('checkout', checkOut)
       params.set('total_nights', String(nights))
-      params.set('total_amount', String(stTotal))
+      params.set('total_amount', String(stGrandTotal))
       params.set('amount_to_pay', String(stTotal))
       params.set('amount_due', '0')
     } else {
       params.set('checkin', moveIn)
       params.set('checkout', '')
       params.set('total_nights', '30')
-      params.set('total_amount', String(ltTotal))
+      params.set('total_amount', String(ltGrandTotal))
       params.set('amount_to_pay', String(ltTotal))
       params.set('amount_due', '0')
     }
@@ -265,9 +278,13 @@ export default function BookingWidget({ room, blockedDates }: Props) {
                   <span>${f.amount.toLocaleString()}</span>
                 </div>
               ))}
+              <div className="flex justify-between text-on-surface-variant">
+                <span>Processing fee</span>
+                <span>${stProcessingFee.toFixed(2)}</span>
+              </div>
               <div className="flex justify-between pt-2 border-t border-outline-variant">
                 <span className="text-on-surface font-medium">Due today</span>
-                <span className="text-primary font-bold text-lg">${stTotal.toLocaleString()}</span>
+                <span className="text-primary font-bold text-lg">${stGrandTotal.toLocaleString()}</span>
               </div>
             </div>
           )}
@@ -322,9 +339,13 @@ export default function BookingWidget({ room, blockedDates }: Props) {
                   <span>${f.amount.toLocaleString()}</span>
                 </div>
               ))}
+              <div className="flex justify-between text-on-surface-variant">
+                <span>Processing fee</span>
+                <span>${ltProcessingFee.toFixed(2)}</span>
+              </div>
               <div className="flex justify-between pt-2 border-t border-outline-variant">
                 <span className="text-on-surface font-medium">Due today</span>
-                <span className="text-primary font-bold text-2xl">${ltTotal.toLocaleString()}</span>
+                <span className="text-primary font-bold text-2xl">${ltGrandTotal.toLocaleString()}</span>
               </div>
             </div>
           )}
