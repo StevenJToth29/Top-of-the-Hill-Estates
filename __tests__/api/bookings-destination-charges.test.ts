@@ -114,7 +114,7 @@ describe('POST /api/bookings — destination charge routing', () => {
 
     const createCall = (mockStripe.paymentIntents.create as jest.Mock).mock.calls[0][0]
     expect(createCall.transfer_data).toEqual({ destination: 'acct_aaa' })
-    expect(createCall.application_fee_amount).toBeGreaterThan(0)
+    expect(createCall.application_fee_amount).toBe(9267)
   })
 
   test('application_fee_amount is 0 when platform_fee_percent is 0', async () => {
