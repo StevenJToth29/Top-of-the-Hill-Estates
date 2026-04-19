@@ -52,6 +52,11 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
     e.preventDefault()
     setError(null)
 
+    if (stripeAccountId && (platformFeePercent < 0 || platformFeePercent > 100)) {
+      setError('Platform fee must be between 0 and 100.')
+      return
+    }
+
     const payload = {
       id: propertyId,
       name,
@@ -67,7 +72,7 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
       use_global_house_rules: useGlobalRules,
       images,
       stripe_account_id: stripeAccountId || null,
-      platform_fee_percent: platformFeePercent,
+      platform_fee_percent: stripeAccountId ? platformFeePercent : 0,
     }
 
     startTransition(async () => {
