@@ -16,6 +16,8 @@
     "@anthropic-ai/sdk": "^0.89.0",
     "@googlemaps/js-api-loader": "^2.0.2",
     "@heroicons/react": "^2.2.0",
+    "@stripe/connect-js": "^3.3.35",
+    "@stripe/react-connect-js": "^3.3.34",
     "@stripe/react-stripe-js": "^6.1.0",
     "@stripe/stripe-js": "^9.2.0",
     "@supabase/ssr": "^0.5.2",
