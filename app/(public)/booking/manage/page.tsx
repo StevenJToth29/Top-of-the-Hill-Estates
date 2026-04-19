@@ -3,39 +3,51 @@ import { isWithinCancellationWindow, calculateRefund } from '@/lib/cancellation'
 import { getBlockedDatesForRoom } from '@/lib/availability'
 import { addYears, addDays, eachDayOfInterval, parseISO, format } from 'date-fns'
 import BookingManageView from '@/components/public/BookingManageView'
+import BookingLookupForm from '@/components/public/BookingLookupForm'
 import type { Booking, Room, Property, BookingModificationRequest } from '@/types'
 
 interface PageProps {
-  searchParams: { booking_id?: string; guest_email?: string }
+  searchParams: { booking_id?: string; guest_email?: string; check_in?: string }
 }
 
 export default async function BookingManagePage({ searchParams }: PageProps) {
-  const { booking_id, guest_email } = searchParams
+  const { booking_id, guest_email, check_in } = searchParams
 
-  if (!booking_id || !guest_email) {
+  const hasReference = booking_id && guest_email
+  const hasEmailDate = guest_email && check_in && !booking_id
+
+  if (!hasReference && !hasEmailDate) {
     return (
       <main className="min-h-screen bg-background py-16 px-4">
-        <LookupForm error={null} />
+        <BookingLookupForm error={null} />
       </main>
     )
   }
 
   const supabase = createServiceRoleClient()
-  // Accept either the full UUID or the 8-char display prefix
-  const prefix = booking_id.toLowerCase().slice(0, 8)
 
-  const { data: bookingRaw } = await supabase
+  let bookingQuery = supabase
     .from('bookings')
     .select('*, room:rooms(*, property:properties(*))')
-    .filter('id::text', 'ilike', `${prefix}%`)
-    .ilike('guest_email', guest_email)
-    .limit(1)
-    .maybeSingle()
+
+  if (hasReference) {
+    const prefix = booking_id.toLowerCase().slice(0, 8)
+    bookingQuery = bookingQuery
+      .filter('id::text', 'ilike', `${prefix}%`)
+      .ilike('guest_email', guest_email)
+  } else {
+    bookingQuery = bookingQuery
+      .ilike('guest_email', guest_email!)
+      .eq('check_in', check_in!)
+      .order('created_at', { ascending: false })
+  }
+
+  const { data: bookingRaw } = await bookingQuery.limit(1).maybeSingle()
 
   if (!bookingRaw || !bookingRaw.room || !bookingRaw.room.property) {
     return (
       <main className="min-h-screen bg-background py-16 px-4">
-        <LookupForm error="We couldn't find a booking with those details. Please check your confirmation email." />
+        <BookingLookupForm error="We couldn't find a booking with those details. Please double-check your information." />
       </main>
     )
   }
@@ -99,49 +111,3 @@ export default async function BookingManagePage({ searchParams }: PageProps) {
   )
 }
 
-function LookupForm({ error }: { error: string | null }) {
-  return (
-    <div className="max-w-md mx-auto">
-      <div className="bg-surface-container rounded-2xl p-8 shadow-[0_8px_40px_rgba(45,212,191,0.06)]">
-        <h1 className="font-display text-3xl font-bold text-primary mb-2">Manage Your Booking</h1>
-        <p className="text-on-surface-variant font-body mb-6 text-sm">
-          Enter the booking reference from your confirmation email and the email address you used to
-          book.
-        </p>
-        {error && <p className="text-error text-sm mb-4 font-body">{error}</p>}
-        <form method="GET" action="/booking/manage" className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-1.5">
-              Booking Reference
-            </label>
-            <input
-              name="booking_id"
-              type="text"
-              required
-              placeholder="e.g. A1B2C3D4"
-              className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-1 focus:ring-secondary/50 font-mono uppercase"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-on-surface-variant mb-1.5">
-              Email Address
-            </label>
-            <input
-              name="guest_email"
-              type="email"
-              required
-              placeholder="you@example.com"
-              className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-1 focus:ring-secondary/50"
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-gradient-to-r from-primary to-secondary text-background rounded-2xl px-8 py-3 font-semibold font-body"
-          >
-            Find My Booking
-          </button>
-        </form>
-      </div>
-    </div>
-  )
-}
