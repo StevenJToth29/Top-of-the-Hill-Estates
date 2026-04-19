@@ -39,6 +39,8 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
   function cancelForm() {
     setShowForm(false)
     setEditingId(null)
+    setLabel('')
+    setStripeAccountId('')
     setError(null)
   }
 
@@ -90,7 +92,8 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
       <div className="flex justify-end">
         <button
           onClick={openAdd}
-          className="bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-6 py-2.5 hover:opacity-90 transition-opacity text-sm"
+          disabled={isPending}
+          className="bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-6 py-2.5 hover:opacity-90 transition-opacity text-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           + Add Account
         </button>
@@ -172,13 +175,15 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
                     <div className="flex gap-3 justify-end">
                       <button
                         onClick={() => openEdit(account)}
-                        className="text-xs text-secondary hover:text-secondary/80 transition-colors"
+                        disabled={isPending}
+                        className="text-xs text-secondary hover:text-secondary/80 transition-colors disabled:opacity-50"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDelete(account)}
-                        className="text-xs text-error hover:text-error/80 transition-colors"
+                        disabled={isPending}
+                        className="text-xs text-error hover:text-error/80 transition-colors disabled:opacity-50"
                       >
                         Delete
                       </button>
