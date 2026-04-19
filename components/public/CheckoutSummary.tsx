@@ -167,9 +167,13 @@ export default function CheckoutSummary({ params, roomName, propertyName, checki
             + {formatCurrency(params.amount_due_at_checkin)} due at check-in
           </p>
         )}
-        {processingFee > 0 && (
+        {processingFee > 0 ? (
           <p className="text-on-surface-variant/60 text-xs mt-2 text-right italic">
             Processing fees are non-refundable.
+          </p>
+        ) : (
+          <p className="text-on-surface-variant/60 text-xs mt-2 text-right italic">
+            Processing fee varies by payment method.
           </p>
         )}
       </div>

@@ -1,24 +1,36 @@
 import { Suspense } from 'react'
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import CheckoutPageInner from '@/components/public/CheckoutPageInner'
+import type { PaymentMethodConfig } from '@/types'
 
 export default async function CheckoutPage() {
   let checkinTime = '15:00'
   let checkoutTime = '10:00'
-  let stripeFeePercent = 2.9
-  let stripeFeeFlat = 0.30
+  let shortTermMethods: PaymentMethodConfig[] = []
+  let longTermMethods: PaymentMethodConfig[] = []
+
   try {
-    const supabase = await createServerSupabaseClient()
-    const { data } = await supabase
+    const serverClient = await createServerSupabaseClient()
+    const { data: settings } = await serverClient
       .from('site_settings')
-      .select('checkin_time, checkout_time, stripe_fee_percent, stripe_fee_flat')
+      .select('checkin_time, checkout_time')
       .maybeSingle()
-    if (data?.checkin_time) checkinTime = data.checkin_time
-    if (data?.checkout_time) checkoutTime = data.checkout_time
-    if (data?.stripe_fee_percent != null) stripeFeePercent = Number(data.stripe_fee_percent)
-    if (data?.stripe_fee_flat != null) stripeFeeFlat = Number(data.stripe_fee_flat)
+    if (settings?.checkin_time) checkinTime = settings.checkin_time
+    if (settings?.checkout_time) checkoutTime = settings.checkout_time
+
+    const supabase = createServiceRoleClient()
+    const { data: configs } = await supabase
+      .from('payment_method_configs')
+      .select('id, booking_type, method_key, label, is_enabled, fee_percent, fee_flat, sort_order')
+      .eq('is_enabled', true)
+      .order('sort_order')
+
+    for (const c of (configs ?? []) as PaymentMethodConfig[]) {
+      if (c.booking_type === 'short_term') shortTermMethods.push(c)
+      else if (c.booking_type === 'long_term') longTermMethods.push(c)
+    }
   } catch {
-    // fall through to defaults
+    // fall through to empty defaults
   }
 
   return (
@@ -32,8 +44,8 @@ export default async function CheckoutPage() {
       <CheckoutPageInner
         checkinTime={checkinTime}
         checkoutTime={checkoutTime}
-        stripeFeePercent={stripeFeePercent}
-        stripeFeeFlat={stripeFeeFlat}
+        shortTermMethods={shortTermMethods}
+        longTermMethods={longTermMethods}
       />
     </Suspense>
   )

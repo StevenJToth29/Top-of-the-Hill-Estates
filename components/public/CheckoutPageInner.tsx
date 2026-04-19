@@ -4,16 +4,21 @@ import { useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import CheckoutForm from '@/components/public/CheckoutForm'
 import CheckoutSummary from '@/components/public/CheckoutSummary'
-import { BookingParams, BookingType, RoomFee } from '@/types'
+import { BookingParams, BookingType, PaymentMethodConfig, RoomFee } from '@/types'
 
 interface CheckoutPageInnerProps {
   checkinTime: string
   checkoutTime: string
-  stripeFeePercent: number
-  stripeFeeFlat: number
+  shortTermMethods: PaymentMethodConfig[]
+  longTermMethods: PaymentMethodConfig[]
 }
 
-export default function CheckoutPageInner({ checkinTime, checkoutTime, stripeFeePercent, stripeFeeFlat }: CheckoutPageInnerProps) {
+export default function CheckoutPageInner({
+  checkinTime,
+  checkoutTime,
+  shortTermMethods,
+  longTermMethods,
+}: CheckoutPageInnerProps) {
   const searchParams = useSearchParams()
 
   function getParam(key: string): string {
@@ -25,6 +30,8 @@ export default function CheckoutPageInner({ checkinTime, checkoutTime, stripeFee
   }
 
   const bookingType = (getParam('type') as BookingType) || 'short_term'
+  const availablePaymentMethods =
+    bookingType === 'long_term' ? longTermMethods : shortTermMethods
 
   const bookingParams: BookingParams = {
     room_id: getParam('room_id'),
@@ -54,7 +61,7 @@ export default function CheckoutPageInner({ checkinTime, checkoutTime, stripeFee
               typeof f.id === 'string' &&
               typeof f.label === 'string' &&
               typeof f.amount === 'number' &&
-              ['short_term', 'long_term', 'both'].includes(f.booking_type)
+              ['short_term', 'long_term', 'both'].includes(f.booking_type),
           )
         ) {
           return []
@@ -69,12 +76,8 @@ export default function CheckoutPageInner({ checkinTime, checkoutTime, stripeFee
   const roomName = getParam('room_name') || bookingParams.room_slug || 'Your Room'
   const propertyName = getParam('property_name') || 'Top of the Hill Estates'
 
-  const estimatedProcessingFee = Math.round(
-    (bookingParams.amount_to_pay * (stripeFeePercent / 100) + stripeFeeFlat) * 100
-  ) / 100
-  const [processingFee, setProcessingFee] = useState(estimatedProcessingFee)
+  const [processingFee, setProcessingFee] = useState(0)
 
-  // Guard against direct/invalid URL access
   const paramError = (() => {
     if (!bookingParams.room_id) return 'Missing room information. Please start your booking from the room page.'
     if (bookingType === 'short_term') {
@@ -113,7 +116,11 @@ export default function CheckoutPageInner({ checkinTime, checkoutTime, stripeFee
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
           <div className="lg:col-span-3 bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(45,212,191,0.06)] rounded-2xl p-6 lg:p-8">
-            <CheckoutForm bookingParams={bookingParams} onProcessingFeeSet={setProcessingFee} />
+            <CheckoutForm
+              bookingParams={bookingParams}
+              onProcessingFeeSet={setProcessingFee}
+              availablePaymentMethods={availablePaymentMethods}
+            />
           </div>
 
           <div className="lg:col-span-2">
