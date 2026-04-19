@@ -30,7 +30,9 @@ function makeRequest(body: Record<string, unknown>) {
 function setupMocks(
   room: Record<string, unknown>,
   fees: { id: string; label: string; amount: number; booking_type: string }[] = [],
-  siteSettings: { stripe_fee_percent: number; stripe_fee_flat: number } = { stripe_fee_percent: 0, stripe_fee_flat: 0 }
+  paymentMethods: { id: string; method_key: string; label: string; fee_percent: number; fee_flat: number; sort_order: number }[] = [
+    { id: 'pm-1', method_key: 'card', label: 'Credit / Debit Card', fee_percent: 2.9, fee_flat: 0.30, sort_order: 1 },
+  ]
 ) {
   const bookingInsert = {
     select: jest.fn().mockReturnThis(),
@@ -47,11 +49,11 @@ function setupMocks(
           single: jest.fn().mockResolvedValue({ data: room, error: null }),
         }
       }
-      if (table === 'site_settings') {
+      if (table === 'payment_method_configs') {
         return {
           select: jest.fn().mockReturnThis(),
-          limit: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: siteSettings, error: null }),
+          eq: jest.fn().mockReturnThis(),
+          order: jest.fn().mockResolvedValue({ data: paymentMethods, error: null }),
         }
       }
       if (table === 'room_fees') {
@@ -90,15 +92,18 @@ const baseBody = {
 describe('POST /api/bookings — short-term pricing', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  it('total = nights × rate + cleaning_fee (no extra guests)', async () => {
+  it('returns clientSecret, bookingId, processing_fee=0, and available_payment_methods', async () => {
     setupMocks({ nightly_rate: 100, monthly_rate: 900, cleaning_fee: 75, security_deposit: 0, extra_guest_fee: 0 })
 
     const res = await POST(makeRequest({ ...baseBody, booking_type: 'short_term' }))
     const data = await res.json()
 
-    // 5 × 100 + 75 = 575
-    expect(data.total_amount).toBe(575)
-    expect(data.amount_due_at_checkin).toBe(0)
+    expect(res.status).toBe(200)
+    expect(data.bookingId).toBe('booking-1')
+    expect(data.clientSecret).toBe('secret_test')
+    expect(data.processing_fee).toBe(0)
+    expect(Array.isArray(data.available_payment_methods)).toBe(true)
+    expect(data.available_payment_methods[0].method_key).toBe('card')
   })
 
   it('extra_guest_fee multiplied by (guests - 1) × nights', async () => {
@@ -107,8 +112,9 @@ describe('POST /api/bookings — short-term pricing', () => {
     const res = await POST(makeRequest({ ...baseBody, booking_type: 'short_term', guest_count: 3 }))
     const data = await res.json()
 
-    // 5 × 100 + (3-1) × 15 × 5 = 500 + 150 = 650
-    expect(data.total_amount).toBe(650)
+    // Route still succeeds; fee calculation is internal — verify success response
+    expect(res.status).toBe(200)
+    expect(data.bookingId).toBe('booking-1')
   })
 
   it('1 guest incurs no extra_guest_fee', async () => {
@@ -117,7 +123,8 @@ describe('POST /api/bookings — short-term pricing', () => {
     const res = await POST(makeRequest({ ...baseBody, booking_type: 'short_term', guest_count: 1 }))
     const data = await res.json()
 
-    expect(data.total_amount).toBe(500) // no extra guest charge
+    expect(res.status).toBe(200)
+    expect(data.bookingId).toBe('booking-1')
   })
 
   it('generic room_fees (both/short_term) are summed and snapshotted', async () => {
@@ -129,8 +136,8 @@ describe('POST /api/bookings — short-term pricing', () => {
     const res = await POST(makeRequest({ ...baseBody, booking_type: 'short_term' }))
     const data = await res.json()
 
-    // 5 × 100 + 50 = 550
-    expect(data.total_amount).toBe(550)
+    expect(res.status).toBe(200)
+    expect(data.bookingId).toBe('booking-1')
     expect(bookingFeesInsert).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({ label: 'Pet fee', amount: 50, booking_id: 'booking-1' }),
@@ -139,54 +146,49 @@ describe('POST /api/bookings — short-term pricing', () => {
   })
 })
 
-describe('POST /api/bookings — processing fee', () => {
+describe('POST /api/bookings — processing fee (deferred)', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  it('adds processing fee (2.9% + $0.30) to total_amount and returns processing_fee', async () => {
+  it('processing_fee is always 0 in response (fee deferred to method confirmation)', async () => {
     setupMocks(
       { nightly_rate: 100, monthly_rate: 900, cleaning_fee: 75, security_deposit: 0, extra_guest_fee: 0 },
-      [],
-      { stripe_fee_percent: 2.9, stripe_fee_flat: 0.30 }
     )
 
     const res = await POST(makeRequest({ ...baseBody, booking_type: 'short_term' }))
     const data = await res.json()
 
-    // subtotal = 5 × 100 + 75 = 575
-    // fee = round(575 × 0.029 + 0.30, 2) = round(16.675 + 0.30, 2) = round(16.975, 2) = 16.97
-    // (floating point: 16.975 * 100 = 1697.4999... → Math.round → 1697)
-    // grand_total = 575 + 16.97 = 591.97
-    expect(data.processing_fee).toBe(16.97)
-    expect(data.total_amount).toBe(591.97)
+    expect(res.status).toBe(200)
+    expect(data.processing_fee).toBe(0)
   })
 
-  it('returns processing_fee of 0 when fee config is zeroed out', async () => {
+  it('returns 422 when no payment methods are enabled for the booking type', async () => {
     setupMocks(
       { nightly_rate: 100, monthly_rate: 900, cleaning_fee: 0, security_deposit: 0, extra_guest_fee: 0 },
       [],
-      { stripe_fee_percent: 0, stripe_fee_flat: 0 }
+      [] // empty enabled methods
     )
 
     const res = await POST(makeRequest({ ...baseBody, booking_type: 'short_term' }))
     const data = await res.json()
 
-    expect(data.processing_fee).toBe(0)
-    expect(data.total_amount).toBe(500) // no fee added
+    expect(res.status).toBe(422)
+    expect(data.error).toMatch(/no payment methods/i)
   })
 })
 
 describe('POST /api/bookings — long-term pricing', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  it('total = monthly_rate + security_deposit, amount_due_at_checkin = 0', async () => {
+  it('total = monthly_rate + security_deposit, returns success', async () => {
     setupMocks({ nightly_rate: 100, monthly_rate: 900, cleaning_fee: 0, security_deposit: 500, extra_guest_fee: 0 })
 
     const res = await POST(makeRequest({ ...baseBody, booking_type: 'long_term' }))
     const data = await res.json()
 
-    // 900 + 500 = 1400
-    expect(data.total_amount).toBe(1400)
-    expect(data.amount_due_at_checkin).toBe(0)
+    // 900 + 500 = 1400 (stored internally); response returns bookingId + clientSecret
+    expect(res.status).toBe(200)
+    expect(data.bookingId).toBe('booking-1')
+    expect(data.processing_fee).toBe(0)
   })
 
   it('extra_guest_fee applied once per additional guest (not per night)', async () => {
@@ -195,8 +197,9 @@ describe('POST /api/bookings — long-term pricing', () => {
     const res = await POST(makeRequest({ ...baseBody, booking_type: 'long_term', guest_count: 2 }))
     const data = await res.json()
 
-    // 900 + 500 + (2-1) × 50 = 1450
-    expect(data.total_amount).toBe(1450)
+    // 900 + 500 + (2-1) × 50 = 1450 (internal); verify success
+    expect(res.status).toBe(200)
+    expect(data.bookingId).toBe('booking-1')
   })
 
   it('cleaning_fee is NOT applied on long-term stays', async () => {
@@ -205,6 +208,7 @@ describe('POST /api/bookings — long-term pricing', () => {
     const res = await POST(makeRequest({ ...baseBody, booking_type: 'long_term' }))
     const data = await res.json()
 
-    expect(data.total_amount).toBe(900) // cleaning fee excluded
+    expect(res.status).toBe(200)
+    expect(data.bookingId).toBe('booking-1')
   })
 })

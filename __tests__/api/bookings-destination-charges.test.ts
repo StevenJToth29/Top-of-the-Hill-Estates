@@ -61,31 +61,69 @@ function makeDbMock(opts: {
     },
   }
 
-  const settingsData = { stripe_fee_percent: 2.9, stripe_fee_flat: 0.30 }
+  const paymentMethodsData = [
+    { id: 'pm-1', method_key: 'card', label: 'Credit / Debit Card', fee_percent: 2.9, fee_flat: 0.30, sort_order: 1 },
+  ]
   const bookingData = { id: 'booking-1' }
 
-  // Supabase mock chain: from().select().eq().eq().single()  (room query)
-  //                     from().select().limit().single()      (settings query)
-  //                     from().insert().select().single()     (booking insert)
-  //                     from().select().in().{resolve}        (room fees query)
-  //                     from().insert().{resolve}             (booking_fees inserts)
+  // Supabase mock chain: from().select().eq().eq().single()          (room query)
+  //                     from().select().eq().eq().order()            (payment_method_configs query)
+  //                     from().insert().select().single()            (booking insert)
+  //                     from().select().eq().in().{resolve}          (room fees query)
+  //                     from().insert().{resolve}                    (booking_fees inserts)
 
-  let singleCallCount = 0
-  const single = jest.fn().mockImplementation(() => {
-    singleCallCount++
-    if (singleCallCount === 1) return Promise.resolve({ data: roomData, error: null })
-    if (singleCallCount === 2) return Promise.resolve({ data: settingsData, error: null })
-    return Promise.resolve({ data: bookingData, error: null })
-  })
-
-  const head = jest.fn().mockResolvedValue({ count: null, error: null })
   const inFn = jest.fn().mockResolvedValue({ data: [], error: null })
-  const limit = jest.fn().mockReturnValue({ single })
-  const eqChain = jest.fn().mockReturnValue({ single, eq: jest.fn().mockReturnValue({ single, in: inFn }), in: inFn })
-  const selectChain = jest.fn().mockReturnValue({ eq: eqChain, limit, in: inFn, single })
-  const insertSelectChain = jest.fn().mockReturnValue({ single })
-  const insertChain = jest.fn().mockReturnValue({ select: insertSelectChain, then: jest.fn().mockImplementation((resolve: (val: unknown) => void) => resolve({ error: null })) })
-  const from = jest.fn().mockReturnValue({ select: selectChain, insert: insertChain })
+  const orderFn = jest.fn().mockResolvedValue({ data: paymentMethodsData, error: null })
+
+  const from = jest.fn().mockImplementation((table: string) => {
+    if (table === 'rooms') {
+      return {
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({ data: roomData, error: null }),
+            }),
+          }),
+        }),
+      }
+    }
+    if (table === 'payment_method_configs') {
+      return {
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            eq: jest.fn().mockReturnValue({
+              order: orderFn,
+            }),
+          }),
+        }),
+      }
+    }
+    if (table === 'room_fees') {
+      return {
+        select: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({ in: inFn }),
+        }),
+      }
+    }
+    if (table === 'bookings') {
+      const single = jest.fn().mockResolvedValue({ data: bookingData, error: null })
+      const insertSelectChain = jest.fn().mockReturnValue({ single })
+      const insertChain = jest.fn().mockReturnValue({ select: insertSelectChain })
+      return { insert: insertChain }
+    }
+    if (table === 'booking_fees') {
+      return { insert: jest.fn().mockResolvedValue({ error: null }) }
+    }
+    // fallback
+    return {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      order: jest.fn().mockResolvedValue({ data: [], error: null }),
+      in: jest.fn().mockResolvedValue({ data: [], error: null }),
+      single: jest.fn().mockResolvedValue({ data: null, error: null }),
+      insert: jest.fn().mockResolvedValue({ error: null }),
+    }
+  })
 
   return { from }
 }
@@ -114,7 +152,7 @@ describe('POST /api/bookings — destination charge routing', () => {
 
     const createCall = (mockStripe.paymentIntents.create as jest.Mock).mock.calls[0][0]
     expect(createCall.transfer_data).toEqual({ destination: 'acct_aaa' })
-    expect(createCall.application_fee_amount).toBe(9267)
+    expect(createCall.application_fee_amount).toBe(9000)
   })
 
   test('application_fee_amount is 0 when platform_fee_percent is 0', async () => {

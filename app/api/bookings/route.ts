@@ -3,7 +3,7 @@ import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { isRoomAvailable } from '@/lib/availability'
 import { syncToGHL } from '@/lib/ghl'
-import type { Booking, BookingType } from '@/types'
+import type { Booking, BookingType, PaymentMethodConfig } from '@/types'
 
 interface CreateBookingBody {
   room_id: string
@@ -57,14 +57,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
 
-    const { data: siteSettings } = await supabase
-      .from('site_settings')
-      .select('stripe_fee_percent, stripe_fee_flat')
-      .limit(1)
-      .single()
+    const { data: paymentMethodConfigs, error: configsError } = await supabase
+      .from('payment_method_configs')
+      .select('id, method_key, label, fee_percent, fee_flat, sort_order')
+      .eq('booking_type', booking_type)
+      .eq('is_enabled', true)
+      .order('sort_order')
 
-    const stripeFeePercent = Number(siteSettings?.stripe_fee_percent ?? 2.9)
-    const stripeFeeFlat = Number(siteSettings?.stripe_fee_flat ?? 0.30)
+    if (configsError) {
+      console.error('Failed to fetch payment method configs:', configsError)
+      return NextResponse.json({ error: 'Failed to fetch payment configuration' }, { status: 500 })
+    }
+
+    const enabledMethods = (paymentMethodConfigs ?? []) as PaymentMethodConfig[]
+
+    if (enabledMethods.length === 0) {
+      return NextResponse.json(
+        { error: 'No payment methods available for this booking type. Please contact support.' },
+        { status: 422 },
+      )
+    }
 
     const available = await isRoomAvailable(room_id, check_in, check_out)
     if (!available) {
@@ -112,12 +124,6 @@ export async function POST(request: Request) {
       snapshotExtraGuestFee = extra_guest_total
     }
 
-    const processing_fee = Math.round(
-      (total_amount * (stripeFeePercent / 100) + stripeFeeFlat) * 100
-    ) / 100
-    const grand_total = total_amount + processing_fee
-
-    const amount_to_pay = grand_total
     const amount_due_at_checkin = 0
 
     const roomWithProperty = room as typeof room & {
@@ -130,12 +136,13 @@ export async function POST(request: Request) {
     const platformFeePercent = Number(roomWithProperty?.property?.platform_fee_percent ?? 0)
 
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount_to_pay * 100),
+      amount: Math.round(total_amount * 100),
       currency: 'usd',
+      payment_method_types: enabledMethods.map((m) => m.method_key),
       metadata: { room_id, booking_type, guest_email },
       ...(connectedAccountId && {
         transfer_data: { destination: connectedAccountId },
-        application_fee_amount: Math.round(amount_to_pay * (platformFeePercent / 100) * 100),
+        application_fee_amount: Math.round(total_amount * (platformFeePercent / 100) * 100),
       }),
     })
 
@@ -157,8 +164,8 @@ export async function POST(request: Request) {
         security_deposit: snapshotSecurityDeposit,
         extra_guest_fee: snapshotExtraGuestFee,
         guest_count: safeGuestCount,
-        total_amount: grand_total,
-        processing_fee,
+        total_amount,
+        processing_fee: 0,
         amount_paid: 0,
         amount_due_at_checkin,
         stripe_payment_intent_id: paymentIntent.id,
@@ -189,31 +196,16 @@ export async function POST(request: Request) {
       }
     }
 
-    // Snapshot processing fee as a non-refundable booking fee
-    const { error: processingFeeInsertError } = await supabase.from('booking_fees').insert({
-      booking_id: booking.id,
-      label: 'Processing Fee',
-      amount: processing_fee,
-      is_refundable: false,
-    })
-
-    if (processingFeeInsertError) {
-      console.error('Failed to snapshot processing fee:', processingFeeInsertError)
-      return NextResponse.json({ error: 'Failed to record processing fee' }, { status: 500 })
-    }
-
     // Sync to GHL in the background — non-blocking so it doesn't delay the response
     syncToGHL(booking as Booking).catch((err) => {
       console.error('GHL sync error on booking creation:', err)
     })
 
-
     return NextResponse.json({
-      bookingId: booking.id,
       clientSecret: paymentIntent.client_secret,
-      total_amount: grand_total,
-      processing_fee,
-      amount_due_at_checkin,
+      bookingId: booking.id,
+      processing_fee: 0,
+      available_payment_methods: enabledMethods,
     })
   } catch (err) {
     console.error('POST /api/bookings error:', err)
