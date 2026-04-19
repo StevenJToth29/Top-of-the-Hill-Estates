@@ -135,7 +135,7 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
               disabled={isPending || !label.trim()}
               className="bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-xl px-6 py-2 text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              {isPending ? 'Creating…' : editingId ? 'Save' : 'Create & Set Up'}
+              {isPending ? (editingId ? 'Saving…' : 'Creating…') : editingId ? 'Save' : 'Create & Set Up'}
             </button>
           </div>
         </div>
