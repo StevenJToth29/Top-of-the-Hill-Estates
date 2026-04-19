@@ -4,8 +4,9 @@ import { Elements } from '@stripe/react-stripe-js'
 import { Appearance, loadStripe } from '@stripe/stripe-js'
 import { useRouter } from 'next/navigation'
 import { FormEvent, useState } from 'react'
-import { BookingParams } from '@/types'
+import { BookingParams, PaymentMethodConfig } from '@/types'
 import StripePaymentSection from './StripePaymentSection'
+import PaymentMethodFeeInfo from './PaymentMethodFeeInfo'
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? '')
 
@@ -40,6 +41,7 @@ interface FieldErrors {
 interface CheckoutFormProps {
   bookingParams: BookingParams
   onProcessingFeeSet: (fee: number) => void
+  availablePaymentMethods: PaymentMethodConfig[]
 }
 
 type Step = 'guest_info' | 'payment'
@@ -73,7 +75,7 @@ function validateGuestInfo(info: GuestInfo): FieldErrors {
   return errors
 }
 
-export default function CheckoutForm({ bookingParams, onProcessingFeeSet }: CheckoutFormProps) {
+export default function CheckoutForm({ bookingParams, onProcessingFeeSet, availablePaymentMethods }: CheckoutFormProps) {
   const router = useRouter()
   const [step, setStep] = useState<Step>('guest_info')
   const [guestInfo, setGuestInfo] = useState<GuestInfo>({
@@ -140,7 +142,7 @@ export default function CheckoutForm({ bookingParams, onProcessingFeeSet }: Chec
 
       setClientSecret(data.clientSecret)
       setBookingId(data.bookingId)
-      onProcessingFeeSet(data.processing_fee ?? 0)
+      onProcessingFeeSet(0)
       setStep('payment')
     } catch {
       setError('Network error. Please check your connection and try again.')
@@ -242,6 +244,8 @@ export default function CheckoutForm({ bookingParams, onProcessingFeeSet }: Chec
             </div>
           </div>
 
+          <PaymentMethodFeeInfo methods={availablePaymentMethods} />
+
           <div className="space-y-3">
             <label className="flex items-start gap-3 bg-surface-highest/40 backdrop-blur-xl rounded-xl p-4 cursor-pointer">
               <input
@@ -341,6 +345,7 @@ export default function CheckoutForm({ bookingParams, onProcessingFeeSet }: Chec
               bookingId={bookingId}
               isSubmitting={isSubmitting}
               setIsSubmitting={setIsSubmitting}
+              onFeeConfirmed={onProcessingFeeSet}
               onSuccess={(id) =>
                 router.push(
                   `/booking/confirmation?booking_id=${id}&guest_email=${encodeURIComponent(guestInfo.guest_email)}`,
