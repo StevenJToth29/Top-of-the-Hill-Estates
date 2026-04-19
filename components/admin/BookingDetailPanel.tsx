@@ -2,8 +2,8 @@
 
 import { useState } from 'react'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
-import type { Booking, Room, Property, BookingModificationRequest } from '@/types'
-import { calculateRefund } from '@/lib/cancellation'
+import type { Booking, Room, Property, BookingModificationRequest, CancellationPolicy } from '@/types'
+import { calculateRefund, DEFAULT_POLICY } from '@/lib/cancellation'
 import { formatCurrency, formatDate, formatDateTime, STATUS_BADGE, OPEN_ENDED_DATE } from '@/lib/format'
 import clsx from 'clsx'
 import CancelBookingModal from './CancelBookingModal'
@@ -12,9 +12,10 @@ import { useRouter } from 'next/navigation'
 type Props = {
   booking: Booking & { room: Room & { property: Property } }
   modificationRequests?: BookingModificationRequest[]
+  cancellationPolicy?: CancellationPolicy
 }
 
-export default function BookingDetailPanel({ booking, modificationRequests = [] }: Props) {
+export default function BookingDetailPanel({ booking, modificationRequests = [], cancellationPolicy }: Props) {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const router = useRouter()
 
@@ -24,7 +25,7 @@ export default function BookingDetailPanel({ booking, modificationRequests = [] 
     : (booking.total_nights || differenceInCalendarDays(parseISO(booking.check_out), parseISO(booking.check_in)))
 
   const canCancel = booking.status === 'confirmed' || booking.status === 'pending'
-  const refund = canCancel ? calculateRefund(booking, new Date()) : null
+  const refund = canCancel ? calculateRefund(booking, new Date(), cancellationPolicy ?? DEFAULT_POLICY) : null
 
   function handleCancelled() {
     setShowCancelModal(false)
@@ -152,6 +153,7 @@ export default function BookingDetailPanel({ booking, modificationRequests = [] 
       {showCancelModal && (
         <CancelBookingModal
           booking={booking}
+          cancellationPolicy={cancellationPolicy ?? DEFAULT_POLICY}
           onCancel={handleCancelled}
           onClose={() => setShowCancelModal(false)}
         />
