@@ -134,3 +134,107 @@ describe('POST /api/admin/payout-accounts', () => {
     expect(res.status).toBe(500)
   })
 })
+
+import { PATCH, DELETE } from '@/app/api/admin/payout-accounts/[id]/route'
+
+function makePatchRequest(body: Record<string, unknown>) {
+  return new Request('http://localhost/api/admin/payout-accounts/acc-1', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+function makeDeleteRequest() {
+  return new Request('http://localhost/api/admin/payout-accounts/acc-1', { method: 'DELETE' })
+}
+
+function makePatchDbMock(opts: { updateData?: unknown; updateError?: unknown } = {}) {
+  const single = jest.fn().mockResolvedValue({ data: opts.updateData ?? null, error: opts.updateError ?? null })
+  const selectAfterUpdate = jest.fn().mockReturnValue({ single })
+  const eq = jest.fn().mockReturnValue({ select: selectAfterUpdate })
+  const update = jest.fn().mockReturnValue({ eq })
+  const from = jest.fn().mockReturnValue({ update })
+  return { from, update, eq, single }
+}
+
+function makeDeleteDbMock(opts: { propertyCount?: number; deleteError?: unknown } = {}) {
+  const head = jest.fn().mockResolvedValue({ count: opts.propertyCount ?? 0, error: null })
+  const propertiesSelect = jest.fn().mockReturnValue({ head })
+  const propertiesEq = jest.fn().mockReturnValue({ select: propertiesSelect })
+
+  const deleteResult = jest.fn().mockResolvedValue({ error: opts.deleteError ?? null })
+  const accountsEq = jest.fn().mockReturnValue(deleteResult)
+  const deleteFn = jest.fn().mockReturnValue({ eq: accountsEq })
+
+  const from = jest.fn().mockImplementation((table: string) => {
+    if (table === 'properties') return { select: jest.fn().mockReturnValue({ eq: propertiesEq }) }
+    return { delete: deleteFn }
+  })
+  return { from, propertiesEq, deleteFn, accountsEq }
+}
+
+describe('PATCH /api/admin/payout-accounts/[id]', () => {
+  test('returns 401 when not authenticated', async () => {
+    mockCreateServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }) },
+    })
+    const res = await PATCH(makePatchRequest({ label: 'New Label' }), { params: { id: 'acc-1' } })
+    expect(res.status).toBe(401)
+  })
+
+  test('updates label and returns updated record', async () => {
+    const updated = { id: 'acc-1', label: 'Updated Label', stripe_account_id: 'acct_aaa', created_at: '2026-01-01' }
+    const db = makePatchDbMock({ updateData: updated })
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    const res = await PATCH(makePatchRequest({ label: 'Updated Label' }), { params: { id: 'acc-1' } })
+
+    expect(db.update).toHaveBeenCalledWith(expect.objectContaining({ label: 'Updated Label' }))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(updated)
+  })
+
+  test('returns 500 on DB error', async () => {
+    const db = makePatchDbMock({ updateError: { message: 'update failed' } })
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    const res = await PATCH(makePatchRequest({ label: 'X' }), { params: { id: 'acc-1' } })
+    expect(res.status).toBe(500)
+  })
+})
+
+describe('DELETE /api/admin/payout-accounts/[id]', () => {
+  test('returns 401 when not authenticated', async () => {
+    mockCreateServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }) },
+    })
+    const res = await DELETE(makeDeleteRequest(), { params: { id: 'acc-1' } })
+    expect(res.status).toBe(401)
+  })
+
+  test('returns 409 when properties reference this account', async () => {
+    const db = makeDeleteDbMock({ propertyCount: 2 })
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    const res = await DELETE(makeDeleteRequest(), { params: { id: 'acc-1' } })
+    expect(res.status).toBe(409)
+  })
+
+  test('deletes account when no properties reference it', async () => {
+    const db = makeDeleteDbMock({ propertyCount: 0 })
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    const res = await DELETE(makeDeleteRequest(), { params: { id: 'acc-1' } })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ success: true })
+  })
+
+  test('returns 500 on DB error during delete', async () => {
+    const db = makeDeleteDbMock({ deleteError: { message: 'delete failed' } })
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    const res = await DELETE(makeDeleteRequest(), { params: { id: 'acc-1' } })
+    expect(res.status).toBe(500)
+  })
+})
