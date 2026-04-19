@@ -19,6 +19,10 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   if (body.label !== undefined) fields.label = body.label.trim()
   if (body.stripe_account_id !== undefined) fields.stripe_account_id = body.stripe_account_id.trim()
 
+  if (Object.keys(fields).length === 0) {
+    return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
+  }
+
   const supabase = createServiceRoleClient()
   const { data, error } = await supabase
     .from('stripe_accounts')

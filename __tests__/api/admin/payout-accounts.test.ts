@@ -55,6 +55,14 @@ afterEach(() => {
 })
 
 describe('GET /api/admin/payout-accounts', () => {
+  test('returns 401 when not authenticated', async () => {
+    mockCreateServerClient.mockResolvedValue({
+      auth: { getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }) },
+    })
+    const res = await GET()
+    expect(res.status).toBe(401)
+  })
+
   test('returns list of accounts', async () => {
     const accounts = [
       { id: 'acc-1', label: 'House A Bank', stripe_account_id: 'acct_aaa', created_at: '2026-01-01' },
@@ -193,6 +201,15 @@ describe('PATCH /api/admin/payout-accounts/[id]', () => {
     expect(db.update).toHaveBeenCalledWith(expect.objectContaining({ label: 'Updated Label' }))
     expect(res.status).toBe(200)
     expect(await res.json()).toEqual(updated)
+  })
+
+  test('returns 400 when no fields provided', async () => {
+    const db = makePatchDbMock()
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    const res = await PATCH(makePatchRequest({}), { params: { id: 'acc-1' } })
+    expect(res.status).toBe(400)
+    expect(db.update).not.toHaveBeenCalled()
   })
 
   test('returns 500 on DB error', async () => {
