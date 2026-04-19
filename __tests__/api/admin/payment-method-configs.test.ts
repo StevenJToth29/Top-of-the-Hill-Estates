@@ -2,6 +2,7 @@
  * @jest-environment node
  */
 import { GET } from '@/app/api/admin/payment-method-configs/route'
+import { PATCH } from '@/app/api/admin/payment-method-configs/[id]/route'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 
 jest.mock('@/lib/supabase', () => ({
@@ -72,5 +73,84 @@ describe('GET /api/admin/payment-method-configs – success', () => {
     const res = await GET()
 
     expect(res.status).toBe(500)
+  })
+})
+
+function makePatchRequest(body: Record<string, unknown>) {
+  return new Request('http://localhost/api/admin/payment-method-configs/config-1', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+}
+
+function createPatchDbMocks(opts: { updateError?: unknown } = {}) {
+  const eq = jest.fn().mockResolvedValue({ error: opts.updateError ?? null })
+  const update = jest.fn().mockReturnValue({ eq })
+  const from = jest.fn().mockReturnValue({ update })
+  return { from, update, eq }
+}
+
+const patchParams = { id: 'config-1' }
+
+describe('PATCH /api/admin/payment-method-configs/[id] – auth', () => {
+  test('returns 401 when not authenticated', async () => {
+    mockCreateServerClient.mockResolvedValue({
+      auth: {
+        getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }),
+      },
+    })
+    const db = createPatchDbMocks()
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+    const res = await PATCH(makePatchRequest({}), { params: patchParams })
+    expect(res.status).toBe(401)
+  })
+})
+
+describe('PATCH /api/admin/payment-method-configs/[id] – update', () => {
+  test('updates is_enabled and sets updated_at', async () => {
+    const db = createPatchDbMocks()
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    const res = await PATCH(makePatchRequest({ is_enabled: false }), { params: patchParams })
+
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ success: true })
+    const fields = db.update.mock.calls[0][0]
+    expect(fields.is_enabled).toBe(false)
+    expect(fields.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    expect(db.eq).toHaveBeenCalledWith('id', 'config-1')
+  })
+
+  test('updates fee_percent and fee_flat', async () => {
+    const db = createPatchDbMocks()
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    await PATCH(makePatchRequest({ fee_percent: 1.5, fee_flat: 0.50 }), { params: patchParams })
+
+    expect(db.update).toHaveBeenCalledWith(
+      expect.objectContaining({ fee_percent: 1.5, fee_flat: 0.50 })
+    )
+  })
+
+  test('omits undefined fields', async () => {
+    const db = createPatchDbMocks()
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    await PATCH(makePatchRequest({ is_enabled: true }), { params: patchParams })
+
+    const fields = db.update.mock.calls[0][0]
+    expect(fields).not.toHaveProperty('fee_percent')
+    expect(fields).not.toHaveProperty('fee_flat')
+  })
+
+  test('returns 500 on database error', async () => {
+    const db = createPatchDbMocks({ updateError: { message: 'constraint violation' } })
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    const res = await PATCH(makePatchRequest({ is_enabled: true }), { params: patchParams })
+
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'constraint violation' })
   })
 })
