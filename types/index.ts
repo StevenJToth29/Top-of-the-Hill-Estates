@@ -12,7 +12,11 @@ export interface Property {
   bathrooms: number
   house_rules?: string
   use_global_house_rules?: boolean
+  stripe_account_id?: string | null
+  platform_fee_percent?: number
   created_at: string
+  // joined
+  stripe_account?: StripeAccount | null
 }
 
 export interface Room {
@@ -125,6 +129,13 @@ export interface BookingFee {
   label: string
   amount: number
   is_refundable: boolean
+  created_at: string
+}
+
+export interface StripeAccount {
+  id: string
+  label: string
+  stripe_account_id: string
   created_at: string
 }
 
