@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import type { Booking } from '@/types'
+import type { Booking, CancellationPolicy } from '@/types'
 import { calculateRefund } from '@/lib/cancellation'
 import { formatCurrency } from '@/lib/format'
 
@@ -9,17 +9,18 @@ type RefundChoice = 'full' | 'half' | 'none'
 
 type Props = {
   booking: Booking
+  cancellationPolicy: CancellationPolicy
   onCancel: () => void
   onClose: () => void
 }
 
-export default function CancelBookingModal({ booking, onCancel, onClose }: Props) {
-  const policy = calculateRefund(booking, new Date())
+export default function CancelBookingModal({ booking, cancellationPolicy, onCancel, onClose }: Props) {
+  const policy = calculateRefund(booking, new Date(), cancellationPolicy)
 
   // Pre-select the option that matches the policy
   const policyDefault: RefundChoice =
     policy.refund_percentage === 100 ? 'full'
-    : policy.refund_percentage === 50 ? 'half'
+    : policy.refund_percentage > 0 ? 'half'
     : 'none'
 
   const [refundChoice, setRefundChoice] = useState<RefundChoice>(policyDefault)
@@ -28,7 +29,7 @@ export default function CancelBookingModal({ booking, onCancel, onClose }: Props
   const [error, setError] = useState<string | null>(null)
 
   const fullAmount = booking.amount_paid
-  const halfAmount = Math.round(booking.amount_paid * 0.5 * 100) / 100
+  const halfAmount = Math.round(booking.amount_paid * (cancellationPolicy.partial_refund_percent / 100) * 100) / 100
 
   const choiceAmount =
     refundChoice === 'full' ? fullAmount
@@ -37,7 +38,7 @@ export default function CancelBookingModal({ booking, onCancel, onClose }: Props
 
   const options: { value: RefundChoice; label: string; amount: number; sub: string }[] = [
     { value: 'full', label: 'Full Refund', amount: fullAmount, sub: '100%' },
-    { value: 'half', label: '50% Refund', amount: halfAmount, sub: '50%' },
+    { value: 'half', label: `${cancellationPolicy.partial_refund_percent}% Refund`, amount: halfAmount, sub: `${cancellationPolicy.partial_refund_percent}%` },
     { value: 'none', label: 'No Refund', amount: 0, sub: '0%' },
   ]
 

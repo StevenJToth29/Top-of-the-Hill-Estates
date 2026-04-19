@@ -3,8 +3,9 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, differenceInDays, parseISO, addDays } from 'date-fns'
-import type { Room, BookingType, RoomFee } from '@/types'
+import type { Room, BookingType, RoomFee, CancellationPolicy } from '@/types'
 import DatePicker from './DatePicker'
+import CancellationPolicyDisplay from './CancellationPolicyDisplay'
 
 interface Props {
   room: Room
@@ -14,6 +15,7 @@ interface Props {
   initialGuests?: number
   stripeFeePercent?: number
   stripeFeeFlat?: number
+  cancellationPolicy: CancellationPolicy
 }
 
 function formatDate(d: Date) {
@@ -34,7 +36,7 @@ const pillBase =
 const pillActive = 'bg-secondary/20 text-secondary border border-secondary/50'
 const pillInactive = 'bg-surface-container text-on-surface-variant hover:text-on-surface'
 
-export default function BookingWidget({ room, blockedDates, initialCheckin, initialCheckout, initialGuests, stripeFeePercent = 2.9, stripeFeeFlat = 0.30 }: Props) {
+export default function BookingWidget({ room, blockedDates, initialCheckin, initialCheckout, initialGuests, stripeFeePercent = 2.9, stripeFeeFlat = 0.30, cancellationPolicy }: Props) {
   const router = useRouter()
   const blockedSet = useMemo(() => new Set(blockedDates), [blockedDates])
 
@@ -359,6 +361,11 @@ export default function BookingWidget({ room, blockedDates, initialCheckin, init
       {error && (
         <p className="text-sm text-error bg-error-container/30 rounded-xl px-4 py-2">{error}</p>
       )}
+
+      <CancellationPolicyDisplay
+        variant={bookingType}
+        policy={cancellationPolicy}
+      />
 
       <button
         onClick={handleBook}

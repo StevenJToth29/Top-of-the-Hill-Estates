@@ -6,6 +6,7 @@ jest.mock('@/lib/stripe', () => ({
 }))
 jest.mock('@/lib/cancellation', () => ({
   calculateRefund: jest.fn().mockReturnValue({ refund_amount: 100, refund_percentage: 100, policy_description: 'Full refund.' }),
+  resolvePolicy: jest.fn().mockReturnValue({ full_refund_days: 7, partial_refund_hours: 72, partial_refund_percent: 50 }),
 }))
 
 import { createServiceRoleClient } from '@/lib/supabase'
@@ -54,7 +55,14 @@ function setupMocks(booking = baseBooking, windowHours = 72) {
         return {
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
-          single: jest.fn().mockResolvedValue({ data: { cancellation_window_hours: windowHours }, error: null }),
+          single: jest.fn().mockResolvedValue({ data: { property_id: null, cancellation_policy: null, use_property_cancellation_policy: null }, error: null }),
+        }
+      }
+      if (table === 'properties' || table === 'site_settings') {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          maybeSingle: jest.fn().mockResolvedValue({ data: null }),
         }
       }
     }),

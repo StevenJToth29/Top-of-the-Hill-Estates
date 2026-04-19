@@ -2,7 +2,8 @@ import { createServiceRoleClient } from '@/lib/supabase'
 import BookingsTable from '@/components/admin/BookingsTable'
 import BookingDetailPanel from '@/components/admin/BookingDetailPanel'
 import NewManualBookingButton from '@/components/admin/NewManualBookingButton'
-import type { Booking, Room, Property, BookingModificationRequest } from '@/types'
+import { resolvePolicy } from '@/lib/cancellation'
+import type { Booking, Room, Property, BookingModificationRequest, CancellationPolicy } from '@/types'
 
 export const dynamic = 'force-dynamic'
 
@@ -43,6 +44,19 @@ export default async function AdminBookingsPage({
     selectedBookingModRequests = (modData ?? []) as BookingModificationRequest[]
   }
 
+  let selectedBookingPolicy: CancellationPolicy | null = null
+  if (selectedBooking) {
+    const { data: siteSettingsData } = await supabase
+      .from('site_settings')
+      .select('cancellation_policy')
+      .maybeSingle()
+    selectedBookingPolicy = resolvePolicy(
+      selectedBooking.room,
+      selectedBooking.room.property,
+      siteSettingsData,
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background p-6 lg:p-8">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -67,6 +81,7 @@ export default async function AdminBookingsPage({
           <BookingDetailPanel
             booking={selectedBooking}
             modificationRequests={selectedBookingModRequests}
+            cancellationPolicy={selectedBookingPolicy ?? undefined}
           />
         )}
       </div>

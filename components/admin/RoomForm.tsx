@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline'
-import type { Room, Property, ICalSource } from '@/types'
+import type { Room, Property, ICalSource, CancellationPolicy } from '@/types'
+import { DEFAULT_POLICY } from '@/lib/cancellation'
 import AmenitiesTagInput from './AmenitiesTagInput'
 import ICalSourcesManager from './ICalSourcesManager'
 import PropertyImagePicker from './PropertyImagePicker'
@@ -66,6 +67,14 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
   const [securityDeposit, setSecurityDeposit] = useState(room?.security_deposit ?? 0)
   const [extraGuestFee, setExtraGuestFee] = useState(room?.extra_guest_fee ?? 0)
   const [cancellationWindowHours, setCancellationWindowHours] = useState(room?.cancellation_window_hours ?? 72)
+  const [usePropertyCancellationPolicy, setUsePropertyCancellationPolicy] = useState(
+    room?.use_property_cancellation_policy ?? true
+  )
+  const [cancellationPolicy, setCancellationPolicy] = useState<CancellationPolicy>(() => {
+    if (!room?.cancellation_policy) return DEFAULT_POLICY
+    try { return { ...DEFAULT_POLICY, ...JSON.parse(room.cancellation_policy) } }
+    catch { return DEFAULT_POLICY }
+  })
   const [additionalFees, setAdditionalFees] = useState<
     { label: string; amount: number; booking_type: 'short_term' | 'long_term' | 'both' }[]
   >(
@@ -146,6 +155,8 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
       extra_guest_fee: extraGuestFee,
       fees: additionalFees,
       cancellation_window_hours: cancellationWindowHours,
+      cancellation_policy: usePropertyCancellationPolicy ? null : JSON.stringify(cancellationPolicy),
+      use_property_cancellation_policy: usePropertyCancellationPolicy,
     }
 
     startTransition(async () => {
@@ -375,6 +386,62 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
           <p className="text-xs text-on-surface-variant/60 mt-1">
             Guests cannot cancel or modify within this many hours of check-in. Default: 72.
           </p>
+        </div>
+
+        {/* Cancellation policy override */}
+        <div className="space-y-3">
+          <div>
+            <p className="text-sm font-medium text-on-surface-variant">Cancellation Policy Override</p>
+            <p className="text-xs text-on-surface-variant/60 mt-0.5">
+              Use the property/system policy, or set a room-specific one.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={usePropertyCancellationPolicy}
+            onClick={() => setUsePropertyCancellationPolicy((v) => !v)}
+            className="flex items-center gap-3 group"
+          >
+            <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${usePropertyCancellationPolicy ? 'bg-secondary' : 'bg-surface-container'}`}>
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${usePropertyCancellationPolicy ? 'translate-x-6' : 'translate-x-1'}`} />
+            </span>
+            <span className="text-sm text-on-surface-variant group-hover:text-on-surface transition-colors">
+              Inherit from Property / System
+            </span>
+          </button>
+
+          {!usePropertyCancellationPolicy && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="space-y-1">
+                <label className="text-xs text-on-surface-variant">Full refund window (days)</label>
+                <input
+                  type="number" min="0" step="1"
+                  value={cancellationPolicy.full_refund_days}
+                  onChange={(e) => setCancellationPolicy((p) => ({ ...p, full_refund_days: Number(e.target.value) }))}
+                  className="w-full bg-surface-highest/40 rounded-xl px-3 py-2 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-on-surface-variant">Partial refund cutoff (hours)</label>
+                <input
+                  type="number" min="0" step="1"
+                  value={cancellationPolicy.partial_refund_hours}
+                  onChange={(e) => setCancellationPolicy((p) => ({ ...p, partial_refund_hours: Number(e.target.value) }))}
+                  className="w-full bg-surface-highest/40 rounded-xl px-3 py-2 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-xs text-on-surface-variant">Partial refund amount (%)</label>
+                <input
+                  type="number" min="0" max="100" step="1"
+                  value={cancellationPolicy.partial_refund_percent}
+                  onChange={(e) => setCancellationPolicy((p) => ({ ...p, partial_refund_percent: Number(e.target.value) }))}
+                  className="w-full bg-surface-highest/40 rounded-xl px-3 py-2 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                />
+              </div>
+            </div>
+          )}
         </div>
       </CollapsibleSection>
 

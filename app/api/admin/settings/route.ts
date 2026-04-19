@@ -27,6 +27,7 @@ export async function PATCH(request: Request) {
   if (body.checkout_time !== undefined) fields.checkout_time = body.checkout_time
   if (body.stripe_fee_percent !== undefined) fields.stripe_fee_percent = body.stripe_fee_percent
   if (body.stripe_fee_flat !== undefined) fields.stripe_fee_flat = body.stripe_fee_flat
+  if (body.cancellation_policy !== undefined) fields.cancellation_policy = body.cancellation_policy
 
   let error
   if (body.id) {

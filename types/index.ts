@@ -14,6 +14,8 @@ export interface Property {
   use_global_house_rules?: boolean
   stripe_account_id?: string | null
   platform_fee_percent?: number
+  cancellation_policy?: string | null
+  use_global_cancellation_policy?: boolean
   created_at: string
   // joined
   stripe_account?: StripeAccount | null
@@ -44,6 +46,8 @@ export interface Room {
   extra_guest_fee?: number
   fees?: RoomFee[]
   cancellation_window_hours: number
+  cancellation_policy?: string | null
+  use_property_cancellation_policy?: boolean
   ical_export_token: string
   created_at: string
   updated_at: string
@@ -187,6 +191,7 @@ export interface SiteSettings {
   checkout_time?: string  // 24-hour "HH:mm", e.g. "11:00"
   stripe_fee_percent?: number
   stripe_fee_flat?: number
+  cancellation_policy?: string | null  // JSON-encoded CancellationPolicy
   updated_at: string
 }
 
@@ -227,4 +232,10 @@ export interface RefundResult {
   refund_amount: number
   refund_percentage: number
   policy_description: string
+}
+
+export interface CancellationPolicy {
+  full_refund_days: number       // cancel more than this many days out → 100% refund
+  partial_refund_hours: number   // cancel more than this many hours out (within full window) → partial%
+  partial_refund_percent: number // percentage refunded in the middle tier (0–100)
 }

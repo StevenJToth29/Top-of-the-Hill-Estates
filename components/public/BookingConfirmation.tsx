@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { CheckCircleIcon } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
-import type { Booking, Room, Property, BookingFee } from '@/types'
+import type { Booking, Room, Property, BookingFee, CancellationPolicy } from '@/types'
 
 type BookingWithRoom = Booking & {
   room: Room & { property: Property }
@@ -26,26 +26,22 @@ function truncateId(id: string): string {
   return id.slice(0, 8).toUpperCase()
 }
 
-const SHORT_TERM_POLICY =
-  'Full refund if cancelled more than 7 days before check-in. 50% refund if cancelled more than 72 hours but within 7 days. No refund within 72 hours of check-in.'
-const LONG_TERM_POLICY =
-  'Deposit is non-refundable. Please review your lease agreement for full cancellation terms.'
-
 export default function BookingConfirmation({
   booking,
   bookingFees,
   contactPhone,
   contactEmail,
+  cancellationPolicy,
 }: {
   booking: BookingWithRoom
   bookingFees: BookingFee[]
   contactPhone?: string
   contactEmail?: string
+  cancellationPolicy: CancellationPolicy
 }) {
   const { room } = booking
   const property = room.property
   const isLongTerm = booking.booking_type === 'long_term'
-  const cancellationPolicy = isLongTerm ? LONG_TERM_POLICY : SHORT_TERM_POLICY
   const phone = contactPhone || '(480) 555-0000'
   const email = contactEmail || 'info@tothrooms.com'
 
@@ -194,7 +190,10 @@ export default function BookingConfirmation({
           Cancellation Policy
         </h2>
         <p className="font-body text-on-surface-variant text-sm leading-relaxed">
-          {cancellationPolicy}
+          {isLongTerm
+            ? 'Deposit is non-refundable. Please review your lease agreement for full cancellation terms.'
+            : `Full refund if cancelled more than ${cancellationPolicy.full_refund_days} days before check-in. ${cancellationPolicy.partial_refund_percent}% refund if cancelled more than ${cancellationPolicy.partial_refund_hours} hours but within ${cancellationPolicy.full_refund_days} days. No refund within ${cancellationPolicy.partial_refund_hours} hours of check-in.`
+          }
         </p>
       </section>
 
@@ -224,7 +223,12 @@ export default function BookingConfirmation({
       ) : (
         <section className="mb-6 bg-surface-container rounded-2xl p-5 space-y-3 font-body">
           <h2 className="font-display text-lg font-semibold text-primary">Cancel Reservation</h2>
-          <p className="text-on-surface-variant text-sm">{cancellationPolicy}</p>
+          <p className="text-on-surface-variant text-sm">
+            {isLongTerm
+              ? 'Deposit is non-refundable.'
+              : `Full refund if cancelled more than ${cancellationPolicy.full_refund_days} days before check-in. ${cancellationPolicy.partial_refund_percent}% refund if cancelled more than ${cancellationPolicy.partial_refund_hours} hours but within ${cancellationPolicy.full_refund_days} days. No refund within ${cancellationPolicy.partial_refund_hours} hours of check-in.`
+            }
+          </p>
           {cancelError && <p className="text-error text-sm">{cancelError}</p>}
           {!cancelConfirm ? (
             <button

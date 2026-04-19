@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Property, StripeAccount } from '@/types'
+import type { Property, StripeAccount, CancellationPolicy } from '@/types'
+import { DEFAULT_POLICY } from '@/lib/cancellation'
 import AmenitiesTagInput from './AmenitiesTagInput'
 import ImageUploader from './ImageUploader'
 import AIWriteButton from './AIWriteButton'
@@ -30,6 +31,14 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
   const [amenities, setAmenities] = useState<string[]>(property?.amenities ?? [])
   const [useGlobalRules, setUseGlobalRules] = useState(property?.use_global_house_rules ?? true)
   const [houseRules, setHouseRules] = useState(property?.house_rules ?? '')
+  const [useGlobalCancellationPolicy, setUseGlobalCancellationPolicy] = useState(
+    property?.use_global_cancellation_policy ?? true
+  )
+  const [cancellationPolicy, setCancellationPolicy] = useState<CancellationPolicy>(() => {
+    if (!property?.cancellation_policy) return DEFAULT_POLICY
+    try { return { ...DEFAULT_POLICY, ...JSON.parse(property.cancellation_policy) } }
+    catch { return DEFAULT_POLICY }
+  })
   const [images, setImages] = useState<string[]>(property?.images ?? [])
   const [stripeAccountId, setStripeAccountId] = useState<string>(property?.stripe_account_id ?? '')
   const [platformFeePercent, setPlatformFeePercent] = useState<number>(property?.platform_fee_percent ?? 0)
@@ -71,6 +80,8 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
       amenities,
       house_rules: houseRules,
       use_global_house_rules: useGlobalRules,
+      cancellation_policy: useGlobalCancellationPolicy ? null : JSON.stringify(cancellationPolicy),
+      use_global_cancellation_policy: useGlobalCancellationPolicy,
       images,
       stripe_account_id: stripeAccountId || null,
       platform_fee_percent: stripeAccountId ? platformFeePercent : 0,
@@ -253,6 +264,61 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
               placeholder="No smoking, pets welcome, quiet hours after 10pm…"
               className={inputClass}
             />
+          </div>
+        )}
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Cancellation Policy" defaultOpen={!propertyId}>
+        <div>
+          <p className="text-xs text-on-surface-variant/60 mt-0.5">
+            Override the system cancellation policy for all rooms in this property.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          role="switch"
+          aria-checked={useGlobalCancellationPolicy}
+          onClick={() => setUseGlobalCancellationPolicy((v) => !v)}
+          className="flex items-center gap-3 group"
+        >
+          <span className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${useGlobalCancellationPolicy ? 'bg-secondary' : 'bg-surface-container'}`}>
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${useGlobalCancellationPolicy ? 'translate-x-6' : 'translate-x-1'}`} />
+          </span>
+          <span className="text-sm text-on-surface-variant group-hover:text-on-surface transition-colors">
+            Use System Cancellation Policy
+          </span>
+        </button>
+
+        {!useGlobalCancellationPolicy && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+            <div className="space-y-1">
+              <label className="text-xs text-on-surface-variant">Full refund window (days)</label>
+              <input
+                type="number" min="0" step="1"
+                value={cancellationPolicy.full_refund_days}
+                onChange={(e) => setCancellationPolicy((p) => ({ ...p, full_refund_days: Number(e.target.value) }))}
+                className="w-full bg-surface-highest/40 rounded-xl px-3 py-2 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-on-surface-variant">Partial refund cutoff (hours)</label>
+              <input
+                type="number" min="0" step="1"
+                value={cancellationPolicy.partial_refund_hours}
+                onChange={(e) => setCancellationPolicy((p) => ({ ...p, partial_refund_hours: Number(e.target.value) }))}
+                className="w-full bg-surface-highest/40 rounded-xl px-3 py-2 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs text-on-surface-variant">Partial refund amount (%)</label>
+              <input
+                type="number" min="0" max="100" step="1"
+                value={cancellationPolicy.partial_refund_percent}
+                onChange={(e) => setCancellationPolicy((p) => ({ ...p, partial_refund_percent: Number(e.target.value) }))}
+                className="w-full bg-surface-highest/40 rounded-xl px-3 py-2 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50"
+              />
+            </div>
           </div>
         )}
       </CollapsibleSection>

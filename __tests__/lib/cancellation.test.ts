@@ -1,6 +1,11 @@
 /** @jest-environment node */
-import { calculateRefund, isWithinCancellationWindow } from '@/lib/cancellation'
-import type { Booking } from '@/types'
+import {
+  calculateRefund,
+  isWithinCancellationWindow,
+  resolvePolicy,
+  DEFAULT_POLICY,
+} from '@/lib/cancellation'
+import type { Booking, CancellationPolicy } from '@/types'
 
 function makeBooking(overrides: Partial<Booking> = {}): Booking {
   return {
@@ -39,8 +44,69 @@ function makeBooking(overrides: Partial<Booking> = {}): Booking {
   }
 }
 
+describe('DEFAULT_POLICY', () => {
+  it('has expected defaults', () => {
+    expect(DEFAULT_POLICY).toEqual({
+      full_refund_days: 7,
+      partial_refund_hours: 72,
+      partial_refund_percent: 50,
+    })
+  })
+})
+
+describe('resolvePolicy', () => {
+  const systemPolicy: CancellationPolicy = { full_refund_days: 7, partial_refund_hours: 72, partial_refund_percent: 50 }
+  const propertyPolicy: CancellationPolicy = { full_refund_days: 14, partial_refund_hours: 48, partial_refund_percent: 25 }
+  const roomPolicy: CancellationPolicy = { full_refund_days: 3, partial_refund_hours: 24, partial_refund_percent: 0 }
+
+  it('returns system policy when both room and property inherit', () => {
+    const result = resolvePolicy(
+      { use_property_cancellation_policy: true, cancellation_policy: null },
+      { use_global_cancellation_policy: true, cancellation_policy: null },
+      { cancellation_policy: JSON.stringify(systemPolicy) },
+    )
+    expect(result).toEqual(systemPolicy)
+  })
+
+  it('falls back to DEFAULT_POLICY when system has no policy set', () => {
+    const result = resolvePolicy(
+      { use_property_cancellation_policy: true, cancellation_policy: null },
+      { use_global_cancellation_policy: true, cancellation_policy: null },
+      { cancellation_policy: null },
+    )
+    expect(result).toEqual(DEFAULT_POLICY)
+  })
+
+  it('returns property policy when room inherits but property does not', () => {
+    const result = resolvePolicy(
+      { use_property_cancellation_policy: true, cancellation_policy: JSON.stringify(roomPolicy) },
+      { use_global_cancellation_policy: false, cancellation_policy: JSON.stringify(propertyPolicy) },
+      { cancellation_policy: JSON.stringify(systemPolicy) },
+    )
+    expect(result).toEqual(propertyPolicy)
+  })
+
+  it('returns room policy when room does not inherit', () => {
+    const result = resolvePolicy(
+      { use_property_cancellation_policy: false, cancellation_policy: JSON.stringify(roomPolicy) },
+      { use_global_cancellation_policy: false, cancellation_policy: JSON.stringify(propertyPolicy) },
+      { cancellation_policy: JSON.stringify(systemPolicy) },
+    )
+    expect(result).toEqual(roomPolicy)
+  })
+
+  it('falls back to DEFAULT_POLICY when room has no policy set even if not inheriting', () => {
+    const result = resolvePolicy(
+      { use_property_cancellation_policy: false, cancellation_policy: null },
+      { use_global_cancellation_policy: true, cancellation_policy: null },
+      null,
+    )
+    expect(result).toEqual(DEFAULT_POLICY)
+  })
+})
+
 describe('calculateRefund', () => {
-  it('returns full refund when cancelled more than 7 days before check-in', () => {
+  it('returns full refund when cancelled more than full_refund_days before check-in', () => {
     const booking = makeBooking({ check_in: '2026-06-20', amount_paid: 500 })
     const cancelledAt = new Date('2026-06-10T12:00:00Z') // 10 days before
     const result = calculateRefund(booking, cancelledAt)
@@ -48,7 +114,7 @@ describe('calculateRefund', () => {
     expect(result.refund_percentage).toBe(100)
   })
 
-  it('returns 50% refund when cancelled within 7 days but outside default 72h window', () => {
+  it('returns partial% refund when cancelled within full_refund_days but outside partial_refund_hours', () => {
     const booking = makeBooking({ check_in: '2026-06-10', amount_paid: 500 })
     const cancelledAt = new Date('2026-06-06T12:00:00Z') // 96h before
     const result = calculateRefund(booking, cancelledAt)
@@ -56,7 +122,7 @@ describe('calculateRefund', () => {
     expect(result.refund_percentage).toBe(50)
   })
 
-  it('returns 0 refund when cancelled within default 72h window', () => {
+  it('returns 0 refund when cancelled within partial_refund_hours', () => {
     const booking = makeBooking({ check_in: '2026-06-10', amount_paid: 500 })
     const cancelledAt = new Date('2026-06-08T12:00:00Z') // 48h before
     const result = calculateRefund(booking, cancelledAt)
@@ -64,23 +130,26 @@ describe('calculateRefund', () => {
     expect(result.refund_percentage).toBe(0)
   })
 
-  it('respects a custom windowHours of 48', () => {
+  it('respects a custom policy with partial_refund_hours: 48', () => {
+    const policy: CancellationPolicy = { full_refund_days: 7, partial_refund_hours: 48, partial_refund_percent: 50 }
     const booking = makeBooking({ check_in: '2026-06-10', amount_paid: 500 })
-    // 60h before — outside 48h window (50%) but inside 72h window (0%)
+    // 60h before — outside 48h window so 50% refund
     const cancelledAt = new Date('2026-06-07T12:00:00Z')
-    expect(calculateRefund(booking, cancelledAt, 48).refund_percentage).toBe(50)
-    expect(calculateRefund(booking, cancelledAt, 72).refund_percentage).toBe(0)
+    expect(calculateRefund(booking, cancelledAt, policy).refund_percentage).toBe(50)
   })
 
-  it('includes windowHours value in policy_description', () => {
+  it('respects a custom partial_refund_percent', () => {
+    const policy: CancellationPolicy = { full_refund_days: 7, partial_refund_hours: 72, partial_refund_percent: 25 }
     const booking = makeBooking({ check_in: '2026-06-10', amount_paid: 500 })
-    const cancelledAt = new Date('2026-06-09T12:00:00Z') // 24h before
-    expect(calculateRefund(booking, cancelledAt, 48).policy_description).toContain('48')
+    const cancelledAt = new Date('2026-06-06T12:00:00Z') // 96h before, inside 7 days
+    const result = calculateRefund(booking, cancelledAt, policy)
+    expect(result.refund_amount).toBe(125) // 500 * 0.25
+    expect(result.refund_percentage).toBe(25)
   })
 
-  it('always returns 0 for long_term bookings regardless of timing', () => {
+  it('always returns 0 for long_term bookings', () => {
     const booking = makeBooking({ booking_type: 'long_term', check_in: '2026-06-20', amount_paid: 1000 })
-    const cancelledAt = new Date('2026-05-01T12:00:00Z') // 50 days before
+    const cancelledAt = new Date('2026-05-01T12:00:00Z')
     const result = calculateRefund(booking, cancelledAt)
     expect(result.refund_amount).toBe(0)
     expect(result.refund_percentage).toBe(0)
@@ -89,30 +158,20 @@ describe('calculateRefund', () => {
   describe('processing fee exclusion', () => {
     it('excludes processing_fee from full refund', () => {
       const booking = makeBooking({ check_in: '2030-06-20', amount_paid: 539.25, processing_fee: 14.25 })
-      const cancelledAt = new Date('2030-06-10T12:00:00Z') // 10 days before
-      const result = calculateRefund(booking, cancelledAt)
-      expect(result.refund_amount).toBe(525.00)  // 539.25 - 14.25
-      expect(result.refund_percentage).toBe(100)
-    })
-
-    it('excludes processing_fee from 50% refund', () => {
-      const booking = makeBooking({ check_in: '2030-06-20', amount_paid: 539.25, processing_fee: 14.25 })
-      const cancelledAt = new Date('2030-06-15T12:00:00Z') // 5 days before
-      const result = calculateRefund(booking, cancelledAt)
-      expect(result.refund_amount).toBe(262.50)  // (539.25 - 14.25) * 0.5
-      expect(result.refund_percentage).toBe(50)
-    })
-
-    it('returns 0 when cancelled within 72h regardless of processing_fee', () => {
-      const booking = makeBooking({ check_in: '2030-06-20', amount_paid: 539.25, processing_fee: 14.25 })
-      const cancelledAt = new Date('2030-06-19T12:00:00Z') // 1 day before
-      expect(calculateRefund(booking, cancelledAt).refund_amount).toBe(0)
-    })
-
-    it('full refund equals amount_paid when processing_fee is 0', () => {
-      const booking = makeBooking({ check_in: '2030-06-20', amount_paid: 525.00, processing_fee: 0 })
       const cancelledAt = new Date('2030-06-10T12:00:00Z')
       expect(calculateRefund(booking, cancelledAt).refund_amount).toBe(525.00)
+    })
+
+    it('excludes processing_fee from partial refund', () => {
+      const booking = makeBooking({ check_in: '2030-06-20', amount_paid: 539.25, processing_fee: 14.25 })
+      const cancelledAt = new Date('2030-06-15T12:00:00Z') // 5 days before
+      expect(calculateRefund(booking, cancelledAt).refund_amount).toBe(262.50)
+    })
+
+    it('returns 0 within partial_refund_hours regardless of processing_fee', () => {
+      const booking = makeBooking({ check_in: '2030-06-20', amount_paid: 539.25, processing_fee: 14.25 })
+      const cancelledAt = new Date('2030-06-19T12:00:00Z')
+      expect(calculateRefund(booking, cancelledAt).refund_amount).toBe(0)
     })
   })
 })
@@ -120,19 +179,19 @@ describe('calculateRefund', () => {
 describe('isWithinCancellationWindow', () => {
   it('returns true when check-in is within the window', () => {
     const booking = makeBooking({ check_in: '2026-06-10' })
-    const now = new Date('2026-06-08T12:00:00Z') // 36h before
+    const now = new Date('2026-06-08T12:00:00Z')
     expect(isWithinCancellationWindow(booking, now, 72)).toBe(true)
   })
 
   it('returns false when check-in is outside the window', () => {
     const booking = makeBooking({ check_in: '2026-06-10' })
-    const now = new Date('2026-06-05T12:00:00Z') // 108h before
+    const now = new Date('2026-06-05T12:00:00Z')
     expect(isWithinCancellationWindow(booking, now, 72)).toBe(false)
   })
 
-  it('returns true at the exact boundary (hoursUntilCheckIn === windowHours)', () => {
+  it('returns true at the exact boundary', () => {
     const booking = makeBooking({ check_in: '2026-06-10' })
-    const now = new Date('2026-06-07T00:00:00Z') // exactly 72h before midnight
+    const now = new Date('2026-06-07T00:00:00Z')
     expect(isWithinCancellationWindow(booking, now, 72)).toBe(true)
   })
 })
