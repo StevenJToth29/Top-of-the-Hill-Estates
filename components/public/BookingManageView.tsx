@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { format, parseISO, differenceInCalendarDays } from 'date-fns'
 import DatePicker from '@/components/public/DatePicker'
+import CancellationPolicyDisplay from '@/components/public/CancellationPolicyDisplay'
 import type { Booking, Room, Property, BookingModificationRequest, CancellationPolicy } from '@/types'
 
 const currencyFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
@@ -227,6 +228,10 @@ export default function BookingManageView({
           {/* Cancel section */}
           <div className="bg-surface-container rounded-2xl p-6 space-y-3">
             <h2 className="font-display text-lg font-semibold text-primary">Cancellation</h2>
+            <CancellationPolicyDisplay
+              variant={booking.booking_type}
+              policy={cancellationPolicy}
+            />
             <p className="font-body text-on-surface-variant text-sm">{policyDescription}</p>
             {refundPercentage > 0 ? (
               <p className="font-body text-sm text-on-surface-variant">
