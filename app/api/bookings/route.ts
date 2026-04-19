@@ -47,7 +47,7 @@ export async function POST(request: Request) {
     // Fetch authoritative room rates and fees — never trust client-supplied prices
     const { data: room, error: roomError } = await supabase
       .from('rooms')
-      .select('nightly_rate, monthly_rate, cleaning_fee, security_deposit, extra_guest_fee')
+      .select('nightly_rate, monthly_rate, cleaning_fee, security_deposit, extra_guest_fee, property:properties(platform_fee_percent, stripe_account:stripe_accounts(stripe_account_id))')
       .eq('id', room_id)
       .eq('is_active', true)
       .single()
@@ -120,10 +120,23 @@ export async function POST(request: Request) {
     const amount_to_pay = grand_total
     const amount_due_at_checkin = 0
 
+    const roomWithProperty = room as typeof room & {
+      property?: {
+        platform_fee_percent?: number
+        stripe_account?: { stripe_account_id?: string } | null
+      }
+    }
+    const connectedAccountId = roomWithProperty?.property?.stripe_account?.stripe_account_id
+    const platformFeePercent = Number(roomWithProperty?.property?.platform_fee_percent ?? 0)
+
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount_to_pay * 100),
       currency: 'usd',
       metadata: { room_id, booking_type, guest_email },
+      ...(connectedAccountId && {
+        transfer_data: { destination: connectedAccountId },
+        application_fee_amount: Math.round(amount_to_pay * (platformFeePercent / 100) * 100),
+      }),
     })
 
     const { data: booking, error } = await supabase
