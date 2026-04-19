@@ -45,6 +45,8 @@ export async function POST(request: Request) {
       security_deposit: securityDeposit,
       extra_guest_fee: extraGuestFee,
       cancellation_window_hours: Number(body.cancellation_window_hours ?? 72),
+      cancellation_policy: body.cancellation_policy ?? null,
+      use_property_cancellation_policy: body.use_property_cancellation_policy ?? true,
     })
     .select('id')
     .single()
@@ -106,6 +108,8 @@ export async function PATCH(request: Request) {
       security_deposit: securityDeposit,
       extra_guest_fee: extraGuestFee,
       cancellation_window_hours: Number(fields.cancellation_window_hours ?? 72),
+      cancellation_policy: fields.cancellation_policy ?? null,
+      use_property_cancellation_policy: fields.use_property_cancellation_policy ?? true,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
