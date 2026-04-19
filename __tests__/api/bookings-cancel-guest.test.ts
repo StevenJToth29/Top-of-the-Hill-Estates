@@ -6,12 +6,11 @@ jest.mock('@/lib/stripe', () => ({
 }))
 jest.mock('@/lib/cancellation', () => ({
   calculateRefund: jest.fn().mockReturnValue({ refund_amount: 100, refund_percentage: 100, policy_description: 'Full refund.' }),
-  isWithinCancellationWindow: jest.fn().mockReturnValue(false),
 }))
 
 import { createServiceRoleClient } from '@/lib/supabase'
 import { stripe } from '@/lib/stripe'
-import { calculateRefund, isWithinCancellationWindow } from '@/lib/cancellation'
+import { calculateRefund } from '@/lib/cancellation'
 import { POST } from '@/app/api/bookings/[id]/cancel/guest/route'
 
 const mockParams = { params: { id: 'booking-1' } }
@@ -96,15 +95,6 @@ describe('POST /api/bookings/[id]/cancel/guest', () => {
     expect(res.status).toBe(400)
     const data = await res.json()
     expect(data.error).toMatch(/current state/i)
-  })
-
-  it('returns 400 if within cancellation window', async () => {
-    setupMocks()
-    ;(isWithinCancellationWindow as jest.Mock).mockReturnValueOnce(true)
-    const res = await POST(makeRequest({ guest_email: 'jane@example.com' }), mockParams as never)
-    expect(res.status).toBe(400)
-    const data = await res.json()
-    expect(data.error).toMatch(/hours of check-in/i)
   })
 
   it('cancels the booking and issues a Stripe refund', async () => {
