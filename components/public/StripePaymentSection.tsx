@@ -26,6 +26,7 @@ export default function StripePaymentSection({
 
   async function handleConfirm() {
     if (!stripe || !elements) return
+    onError('')
 
     if (!selectedMethod) {
       onError('Please select a payment method.')
