@@ -8,8 +8,9 @@ export const DEFAULT_POLICY: CancellationPolicy = {
   partial_refund_percent: 50,
 }
 
-function parsePolicy(json: string | null | undefined): CancellationPolicy | null {
+function parsePolicy(json: string | object | null | undefined): CancellationPolicy | null {
   if (!json) return null
+  if (typeof json === 'object') return json as CancellationPolicy
   try { return JSON.parse(json) as CancellationPolicy } catch { return null }
 }
 
@@ -18,9 +19,9 @@ function parsePolicy(json: string | null | undefined): CancellationPolicy | null
  * room (if not inheriting) → property (if not inheriting) → system → DEFAULT_POLICY
  */
 export function resolvePolicy(
-  room: { cancellation_policy?: string | null; use_property_cancellation_policy?: boolean | null },
-  property: { cancellation_policy?: string | null; use_global_cancellation_policy?: boolean | null },
-  siteSettings: { cancellation_policy?: string | null } | null,
+  room: { cancellation_policy?: string | object | null; use_property_cancellation_policy?: boolean | null },
+  property: { cancellation_policy?: string | object | null; use_global_cancellation_policy?: boolean | null },
+  siteSettings: { cancellation_policy?: string | object | null } | null,
 ): CancellationPolicy {
   if (room.use_property_cancellation_policy === false) {
     return parsePolicy(room.cancellation_policy) ?? DEFAULT_POLICY

@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline'
-import type { Room, Property, ICalSource } from '@/types'
+import type { Room, Property, ICalSource, CancellationPolicy } from '@/types'
+import { DEFAULT_POLICY } from '@/lib/cancellation'
 import AmenitiesTagInput from './AmenitiesTagInput'
 import ICalSourcesManager from './ICalSourcesManager'
 import PropertyImagePicker from './PropertyImagePicker'
@@ -69,15 +70,10 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
   const [usePropertyCancellationPolicy, setUsePropertyCancellationPolicy] = useState(
     room?.use_property_cancellation_policy ?? true
   )
-  const [cancellationPolicy, setCancellationPolicy] = useState<{
-    full_refund_days: number
-    partial_refund_hours: number
-    partial_refund_percent: number
-  }>(() => {
-    const DEFAULT = { full_refund_days: 7, partial_refund_hours: 72, partial_refund_percent: 50 }
-    if (!room?.cancellation_policy) return DEFAULT
-    try { return { ...DEFAULT, ...JSON.parse(room.cancellation_policy) } }
-    catch { return DEFAULT }
+  const [cancellationPolicy, setCancellationPolicy] = useState<CancellationPolicy>(() => {
+    if (!room?.cancellation_policy) return DEFAULT_POLICY
+    try { return { ...DEFAULT_POLICY, ...JSON.parse(room.cancellation_policy) } }
+    catch { return DEFAULT_POLICY }
   })
   const [additionalFees, setAdditionalFees] = useState<
     { label: string; amount: number; booking_type: 'short_term' | 'long_term' | 'both' }[]

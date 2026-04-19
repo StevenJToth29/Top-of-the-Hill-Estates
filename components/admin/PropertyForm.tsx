@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Property, StripeAccount } from '@/types'
+import type { Property, StripeAccount, CancellationPolicy } from '@/types'
+import { DEFAULT_POLICY } from '@/lib/cancellation'
 import AmenitiesTagInput from './AmenitiesTagInput'
 import ImageUploader from './ImageUploader'
 import AIWriteButton from './AIWriteButton'
@@ -33,15 +34,10 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
   const [useGlobalCancellationPolicy, setUseGlobalCancellationPolicy] = useState(
     property?.use_global_cancellation_policy ?? true
   )
-  const [cancellationPolicy, setCancellationPolicy] = useState<{
-    full_refund_days: number
-    partial_refund_hours: number
-    partial_refund_percent: number
-  }>(() => {
-    const DEFAULT = { full_refund_days: 7, partial_refund_hours: 72, partial_refund_percent: 50 }
-    if (!property?.cancellation_policy) return DEFAULT
-    try { return { ...DEFAULT, ...JSON.parse(property.cancellation_policy) } }
-    catch { return DEFAULT }
+  const [cancellationPolicy, setCancellationPolicy] = useState<CancellationPolicy>(() => {
+    if (!property?.cancellation_policy) return DEFAULT_POLICY
+    try { return { ...DEFAULT_POLICY, ...JSON.parse(property.cancellation_policy) } }
+    catch { return DEFAULT_POLICY }
   })
   const [images, setImages] = useState<string[]>(property?.images ?? [])
   const [stripeAccountId, setStripeAccountId] = useState<string>(property?.stripe_account_id ?? '')

@@ -5,15 +5,11 @@ import Image from 'next/image'
 import { PhotoIcon } from '@heroicons/react/24/outline'
 import { createClient } from '@/lib/supabase-browser'
 import type { SiteSettings, BusinessHours, CancellationPolicy } from '@/types'
+import { DEFAULT_POLICY } from '@/lib/cancellation'
 import AIWriteButton from './AIWriteButton'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
-const DEFAULT_CANCELLATION_POLICY: CancellationPolicy = {
-  full_refund_days: 7,
-  partial_refund_hours: 72,
-  partial_refund_percent: 50,
-}
 
 const DEFAULT_HOURS: BusinessHours = {
   Mon: { open: '09:00', close: '17:00', closed: false },
@@ -35,9 +31,9 @@ function parseHours(json?: string): BusinessHours {
 }
 
 function parseCancellationPolicy(json?: string | null): CancellationPolicy {
-  if (!json) return DEFAULT_CANCELLATION_POLICY
-  try { return { ...DEFAULT_CANCELLATION_POLICY, ...JSON.parse(json) } }
-  catch { return DEFAULT_CANCELLATION_POLICY }
+  if (!json) return DEFAULT_POLICY
+  try { return { ...DEFAULT_POLICY, ...JSON.parse(json) } }
+  catch { return DEFAULT_POLICY }
 }
 
 function fmt12(time: string) {
