@@ -163,9 +163,10 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
     )
   }
 
-  async function saveMethodConfig(id: string) {
+  async function saveMethodConfig(id: string, overrides?: Partial<Pick<PaymentMethodConfig, 'is_enabled' | 'fee_percent' | 'fee_flat'>>) {
     const config = methodConfigs.find((c) => c.id === id)
     if (!config) return
+    const payload = { ...config, ...overrides }
 
     setMethodSaving((prev) => ({ ...prev, [id]: true }))
     setMethodError((prev) => ({ ...prev, [id]: '' }))
@@ -175,17 +176,27 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          is_enabled: config.is_enabled,
-          fee_percent: config.fee_percent,
-          fee_flat: config.fee_flat,
+          is_enabled: payload.is_enabled,
+          fee_percent: payload.fee_percent,
+          fee_flat: payload.fee_flat,
         }),
       })
       if (!res.ok) {
         const json = await res.json()
         setMethodError((prev) => ({ ...prev, [id]: json.error ?? 'Save failed' }))
+        if (overrides?.is_enabled !== undefined) {
+          setMethodConfigs((prev) =>
+            prev.map((c) => (c.id === id ? { ...c, is_enabled: !overrides.is_enabled } : c))
+          )
+        }
       }
     } catch {
       setMethodError((prev) => ({ ...prev, [id]: 'Network error' }))
+      if (overrides?.is_enabled !== undefined) {
+        setMethodConfigs((prev) =>
+          prev.map((c) => (c.id === id ? { ...c, is_enabled: !overrides.is_enabled } : c))
+        )
+      }
     } finally {
       setMethodSaving((prev) => ({ ...prev, [id]: false }))
     }
@@ -244,11 +255,14 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
                   type="button"
                   role="switch"
                   aria-checked={config.is_enabled}
+                  aria-label={`Toggle ${config.label}`}
+                  disabled={!!methodSaving[config.id]}
                   onClick={() => {
-                    handleMethodConfigChange(config.id, 'is_enabled', !config.is_enabled)
-                    setTimeout(() => saveMethodConfig(config.id), 0)
+                    const newValue = !config.is_enabled
+                    handleMethodConfigChange(config.id, 'is_enabled', newValue)
+                    saveMethodConfig(config.id, { is_enabled: newValue })
                   }}
-                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50 disabled:cursor-not-allowed ${
                     config.is_enabled ? 'bg-primary' : 'bg-outline-variant'
                   }`}
                 >
