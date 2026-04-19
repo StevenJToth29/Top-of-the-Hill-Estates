@@ -17,7 +17,7 @@ export async function PATCH(request: Request, { params }: RouteContext) {
   const body = await request.json()
   const fields: Record<string, string> = {}
   if (body.label !== undefined) fields.label = body.label.trim()
-  if (body.stripe_account_id !== undefined) fields.stripe_account_id = body.stripe_account_id.trim()
+  // stripe_account_id is system-managed and not updatable via PATCH
 
   if (Object.keys(fields).length === 0) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 })

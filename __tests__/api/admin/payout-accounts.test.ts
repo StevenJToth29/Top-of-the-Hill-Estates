@@ -232,6 +232,17 @@ describe('PATCH /api/admin/payout-accounts/[id]', () => {
     const res = await PATCH(makePatchRequest({ label: 'X' }), { params: { id: 'acc-1' } })
     expect(res.status).toBe(500)
   })
+
+  test('does not update stripe_account_id even if provided', async () => {
+    const updated = { id: 'acc-1', label: 'Updated Label', stripe_account_id: 'acct_aaa', created_at: '2026-01-01' }
+    const db = makePatchDbMock({ updateData: updated })
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    await PATCH(makePatchRequest({ label: 'Updated Label', stripe_account_id: 'acct_injected' }), { params: { id: 'acc-1' } })
+
+    expect(db.update).toHaveBeenCalledWith({ label: 'Updated Label' })
+    expect(db.update).not.toHaveBeenCalledWith(expect.objectContaining({ stripe_account_id: expect.anything() }))
+  })
 })
 
 describe('DELETE /api/admin/payout-accounts/[id]', () => {

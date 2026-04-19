@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import type { StripeAccount } from '@/types'
 
 interface PayoutAccountsTableProps {
@@ -12,18 +13,17 @@ const inputClass =
 const labelClass = 'block text-sm font-medium text-on-surface-variant mb-1.5'
 
 export default function PayoutAccountsTable({ accounts: initial }: PayoutAccountsTableProps) {
+  const router = useRouter()
   const [accounts, setAccounts] = useState<StripeAccount[]>(initial)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [label, setLabel] = useState('')
-  const [stripeAccountId, setStripeAccountId] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   function openAdd() {
     setEditingId(null)
     setLabel('')
-    setStripeAccountId('')
     setError(null)
     setShowForm(true)
   }
@@ -31,7 +31,6 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
   function openEdit(account: StripeAccount) {
     setEditingId(account.id)
     setLabel(account.label)
-    setStripeAccountId(account.stripe_account_id)
     setError(null)
     setShowForm(true)
   }
@@ -40,7 +39,6 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
     setShowForm(false)
     setEditingId(null)
     setLabel('')
-    setStripeAccountId('')
     setError(null)
   }
 
@@ -56,17 +54,18 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
         const res = await fetch(url, {
           method,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ label, stripe_account_id: stripeAccountId }),
+          body: JSON.stringify({ label }),
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error ?? 'Save failed')
 
         if (editingId) {
           setAccounts((prev) => prev.map((a) => (a.id === editingId ? data : a)))
+          cancelForm()
         } else {
-          setAccounts((prev) => [...prev, data])
+          cancelForm()
+          router.push(`/admin/payout-accounts/${data.id}`)
         }
-        cancelForm()
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Save failed')
       }
@@ -102,7 +101,7 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
       {showForm && (
         <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-4">
           <h3 className="font-display text-base font-semibold text-on-surface">
-            {editingId ? 'Edit Payout Account' : 'Add Payout Account'}
+            {editingId ? 'Rename Payout Account' : 'Add Payout Account'}
           </h3>
           <div>
             <label className={labelClass}>Label</label>
@@ -114,19 +113,11 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
               className={inputClass}
             />
           </div>
-          <div>
-            <label className={labelClass}>Stripe Account ID</label>
-            <input
-              type="text"
-              value={stripeAccountId}
-              onChange={(e) => setStripeAccountId(e.target.value)}
-              placeholder="acct_xxxxxxxxxxxxx"
-              className={inputClass}
-            />
-            <p className="text-xs text-on-surface-variant/60 mt-1.5">
-              Copy this from your Stripe Dashboard under Connect → Accounts.
+          {!editingId && (
+            <p className="text-xs text-on-surface-variant/60">
+              A new Stripe connected account will be created automatically. You'll be taken to the onboarding page next.
             </p>
-          </div>
+          )}
           {error && (
             <p className="text-sm text-error bg-error-container/30 rounded-xl px-4 py-3">{error}</p>
           )}
@@ -141,10 +132,10 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
             <button
               type="button"
               onClick={handleSave}
-              disabled={isPending || !label.trim() || !stripeAccountId.trim()}
+              disabled={isPending || !label.trim()}
               className="bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-xl px-6 py-2 text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              {isPending ? 'Saving…' : 'Save'}
+              {isPending ? 'Creating…' : editingId ? 'Save' : 'Create & Set Up'}
             </button>
           </div>
         </div>
@@ -173,12 +164,18 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex gap-3 justify-end">
+                      <a
+                        href={`/admin/payout-accounts/${account.id}`}
+                        className="text-xs text-primary hover:text-primary/80 transition-colors"
+                      >
+                        Manage
+                      </a>
                       <button
                         onClick={() => openEdit(account)}
                         disabled={isPending}
                         className="text-xs text-secondary hover:text-secondary/80 transition-colors disabled:opacity-50"
                       >
-                        Edit
+                        Rename
                       </button>
                       <button
                         onClick={() => handleDelete(account)}
