@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import PropertyForm from '@/components/admin/PropertyForm'
+import type { StripeAccount } from '@/types'
 
 export default async function NewPropertyPage() {
   const serverClient = await createServerSupabaseClient()
@@ -16,6 +17,11 @@ export default async function NewPropertyPage() {
   const supabase = createServiceRoleClient()
   const { data: settings } = await supabase.from('site_settings').select('global_house_rules').maybeSingle()
   const globalHouseRules = settings?.global_house_rules ?? ''
+
+  const { data: stripeAccounts } = await supabase
+    .from('stripe_accounts')
+    .select('*')
+    .order('label')
 
   return (
     <div className="min-h-screen bg-background px-4 py-10 sm:px-8">
@@ -37,7 +43,10 @@ export default async function NewPropertyPage() {
           </p>
         </div>
 
-        <PropertyForm globalHouseRules={globalHouseRules} />
+        <PropertyForm
+          globalHouseRules={globalHouseRules}
+          stripeAccounts={(stripeAccounts ?? []) as StripeAccount[]}
+        />
       </div>
     </div>
   )

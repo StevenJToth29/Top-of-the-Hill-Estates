@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import type { Property } from '@/types'
+import type { Property, StripeAccount } from '@/types'
 import AmenitiesTagInput from './AmenitiesTagInput'
 import ImageUploader from './ImageUploader'
 import AIWriteButton from './AIWriteButton'
@@ -12,9 +12,10 @@ interface PropertyFormProps {
   property?: Property
   propertyId?: string
   globalHouseRules?: string
+  stripeAccounts?: StripeAccount[]
 }
 
-export default function PropertyForm({ property, propertyId, globalHouseRules = '' }: PropertyFormProps) {
+export default function PropertyForm({ property, propertyId, globalHouseRules = '', stripeAccounts = [] }: PropertyFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [name, setName] = useState(property?.name ?? '')
@@ -29,6 +30,8 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
   const [useGlobalRules, setUseGlobalRules] = useState(property?.use_global_house_rules ?? true)
   const [houseRules, setHouseRules] = useState(property?.house_rules ?? '')
   const [images, setImages] = useState<string[]>(property?.images ?? [])
+  const [stripeAccountId, setStripeAccountId] = useState<string>(property?.stripe_account_id ?? '')
+  const [platformFeePercent, setPlatformFeePercent] = useState<number>(property?.platform_fee_percent ?? 0)
   const [error, setError] = useState<string | null>(null)
 
   const inputClass =
@@ -63,6 +66,8 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
       house_rules: houseRules,
       use_global_house_rules: useGlobalRules,
       images,
+      stripe_account_id: stripeAccountId || null,
+      platform_fee_percent: platformFeePercent,
     }
 
     startTransition(async () => {
@@ -269,6 +274,53 @@ export default function PropertyForm({ property, propertyId, globalHouseRules = 
           uploadFolder={propertyId ?? 'new'}
           onChange={setImages}
         />
+      </section>
+
+      {/* Payout Routing */}
+      <section className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-5">
+        <div>
+          <h2 className="font-display text-lg font-semibold text-on-surface">Payout Routing</h2>
+          <p className="text-xs text-on-surface-variant/60 mt-1">
+            Select which Stripe connected account receives payments for this property.
+            Manage accounts under{' '}
+            <a href="/admin/payout-accounts" className="text-secondary underline">Payout Accounts</a>.
+          </p>
+        </div>
+
+        <div>
+          <label className={labelClass}>Payout Account</label>
+          <select
+            value={stripeAccountId}
+            onChange={(e) => setStripeAccountId(e.target.value)}
+            className={inputClass}
+          >
+            <option value="">None — funds stay in main Stripe account</option>
+            {stripeAccounts.map((account) => (
+              <option key={account.id} value={account.id}>
+                {account.label} ({account.stripe_account_id})
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {stripeAccountId && (
+          <div>
+            <label className={labelClass}>Platform Fee %</label>
+            <input
+              type="number"
+              value={platformFeePercent}
+              onChange={(e) => setPlatformFeePercent(Number(e.target.value))}
+              min={0}
+              max={100}
+              step={0.1}
+              placeholder="0"
+              className={inputClass}
+            />
+            <p className="text-xs text-on-surface-variant/60 mt-1.5">
+              Your cut before the remainder transfers to the selected account. Set to 0 for your own properties.
+            </p>
+          </div>
+        )}
       </section>
 
       {error && (

@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import PropertyForm from '@/components/admin/PropertyForm'
-import type { Property } from '@/types'
+import type { Property, StripeAccount } from '@/types'
 
 interface EditPropertyPageProps {
   params: { id: string }
@@ -19,9 +19,10 @@ export default async function EditPropertyPage({ params }: EditPropertyPageProps
   if (!user) redirect('/admin/login')
 
   const supabase = createServiceRoleClient()
-  const [{ data: property }, { data: settings }] = await Promise.all([
+  const [{ data: property }, { data: settings }, { data: stripeAccounts }] = await Promise.all([
     supabase.from('properties').select('*').eq('id', params.id).single(),
     supabase.from('site_settings').select('global_house_rules').maybeSingle(),
+    supabase.from('stripe_accounts').select('*').order('label'),
   ])
 
   if (!property) notFound()
@@ -49,6 +50,7 @@ export default async function EditPropertyPage({ params }: EditPropertyPageProps
           property={property as Property}
           propertyId={params.id}
           globalHouseRules={globalHouseRules}
+          stripeAccounts={(stripeAccounts ?? []) as StripeAccount[]}
         />
       </div>
     </div>
