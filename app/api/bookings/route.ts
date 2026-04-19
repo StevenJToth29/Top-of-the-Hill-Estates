@@ -57,6 +57,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
 
+    const available = await isRoomAvailable(room_id, check_in, check_out)
+    if (!available) {
+      return NextResponse.json({ error: 'Room is not available for the selected dates' }, { status: 409 })
+    }
+
     const { data: paymentMethodConfigs, error: configsError } = await supabase
       .from('payment_method_configs')
       .select('id, method_key, label, fee_percent, fee_flat, sort_order')
@@ -76,11 +81,6 @@ export async function POST(request: Request) {
         { error: 'No payment methods available for this booking type. Please contact support.' },
         { status: 422 },
       )
-    }
-
-    const available = await isRoomAvailable(room_id, check_in, check_out)
-    if (!available) {
-      return NextResponse.json({ error: 'Room is not available for the selected dates' }, { status: 409 })
     }
 
     // Fetch applicable generic fees from DB

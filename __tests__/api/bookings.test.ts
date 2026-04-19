@@ -16,6 +16,7 @@ jest.mock('@/lib/availability', () => ({
   isRoomAvailable: jest.fn().mockResolvedValue(true),
 }))
 
+import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { POST } from '@/app/api/bookings/route'
 
@@ -104,6 +105,11 @@ describe('POST /api/bookings — short-term pricing', () => {
     expect(data.processing_fee).toBe(0)
     expect(Array.isArray(data.available_payment_methods)).toBe(true)
     expect(data.available_payment_methods[0].method_key).toBe('card')
+    expect((stripe.paymentIntents.create as jest.Mock)).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_method_types: ['card'],
+      })
+    )
   })
 
   it('extra_guest_fee multiplied by (guests - 1) × nights', async () => {
