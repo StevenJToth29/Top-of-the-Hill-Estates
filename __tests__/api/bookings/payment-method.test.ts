@@ -139,6 +139,25 @@ describe('PATCH /api/bookings/[id]/payment-method – fee calculation', () => {
     expect(mockStripeUpdate).toHaveBeenCalledWith('pi_test_123', { amount: 51480 })
   })
 
+  test('rounds grand_total correctly to avoid float drift', async () => {
+    const db = createDbMocks({
+      booking: { ...defaultBooking, total_amount: 1234.56, processing_fee: 0 },
+      config: { fee_percent: 2.9, fee_flat: 0.30, is_enabled: true },
+    })
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    const res = await PATCH(makeRequest({ method_key: 'card' }), routeParams)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    // 1234.56 * 2.9% + $0.30 = 35.80224 + 0.30 = 36.10224 → rounds to 36.10
+    // grand_total = 1234.56 + 36.10 = 1270.66
+    expect(body.processing_fee).toBe(36.10)
+    expect(body.grand_total).toBe(1270.66)
+    // Stripe gets 127066 cents (not 127065 or 127067)
+    expect(mockStripeUpdate).toHaveBeenCalledWith('pi_test_123', { amount: 127066 })
+  })
+
   test('calculates zero fee correctly', async () => {
     const db = createDbMocks({ config: { fee_percent: 0, fee_flat: 0, is_enabled: true } })
     mockCreateServiceClient.mockReturnValue({ from: db.from })

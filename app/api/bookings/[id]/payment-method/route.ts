@@ -30,6 +30,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'Booking is not in pending status' }, { status: 400 })
     }
 
+    if (!booking.stripe_payment_intent_id) {
+      return NextResponse.json({ error: 'Booking payment session not found' }, { status: 409 })
+    }
+
     const { data: methodConfig, error: configError } = await supabase
       .from('payment_method_configs')
       .select('fee_percent, fee_flat, is_enabled')
@@ -51,9 +55,9 @@ export async function PATCH(
     const processing_fee = Math.round(
       (base_amount * (Number(methodConfig.fee_percent) / 100) + Number(methodConfig.fee_flat)) * 100
     ) / 100
-    const grand_total = base_amount + processing_fee
+    const grand_total = Math.round((base_amount + processing_fee) * 100) / 100
 
-    await stripe.paymentIntents.update(booking.stripe_payment_intent_id!, {
+    await stripe.paymentIntents.update(booking.stripe_payment_intent_id, {
       amount: Math.round(grand_total * 100),
     })
 
