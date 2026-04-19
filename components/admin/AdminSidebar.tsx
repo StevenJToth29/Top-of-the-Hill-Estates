@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase-browser'
 import {
   ArrowPathIcon,
   ArrowRightOnRectangleIcon,
+  BanknotesIcon,
   Bars3Icon,
   BuildingOfficeIcon,
   CalendarDaysIcon,
@@ -25,6 +26,7 @@ export const NAV_ITEMS = [
   { label: 'Bookings', href: '/admin/bookings', icon: CalendarIcon },
   { label: 'Calendar', href: '/admin/calendar', icon: CalendarDaysIcon },
   { label: 'iCal Sync', href: '/admin/ical', icon: ArrowPathIcon },
+  { label: 'Payout Accounts', href: '/admin/payout-accounts', icon: BanknotesIcon },
   { label: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
 ]
 
