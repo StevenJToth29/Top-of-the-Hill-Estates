@@ -53,10 +53,16 @@ export default async function BookingManagePage({ searchParams }: PageProps) {
   }
 
   const booking = bookingRaw as unknown as Booking & { room: Room & { property: Property } }
-  const policy = resolvePolicy(booking.room, booking.room.property, null)
+
+  const { data: siteSettings } = await supabase
+    .from('site_settings')
+    .select('cancellation_policy')
+    .maybeSingle()
+
+  const resolvedPolicy = resolvePolicy(booking.room, booking.room.property, siteSettings)
   const now = new Date()
-  const withinWindow = isWithinCancellationWindow(booking, now, policy.partial_refund_hours)
-  const refund = calculateRefund(booking, now, policy)
+  const withinWindow = isWithinCancellationWindow(booking, now, resolvedPolicy.partial_refund_hours)
+  const refund = calculateRefund(booking, now, resolvedPolicy)
 
   // Fetch the most recent pending or rejected modification request
   const { data: modRequests } = await supabase
@@ -98,11 +104,12 @@ export default async function BookingManagePage({ searchParams }: PageProps) {
     <main className="min-h-screen bg-background py-16 px-4">
       <BookingManageView
         booking={booking}
-        windowHours={policy.partial_refund_hours}
+        windowHours={resolvedPolicy.partial_refund_hours}
         withinWindow={withinWindow}
         refundAmount={refund.refund_amount}
         refundPercentage={refund.refund_percentage}
         policyDescription={refund.policy_description}
+        cancellationPolicy={resolvedPolicy}
         latestRequest={latestRequest}
         blockedDates={blockedDates}
         genericFeesTotal={genericFeesTotal}

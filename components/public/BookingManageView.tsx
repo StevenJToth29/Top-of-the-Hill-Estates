@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { format, parseISO, differenceInCalendarDays } from 'date-fns'
 import DatePicker from '@/components/public/DatePicker'
-import type { Booking, Room, Property, BookingModificationRequest } from '@/types'
+import type { Booking, Room, Property, BookingModificationRequest, CancellationPolicy } from '@/types'
 
 const currencyFmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' })
 function fmtCurrency(n: number) {
@@ -24,6 +24,7 @@ interface Props {
   refundAmount: number
   refundPercentage: number
   policyDescription: string
+  cancellationPolicy: CancellationPolicy
   latestRequest: BookingModificationRequest | null
   blockedDates: string[]
   genericFeesTotal: number
@@ -36,6 +37,7 @@ export default function BookingManageView({
   refundAmount,
   refundPercentage,
   policyDescription,
+  cancellationPolicy,
   latestRequest,
   blockedDates,
   genericFeesTotal,
