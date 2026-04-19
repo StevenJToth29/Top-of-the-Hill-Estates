@@ -4,10 +4,16 @@ import { useRef, useState } from 'react'
 import Image from 'next/image'
 import { PhotoIcon } from '@heroicons/react/24/outline'
 import { createClient } from '@/lib/supabase-browser'
-import type { SiteSettings, BusinessHours } from '@/types'
+import type { SiteSettings, BusinessHours, CancellationPolicy } from '@/types'
 import AIWriteButton from './AIWriteButton'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
+
+const DEFAULT_CANCELLATION_POLICY: CancellationPolicy = {
+  full_refund_days: 7,
+  partial_refund_hours: 72,
+  partial_refund_percent: 50,
+}
 
 const DEFAULT_HOURS: BusinessHours = {
   Mon: { open: '09:00', close: '17:00', closed: false },
@@ -26,6 +32,12 @@ function parseHours(json?: string): BusinessHours {
   } catch {
     return DEFAULT_HOURS
   }
+}
+
+function parseCancellationPolicy(json?: string | null): CancellationPolicy {
+  if (!json) return DEFAULT_CANCELLATION_POLICY
+  try { return { ...DEFAULT_CANCELLATION_POLICY, ...JSON.parse(json) } }
+  catch { return DEFAULT_CANCELLATION_POLICY }
 }
 
 function fmt12(time: string) {
@@ -75,6 +87,9 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
     stripe_fee_flat: settings.stripe_fee_flat ?? 0.30,
   })
   const [hours, setHours] = useState<BusinessHours>(() => parseHours(settings.business_hours))
+  const [cancellationPolicy, setCancellationPolicy] = useState<CancellationPolicy>(
+    () => parseCancellationPolicy(settings.cancellation_policy)
+  )
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
@@ -148,7 +163,12 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
       const res = await fetch('/api/admin/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, business_hours: JSON.stringify(hours), global_house_rules: form.global_house_rules }),
+        body: JSON.stringify({
+          ...form,
+          business_hours: JSON.stringify(hours),
+          global_house_rules: form.global_house_rules,
+          cancellation_policy: JSON.stringify(cancellationPolicy),
+        }),
       })
       if (!res.ok) {
         const json = await res.json()
@@ -528,6 +548,74 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
               className={inputClass}
             />
             <p className="text-xs text-on-surface-variant/50">e.g. 0.30 for $0.30</p>
+          </div>
+        </div>
+      </section>
+
+      <div className="h-px bg-outline-variant" />
+
+      {/* Cancellation Policy */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="font-display text-base font-semibold text-on-surface">
+            Default Cancellation Policy
+          </h2>
+          <p className="text-xs text-on-surface-variant/60 mt-0.5">
+            System-wide default applied to all rooms unless overridden at property or room level.
+          </p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <div className="space-y-1.5">
+            <label htmlFor="full_refund_days" className={labelClass}>
+              Full refund window (days)
+            </label>
+            <input
+              id="full_refund_days"
+              type="number"
+              min="0"
+              step="1"
+              value={cancellationPolicy.full_refund_days}
+              onChange={(e) =>
+                setCancellationPolicy((p) => ({ ...p, full_refund_days: Number(e.target.value) }))
+              }
+              className={inputClass}
+            />
+            <p className="text-xs text-on-surface-variant/50">e.g. 7 = full refund if cancelled &gt;7 days out</p>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="partial_refund_hours" className={labelClass}>
+              Partial refund cutoff (hours)
+            </label>
+            <input
+              id="partial_refund_hours"
+              type="number"
+              min="0"
+              step="1"
+              value={cancellationPolicy.partial_refund_hours}
+              onChange={(e) =>
+                setCancellationPolicy((p) => ({ ...p, partial_refund_hours: Number(e.target.value) }))
+              }
+              className={inputClass}
+            />
+            <p className="text-xs text-on-surface-variant/50">e.g. 72 = partial% if &gt;72 hrs but within full window</p>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="partial_refund_percent" className={labelClass}>
+              Partial refund amount (%)
+            </label>
+            <input
+              id="partial_refund_percent"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value={cancellationPolicy.partial_refund_percent}
+              onChange={(e) =>
+                setCancellationPolicy((p) => ({ ...p, partial_refund_percent: Number(e.target.value) }))
+              }
+              className={inputClass}
+            />
+            <p className="text-xs text-on-surface-variant/50">e.g. 50 = 50% refund in the middle tier</p>
           </div>
         </div>
       </section>
