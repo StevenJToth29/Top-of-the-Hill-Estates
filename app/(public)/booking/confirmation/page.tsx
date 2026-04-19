@@ -1,5 +1,6 @@
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import BookingConfirmation from '@/components/public/BookingConfirmation'
+import { resolvePolicy } from '@/lib/cancellation'
 import type { Booking, Room, Property, BookingFee } from '@/types'
 
 interface PageProps {
@@ -26,7 +27,7 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
       .single(),
     publicSupabase
       .from('site_settings')
-      .select('contact_phone, contact_email')
+      .select('contact_phone, contact_email, cancellation_policy')
       .maybeSingle(),
   ])
 
@@ -37,6 +38,12 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
   const typedBooking = booking as unknown as Booking & {
     room: Room & { property: Property }
   }
+
+  const resolvedPolicy = resolvePolicy(
+    typedBooking.room,
+    typedBooking.room.property,
+    settings,
+  )
 
   const { data: bookingFees, error: feesError } = await supabase
     .from('booking_fees')
@@ -55,6 +62,7 @@ export default async function BookingConfirmationPage({ searchParams }: PageProp
         bookingFees={(bookingFees ?? []) as BookingFee[]}
         contactPhone={settings?.contact_phone ?? undefined}
         contactEmail={settings?.contact_email ?? undefined}
+        cancellationPolicy={resolvedPolicy}
       />
     </main>
   )
