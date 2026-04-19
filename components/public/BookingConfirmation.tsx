@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import { CheckCircleIcon } from '@heroicons/react/24/outline'
 import { format } from 'date-fns'
 import type { Booking, Room, Property, BookingFee } from '@/types'
@@ -45,6 +48,32 @@ export default function BookingConfirmation({
   const cancellationPolicy = isLongTerm ? LONG_TERM_POLICY : SHORT_TERM_POLICY
   const phone = contactPhone || '(480) 555-0000'
   const email = contactEmail || 'info@tothrooms.com'
+
+  const [cancelConfirm, setCancelConfirm] = useState(false)
+  const [cancelLoading, setCancelLoading] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+  const [cancelSuccess, setCancelSuccess] = useState(false)
+  const [refundAmount, setRefundAmount] = useState<number | null>(null)
+
+  async function handleCancel() {
+    setCancelLoading(true)
+    setCancelError(null)
+    try {
+      const res = await fetch(`/api/bookings/${booking.id}/cancel/guest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guest_email: booking.guest_email }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to cancel booking')
+      setCancelSuccess(true)
+      setRefundAmount(data.refund_amount)
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setCancelLoading(false)
+    }
+  }
 
   return (
     <div className="max-w-2xl mx-auto bg-surface-container rounded-2xl p-8 shadow-[0_8px_40px_rgba(45,212,191,0.06)]">
@@ -177,6 +206,55 @@ export default function BookingConfirmation({
           Manage your booking
         </a>
       </section>
+
+      {/* Cancel section */}
+      {cancelSuccess ? (
+        <section className="mb-6 bg-secondary/10 rounded-2xl p-5 font-body">
+          <p className="text-secondary font-semibold">Your reservation has been cancelled.</p>
+          {refundAmount != null && refundAmount > 0 ? (
+            <p className="text-on-surface-variant text-sm mt-1">
+              A refund of {formatCurrency(refundAmount)} has been issued to your original payment method.
+            </p>
+          ) : (
+            <p className="text-on-surface-variant text-sm mt-1">
+              No refund applies per the cancellation policy.
+            </p>
+          )}
+        </section>
+      ) : (
+        <section className="mb-6 bg-surface-container rounded-2xl p-5 space-y-3 font-body">
+          <h2 className="font-display text-lg font-semibold text-primary">Cancel Reservation</h2>
+          <p className="text-on-surface-variant text-sm">{cancellationPolicy}</p>
+          {cancelError && <p className="text-error text-sm">{cancelError}</p>}
+          {!cancelConfirm ? (
+            <button
+              onClick={() => setCancelConfirm(true)}
+              className="rounded-xl bg-error/20 px-4 py-2 text-sm font-semibold text-error hover:bg-error/30 transition-colors"
+            >
+              Cancel Reservation
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-on-surface-variant">Are you sure? This cannot be undone.</p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancel}
+                  disabled={cancelLoading}
+                  className="rounded-xl bg-error/20 px-4 py-2 text-sm font-semibold text-error hover:bg-error/30 transition-colors disabled:opacity-50"
+                >
+                  {cancelLoading ? 'Cancelling…' : 'Yes, Cancel'}
+                </button>
+                <button
+                  onClick={() => setCancelConfirm(false)}
+                  className="rounded-xl bg-surface-highest/40 px-4 py-2 text-sm font-semibold text-on-surface-variant hover:bg-surface-highest/60 transition-colors"
+                >
+                  Keep Booking
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       <section className="mb-8">
         <p className="font-body text-on-surface-variant text-sm">

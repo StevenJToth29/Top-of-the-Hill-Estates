@@ -43,7 +43,7 @@ export default function BookingManageView({
   const room = booking.room
   const property = room.property
 
-  const isActive = booking.status === 'confirmed'
+  const isActive = booking.status === 'confirmed' || booking.status === 'pending'
   const isCancelled = booking.status === 'cancelled'
   const isCompleted = booking.status === 'completed'
 
@@ -209,18 +209,18 @@ export default function BookingManageView({
         </div>
       )}
 
-      {/* Within-window notice */}
+      {/* Within-window notice — modifications only */}
       {isActive && withinWindow && !cancelSuccess && (
         <div className="bg-surface-highest/40 rounded-2xl p-5 font-body">
           <p className="text-on-surface-variant text-sm">
-            Modifications and cancellations are no longer available within {windowHours} hours of
-            check-in. Please contact us directly if you need assistance.
+            Date modifications are no longer available within {windowHours} hours of check-in.
+            Please contact us directly if you need to change your dates.
           </p>
         </div>
       )}
 
-      {/* Actions — confirmed bookings outside the window */}
-      {isActive && !withinWindow && !cancelSuccess && (
+      {/* Actions — all active bookings */}
+      {isActive && !cancelSuccess && (
         <>
           {/* Cancel section */}
           <div className="bg-surface-container rounded-2xl p-6 space-y-3">
@@ -269,8 +269,8 @@ export default function BookingManageView({
             )}
           </div>
 
-          {/* Modify section */}
-          {modSuccess ? (
+          {/* Modify section — only outside the cancellation window */}
+          {!withinWindow && modSuccess ? (
             <div className="bg-secondary/10 rounded-2xl p-6 font-body">
               <h2 className="font-display text-lg font-semibold text-primary mb-2">
                 Modification Requested

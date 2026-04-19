@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
-import { calculateRefund, isWithinCancellationWindow } from '@/lib/cancellation'
+import { calculateRefund } from '@/lib/cancellation'
 import type { Booking } from '@/types'
 
 export async function POST(
@@ -32,7 +32,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    if (booking.status !== 'confirmed') {
+    if (booking.status !== 'confirmed' && booking.status !== 'pending') {
       return NextResponse.json(
         { error: 'Booking cannot be cancelled in its current state' },
         { status: 400 },
@@ -47,14 +47,6 @@ export async function POST(
 
     const windowHours: number = room?.cancellation_window_hours ?? 72
     const now = new Date()
-
-    if (isWithinCancellationWindow(booking as Booking, now, windowHours)) {
-      return NextResponse.json(
-        { error: `Cancellations are not available within ${windowHours} hours of check-in` },
-        { status: 400 },
-      )
-    }
-
     const refund = calculateRefund(booking as Booking, now, windowHours)
 
     const { error: updateError } = await supabase
