@@ -57,10 +57,7 @@ export async function PATCH(
     ) / 100
     const grand_total = Math.round((base_amount + processing_fee) * 100) / 100
 
-    await stripe.paymentIntents.update(booking.stripe_payment_intent_id, {
-      amount: Math.round(grand_total * 100),
-    })
-
+    // DB first: if this fails, Stripe is untouched and the call is safely retryable.
     const { error: updateError } = await supabase
       .from('bookings')
       .update({ processing_fee, total_amount: grand_total })
@@ -68,6 +65,19 @@ export async function PATCH(
 
     if (updateError) {
       return NextResponse.json({ error: updateError.message }, { status: 500 })
+    }
+
+    try {
+      await stripe.paymentIntents.update(booking.stripe_payment_intent_id, {
+        amount: Math.round(grand_total * 100),
+      })
+    } catch (stripeErr) {
+      // Roll back the DB update so the booking stays consistent with Stripe.
+      await supabase
+        .from('bookings')
+        .update({ processing_fee: booking.processing_fee, total_amount: booking.total_amount })
+        .eq('id', params.id)
+      throw stripeErr
     }
 
     return NextResponse.json({ processing_fee, grand_total })
