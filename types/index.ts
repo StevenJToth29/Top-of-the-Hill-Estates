@@ -132,6 +132,17 @@ export interface BookingFee {
   created_at: string
 }
 
+export interface PaymentMethodConfig {
+  id: string
+  booking_type: BookingType
+  method_key: string
+  label: string
+  is_enabled: boolean
+  fee_percent: number
+  fee_flat: number
+  sort_order: number
+}
+
 export interface StripeAccount {
   id: string
   label: string
