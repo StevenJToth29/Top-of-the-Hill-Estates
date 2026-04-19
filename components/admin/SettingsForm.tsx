@@ -4,7 +4,7 @@ import { useRef, useState } from 'react'
 import Image from 'next/image'
 import { PhotoIcon } from '@heroicons/react/24/outline'
 import { createClient } from '@/lib/supabase-browser'
-import type { SiteSettings, BusinessHours, CancellationPolicy } from '@/types'
+import type { SiteSettings, BusinessHours, CancellationPolicy, PaymentMethodConfig } from '@/types'
 import { DEFAULT_POLICY } from '@/lib/cancellation'
 import AIWriteButton from './AIWriteButton'
 
@@ -46,6 +46,7 @@ function fmt12(time: string) {
 
 interface SettingsFormProps {
   settings: SiteSettings
+  paymentMethodConfigs: PaymentMethodConfig[]
 }
 
 async function compressImage(file: File, maxWidth = 400): Promise<Blob> {
@@ -66,7 +67,7 @@ async function compressImage(file: File, maxWidth = 400): Promise<Blob> {
   })
 }
 
-export default function SettingsForm({ settings }: SettingsFormProps) {
+export default function SettingsForm({ settings, paymentMethodConfigs }: SettingsFormProps) {
   const [form, setForm] = useState({
     id: settings.id,
     business_name: settings.business_name ?? 'Top of the Hill Rooms',
@@ -93,6 +94,9 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoError, setLogoError] = useState('')
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const [methodConfigs, setMethodConfigs] = useState<PaymentMethodConfig[]>(paymentMethodConfigs)
+  const [methodSaving, setMethodSaving] = useState<Record<string, boolean>>({})
+  const [methodError, setMethodError] = useState<Record<string, string>>({})
 
   function formatPhone(raw: string): string {
     const digits = raw.replace(/\D/g, '').slice(0, 10)
@@ -149,6 +153,44 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
     }
   }
 
+  function handleMethodConfigChange(
+    id: string,
+    field: 'is_enabled' | 'fee_percent' | 'fee_flat',
+    value: boolean | number,
+  ) {
+    setMethodConfigs((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, [field]: value } : c))
+    )
+  }
+
+  async function saveMethodConfig(id: string) {
+    const config = methodConfigs.find((c) => c.id === id)
+    if (!config) return
+
+    setMethodSaving((prev) => ({ ...prev, [id]: true }))
+    setMethodError((prev) => ({ ...prev, [id]: '' }))
+
+    try {
+      const res = await fetch(`/api/admin/payment-method-configs/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          is_enabled: config.is_enabled,
+          fee_percent: config.fee_percent,
+          fee_flat: config.fee_flat,
+        }),
+      })
+      if (!res.ok) {
+        const json = await res.json()
+        setMethodError((prev) => ({ ...prev, [id]: json.error ?? 'Save failed' }))
+      }
+    } catch {
+      setMethodError((prev) => ({ ...prev, [id]: 'Network error' }))
+    } finally {
+      setMethodSaving((prev) => ({ ...prev, [id]: false }))
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) return
@@ -183,8 +225,91 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
     'w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50'
   const labelClass = 'text-on-surface-variant text-sm mb-1 block'
 
+  function renderMethodSection(label: string, bookingType: 'short_term' | 'long_term') {
+    const methods = methodConfigs.filter((c) => c.booking_type === bookingType)
+    return (
+      <div>
+        <h3 className="font-display text-base font-semibold text-on-surface mb-3">{label}</h3>
+        <p className="text-on-surface-variant/60 text-xs mb-4 italic">
+          Fee replaces the base processing fee for this payment method.
+        </p>
+        <div className="space-y-3">
+          {methods.map((config) => (
+            <div
+              key={config.id}
+              className="flex flex-col sm:flex-row sm:items-center gap-3 bg-surface-container rounded-xl px-4 py-3"
+            >
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={config.is_enabled}
+                  onClick={() => {
+                    handleMethodConfigChange(config.id, 'is_enabled', !config.is_enabled)
+                    setTimeout(() => saveMethodConfig(config.id), 0)
+                  }}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                    config.is_enabled ? 'bg-primary' : 'bg-outline-variant'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ${
+                      config.is_enabled ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+                <span className="text-on-surface text-sm font-medium truncate">{config.label}</span>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    aria-label={`${config.label} fee percent`}
+                    value={config.fee_percent}
+                    onChange={(e) =>
+                      handleMethodConfigChange(config.id, 'fee_percent', Number(e.target.value))
+                    }
+                    onBlur={() => saveMethodConfig(config.id)}
+                    className="w-16 bg-surface-highest/40 rounded-lg px-2 py-1.5 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50 text-right"
+                  />
+                  <span className="text-on-surface-variant text-sm">%</span>
+                </div>
+                <span className="text-on-surface-variant text-xs">+</span>
+                <div className="flex items-center gap-1">
+                  <span className="text-on-surface-variant text-sm">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    aria-label={`${config.label} flat fee`}
+                    value={config.fee_flat}
+                    onChange={(e) =>
+                      handleMethodConfigChange(config.id, 'fee_flat', Number(e.target.value))
+                    }
+                    onBlur={() => saveMethodConfig(config.id)}
+                    className="w-16 bg-surface-highest/40 rounded-lg px-2 py-1.5 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50 text-right"
+                  />
+                </div>
+                {methodSaving[config.id] && (
+                  <span className="text-secondary text-xs">Saving…</span>
+                )}
+                {methodError[config.id] && (
+                  <span className="text-error text-xs">{methodError[config.id]}</span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
+    <>
+      <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
 
       {/* Logo */}
       <section className="space-y-4">
@@ -632,5 +757,24 @@ export default function SettingsForm({ settings }: SettingsFormProps) {
         )}
       </div>
     </form>
+
+      <div className="mt-8 space-y-6 max-w-2xl">
+        <div>
+          <h2 className="font-display text-lg font-semibold text-on-surface mb-1">
+            Payment Methods
+          </h2>
+          <p className="text-on-surface-variant text-sm mb-6">
+            Configure which payment methods guests can use and the processing fee for each.
+          </p>
+        </div>
+
+        <div className="h-px bg-outline-variant" />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {renderMethodSection('Short-term Bookings', 'short_term')}
+          {renderMethodSection('Long-term Bookings', 'long_term')}
+        </div>
+      </div>
+    </>
   )
 }

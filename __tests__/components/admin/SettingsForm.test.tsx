@@ -2,7 +2,7 @@ import React from 'react'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import SettingsForm from '@/components/admin/SettingsForm'
-import type { SiteSettings } from '@/types'
+import type { PaymentMethodConfig, SiteSettings } from '@/types'
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
@@ -39,8 +39,10 @@ const baseSettings: SiteSettings = {
   updated_at: '2024-01-01T00:00:00Z',
 }
 
+const basePaymentMethodConfigs: PaymentMethodConfig[] = []
+
 function setup(settings: SiteSettings = baseSettings) {
-  return render(<SettingsForm settings={settings} />)
+  return render(<SettingsForm settings={settings} paymentMethodConfigs={basePaymentMethodConfigs} />)
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
