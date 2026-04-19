@@ -3,6 +3,15 @@
  */
 import { GET, POST } from '@/app/api/admin/payout-accounts/route'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
+import { stripe } from '@/lib/stripe'
+
+jest.mock('@/lib/stripe', () => ({
+  stripe: {
+    accounts: { create: jest.fn() },
+  },
+}))
+
+const mockStripeAccountsCreate = stripe.accounts.create as jest.Mock
 
 jest.mock('@/lib/supabase', () => ({
   createServerSupabaseClient: jest.fn(),
@@ -96,11 +105,15 @@ describe('GET /api/admin/payout-accounts', () => {
 })
 
 describe('POST /api/admin/payout-accounts', () => {
+  beforeEach(() => {
+    mockStripeAccountsCreate.mockResolvedValue({ id: 'acct_generated123' })
+  })
+
   test('returns 401 when not authenticated', async () => {
     mockCreateServerClient.mockResolvedValue({
       auth: { getUser: jest.fn().mockResolvedValue({ data: { user: null }, error: null }) },
     })
-    const res = await POST(makePostRequest({ label: 'Test', stripe_account_id: 'acct_test' }))
+    const res = await POST(makePostRequest({ label: 'Test' }))
     expect(res.status).toBe(401)
   })
 
@@ -108,37 +121,37 @@ describe('POST /api/admin/payout-accounts', () => {
     const db = makeDbMock()
     mockCreateServiceClient.mockReturnValue({ from: db.from })
 
-    const res = await POST(makePostRequest({ stripe_account_id: 'acct_test' }))
+    const res = await POST(makePostRequest({}))
     expect(res.status).toBe(400)
+    expect(mockStripeAccountsCreate).not.toHaveBeenCalled()
     expect(db.insert).not.toHaveBeenCalled()
   })
 
-  test('returns 400 when stripe_account_id is missing', async () => {
-    const db = makeDbMock()
-    mockCreateServiceClient.mockReturnValue({ from: db.from })
-
-    const res = await POST(makePostRequest({ label: 'Test Bank' }))
-    expect(res.status).toBe(400)
-    expect(db.insert).not.toHaveBeenCalled()
-  })
-
-  test('creates account and returns 201', async () => {
-    const created = { id: 'acc-1', label: 'House A Bank', stripe_account_id: 'acct_aaa', created_at: '2026-01-01' }
+  test('creates Stripe Express account and inserts to DB', async () => {
+    const created = { id: 'acc-uuid-1', label: 'House A Bank', stripe_account_id: 'acct_generated123', created_at: '2026-01-01' }
     const db = makeDbMock({ insertData: created })
     mockCreateServiceClient.mockReturnValue({ from: db.from })
 
-    const res = await POST(makePostRequest({ label: 'House A Bank', stripe_account_id: 'acct_aaa' }))
+    const res = await POST(makePostRequest({ label: 'House A Bank' }))
 
-    expect(db.insert).toHaveBeenCalledWith({ label: 'House A Bank', stripe_account_id: 'acct_aaa' })
+    expect(mockStripeAccountsCreate).toHaveBeenCalledWith({ type: 'express' })
+    expect(db.insert).toHaveBeenCalledWith({ label: 'House A Bank', stripe_account_id: 'acct_generated123' })
     expect(res.status).toBe(201)
     expect(await res.json()).toEqual(created)
+  })
+
+  test('returns 500 when Stripe account creation fails', async () => {
+    mockStripeAccountsCreate.mockRejectedValue(new Error('Stripe error'))
+
+    const res = await POST(makePostRequest({ label: 'House A Bank' }))
+    expect(res.status).toBe(500)
   })
 
   test('returns 500 on DB error', async () => {
     const db = makeDbMock({ insertError: { message: 'duplicate key' } })
     mockCreateServiceClient.mockReturnValue({ from: db.from })
 
-    const res = await POST(makePostRequest({ label: 'Test', stripe_account_id: 'acct_dup' }))
+    const res = await POST(makePostRequest({ label: 'Test' }))
     expect(res.status).toBe(500)
   })
 })

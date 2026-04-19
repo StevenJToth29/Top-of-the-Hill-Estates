@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
+import { stripe } from '@/lib/stripe'
 
 export async function GET() {
   const serverClient = await createServerSupabaseClient()
@@ -23,19 +24,22 @@ export async function POST(request: Request) {
 
   const body = await request.json()
   const label = body.label?.trim()
-  const stripe_account_id = body.stripe_account_id?.trim()
+  if (!label) return NextResponse.json({ error: 'label is required' }, { status: 400 })
 
-  if (!label || !stripe_account_id) {
-    return NextResponse.json({ error: 'label and stripe_account_id are required' }, { status: 400 })
+  try {
+    const stripeAccount = await stripe.accounts.create({ type: 'express' })
+
+    const supabase = createServiceRoleClient()
+    const { data, error } = await supabase
+      .from('stripe_accounts')
+      .insert({ label, stripe_account_id: stripeAccount.id })
+      .select()
+      .single()
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    return NextResponse.json(data, { status: 201 })
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to create account'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
-
-  const supabase = createServiceRoleClient()
-  const { data, error } = await supabase
-    .from('stripe_accounts')
-    .insert({ label, stripe_account_id })
-    .select()
-    .single()
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json(data, { status: 201 })
 }
