@@ -20,6 +20,8 @@ export async function POST(request: NextRequest) {
         house_rules: body.house_rules ?? '',
         use_global_house_rules: body.use_global_house_rules ?? true,
         images: body.images ?? [],
+        stripe_account_id: body.stripe_account_id ?? null,
+        platform_fee_percent: Number(body.platform_fee_percent ?? 0),
       })
       .select('id')
       .single()
@@ -56,6 +58,8 @@ export async function PATCH(request: NextRequest) {
         house_rules: fields.house_rules ?? '',
         use_global_house_rules: fields.use_global_house_rules ?? true,
         images: fields.images ?? [],
+        stripe_account_id: fields.stripe_account_id ?? null,
+        platform_fee_percent: Number(fields.platform_fee_percent ?? 0),
       })
       .eq('id', id)
       .select()
