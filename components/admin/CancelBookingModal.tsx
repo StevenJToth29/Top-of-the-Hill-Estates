@@ -72,12 +72,41 @@ export default function CancelBookingModal({ booking, cancellationPolicy, onCanc
       <div className="w-full max-w-md bg-surface-container rounded-2xl p-6 shadow-2xl space-y-5">
         <h2 className="font-display text-xl font-bold text-on-surface">Cancel Booking</h2>
 
-        {/* Policy note */}
-        <div className="rounded-xl bg-surface-highest/40 px-4 py-3">
-          <p className="text-xs text-on-surface-variant">
-            <span className="font-semibold text-on-surface">Policy: </span>
-            {policy.policy_description}
-          </p>
+        {/* Policy breakdown */}
+        <div className="rounded-xl bg-surface-highest/40 px-4 py-3 space-y-2">
+          <p className="text-xs font-semibold text-on-surface uppercase tracking-wider">Cancellation Policy</p>
+          {booking.booking_type === 'long_term' ? (
+            <p className="text-xs text-on-surface-variant">{policy.policy_description}</p>
+          ) : (
+            <>
+              <div className="space-y-1.5">
+                <div className={[
+                  'flex items-center justify-between rounded-lg px-3 py-2',
+                  policy.refund_percentage === 100 ? 'bg-green-400/15 ring-1 ring-green-400/30' : '',
+                ].join(' ')}>
+                  <span className="text-xs text-on-surface-variant">&gt; {cancellationPolicy.full_refund_days} days before check-in</span>
+                  <span className="text-xs font-semibold text-green-400">Full refund</span>
+                </div>
+                <div className={[
+                  'flex items-center justify-between rounded-lg px-3 py-2',
+                  policy.refund_percentage > 0 && policy.refund_percentage < 100 ? 'bg-amber-400/15 ring-1 ring-amber-400/30' : '',
+                ].join(' ')}>
+                  <span className="text-xs text-on-surface-variant">&gt; {cancellationPolicy.partial_refund_hours} hrs but ≤ {cancellationPolicy.full_refund_days} days</span>
+                  <span className="text-xs font-semibold text-amber-400">{cancellationPolicy.partial_refund_percent}% refund</span>
+                </div>
+                <div className={[
+                  'flex items-center justify-between rounded-lg px-3 py-2',
+                  policy.refund_percentage === 0 ? 'bg-error/15 ring-1 ring-error/30' : '',
+                ].join(' ')}>
+                  <span className="text-xs text-on-surface-variant">≤ {cancellationPolicy.partial_refund_hours} hrs before check-in</span>
+                  <span className="text-xs font-semibold text-error">No refund</span>
+                </div>
+              </div>
+              <p className="text-xs text-on-surface-variant pt-0.5">
+                <span className="font-semibold text-on-surface">Currently applies: </span>{policy.policy_description}
+              </p>
+            </>
+          )}
         </div>
 
         {/* Refund options */}
