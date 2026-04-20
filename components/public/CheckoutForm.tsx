@@ -339,6 +339,8 @@ export default function CheckoutForm({ bookingParams, onProcessingFeeSet, availa
           <Elements stripe={stripePromise} options={{ clientSecret, appearance }}>
             <StripePaymentSection
               bookingId={bookingId}
+              baseAmount={bookingParams.amount_to_pay}
+              availablePaymentMethods={availablePaymentMethods}
               isSubmitting={isSubmitting}
               setIsSubmitting={setIsSubmitting}
               onFeeConfirmed={onProcessingFeeSet}

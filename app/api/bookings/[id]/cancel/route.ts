@@ -97,11 +97,20 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to cancel booking' }, { status: 500 })
     }
 
-    if (refundResult.refund_amount > 0 && booking.stripe_payment_intent_id) {
-      await stripe.refunds.create({
-        payment_intent: booking.stripe_payment_intent_id,
-        amount: Math.round(refundResult.refund_amount * 100),
-      })
+    if (booking.stripe_payment_intent_id) {
+      if (booking.status === 'confirmed' && refundResult.refund_amount > 0) {
+        await stripe.refunds.create({
+          payment_intent: booking.stripe_payment_intent_id,
+          amount: Math.round(refundResult.refund_amount * 100),
+        })
+      } else if (booking.status === 'pending') {
+        try {
+          await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id)
+        } catch (stripeErr: unknown) {
+          // PaymentIntent may already be cancelled or succeeded — log but don't fail
+          console.warn('Stripe PaymentIntent cancel skipped:', (stripeErr as Error).message)
+        }
+      }
     }
 
     evaluateAndQueueEmails('booking_cancelled', {

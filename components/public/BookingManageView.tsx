@@ -139,6 +139,13 @@ export default function BookingManageView({
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
+      <button
+        onClick={() => window.history.back()}
+        className="flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-on-surface transition-colors font-body"
+      >
+        <span>←</span> Back
+      </button>
+
       {/* Booking summary */}
       <div className="bg-surface-container rounded-2xl p-6 shadow-[0_8px_40px_rgba(45,212,191,0.06)]">
         <h1 className="font-display text-2xl font-bold text-primary mb-4">Your Booking</h1>
@@ -166,12 +173,6 @@ export default function BookingManageView({
             <span className="text-on-surface font-semibold">{fmtCurrency(booking.amount_paid)}</span>
           </p>
         </div>
-        <a
-          href={`/booking/confirmation?booking_id=${booking.id}&guest_email=${encodeURIComponent(booking.guest_email)}`}
-          className="inline-block mt-4 text-sm text-secondary hover:underline font-body"
-        >
-          View confirmation
-        </a>
       </div>
 
       {/* Cancelled banner */}

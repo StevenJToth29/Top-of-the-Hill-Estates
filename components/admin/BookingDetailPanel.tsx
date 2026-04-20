@@ -17,6 +17,9 @@ type Props = {
 
 export default function BookingDetailPanel({ booking, modificationRequests = [], cancellationPolicy }: Props) {
   const [showCancelModal, setShowCancelModal] = useState(false)
+  const [reinstateLoading, setReinstateLoading] = useState(false)
+  const [reinstateConfirm, setReinstateConfirm] = useState(false)
+  const [reinstateError, setReinstateError] = useState<string | null>(null)
   const router = useRouter()
 
   const isOpenEnded = booking.check_out === OPEN_ENDED_DATE
@@ -30,6 +33,22 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
   function handleCancelled() {
     setShowCancelModal(false)
     router.refresh()
+  }
+
+  async function handleReinstate() {
+    setReinstateLoading(true)
+    setReinstateError(null)
+    try {
+      const res = await fetch(`/api/admin/bookings/${booking.id}/reinstate`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Failed to reinstate booking')
+      setReinstateConfirm(false)
+      router.refresh()
+    } catch (err) {
+      setReinstateError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setReinstateLoading(false)
+    }
   }
 
   const room = booking.room
@@ -119,6 +138,43 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
             )}
           </Section>
         </div>
+
+        {booking.status === 'cancelled' && (
+          <div className="rounded-xl bg-surface-container p-4 space-y-3">
+            <h3 className="text-sm font-semibold text-on-surface">Reinstate Booking</h3>
+            <p className="text-sm text-on-surface-variant">
+              Restores status to <span className="font-medium text-on-surface">pending</span>. The original Stripe payment was cancelled or refunded — you will need to collect payment separately.
+            </p>
+            {reinstateError && <p className="text-error text-sm">{reinstateError}</p>}
+            {!reinstateConfirm ? (
+              <button
+                onClick={() => setReinstateConfirm(true)}
+                className="rounded-xl bg-secondary/20 px-4 py-2 text-sm font-semibold text-secondary hover:bg-secondary/30 transition-colors"
+              >
+                Reinstate Booking
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-on-surface-variant">Are you sure you want to reinstate this booking?</p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleReinstate}
+                    disabled={reinstateLoading}
+                    className="rounded-xl bg-secondary/20 px-4 py-2 text-sm font-semibold text-secondary hover:bg-secondary/30 transition-colors disabled:opacity-50"
+                  >
+                    {reinstateLoading ? 'Reinstating…' : 'Yes, Reinstate'}
+                  </button>
+                  <button
+                    onClick={() => { setReinstateConfirm(false); setReinstateError(null) }}
+                    className="rounded-xl bg-surface-highest/40 px-4 py-2 text-sm font-semibold text-on-surface-variant hover:bg-surface-highest/60 transition-colors"
+                  >
+                    Never mind
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {canCancel && refund && (
           <div className="rounded-xl bg-surface-container p-4 space-y-3">

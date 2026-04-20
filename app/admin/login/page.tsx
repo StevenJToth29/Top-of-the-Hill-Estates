@@ -1,12 +1,11 @@
 'use client'
 
 import { createClient } from '@/lib/supabase-browser'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useState, Suspense } from 'react'
 import Image from 'next/image'
 
 function LoginForm() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const supabase = createClient()
   const [email, setEmail] = useState('')
@@ -26,8 +25,7 @@ function LoginForm() {
       setLoading(false)
     } else {
       const redirectTo = searchParams.get('redirectTo') ?? '/admin'
-      router.push(redirectTo)
-      router.refresh()
+      window.location.href = redirectTo
     }
   }
 

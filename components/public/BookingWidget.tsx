@@ -128,6 +128,7 @@ export default function BookingWidget({ room, blockedDates, initialCheckin, init
     const params = new URLSearchParams({
       room_id: room.id,
       room: room.slug,
+      room_name: room.name,
       type: bookingType,
       guests: String(guests),
       nightly_rate: String(room.nightly_rate),
@@ -142,14 +143,14 @@ export default function BookingWidget({ room, blockedDates, initialCheckin, init
       params.set('checkin', checkIn)
       params.set('checkout', checkOut)
       params.set('total_nights', String(nights))
-      params.set('total_amount', String(stGrandTotal))
+      params.set('total_amount', String(stTotal))
       params.set('amount_to_pay', String(stTotal))
       params.set('amount_due', '0')
     } else {
       params.set('checkin', moveIn)
       params.set('checkout', '')
       params.set('total_nights', '30')
-      params.set('total_amount', String(ltGrandTotal))
+      params.set('total_amount', String(ltTotal))
       params.set('amount_to_pay', String(ltTotal))
       params.set('amount_due', '0')
     }
@@ -280,14 +281,11 @@ export default function BookingWidget({ room, blockedDates, initialCheckin, init
                   <span>${f.amount.toLocaleString()}</span>
                 </div>
               ))}
-              <div className="flex justify-between text-on-surface-variant">
-                <span>Processing fee</span>
-                <span>${stProcessingFee.toFixed(2)}</span>
-              </div>
               <div className="flex justify-between pt-2 border-t border-outline-variant">
                 <span className="text-on-surface font-medium">Due today</span>
-                <span className="text-primary font-bold text-lg">${stGrandTotal.toLocaleString()}</span>
+                <span className="text-primary font-bold text-lg">${stTotal.toLocaleString()}</span>
               </div>
+              <p className="text-xs text-on-surface-variant/60 italic">Processing fee added at checkout</p>
             </div>
           )}
 
@@ -341,14 +339,11 @@ export default function BookingWidget({ room, blockedDates, initialCheckin, init
                   <span>${f.amount.toLocaleString()}</span>
                 </div>
               ))}
-              <div className="flex justify-between text-on-surface-variant">
-                <span>Processing fee</span>
-                <span>${ltProcessingFee.toFixed(2)}</span>
-              </div>
               <div className="flex justify-between pt-2 border-t border-outline-variant">
                 <span className="text-on-surface font-medium">Due today</span>
-                <span className="text-primary font-bold text-2xl">${ltGrandTotal.toLocaleString()}</span>
+                <span className="text-primary font-bold text-2xl">${ltTotal.toLocaleString()}</span>
               </div>
+              <p className="text-xs text-on-surface-variant/60 italic">Processing fee added at checkout</p>
             </div>
           )}
 

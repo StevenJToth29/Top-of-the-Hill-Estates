@@ -2,12 +2,15 @@
 
 import { PaymentElement, useElements, useStripe } from '@stripe/react-stripe-js'
 import { useState } from 'react'
+import type { PaymentMethodConfig } from '@/types'
 
 interface StripePaymentSectionProps {
   onSuccess: (bookingId: string) => void
   onError: (error: string) => void
   onFeeConfirmed: (processingFee: number) => void
   bookingId: string
+  baseAmount: number
+  availablePaymentMethods: PaymentMethodConfig[]
   isSubmitting: boolean
   setIsSubmitting: (v: boolean) => void
 }
@@ -17,12 +20,20 @@ export default function StripePaymentSection({
   onError,
   onFeeConfirmed,
   bookingId,
+  baseAmount,
+  availablePaymentMethods,
   isSubmitting,
   setIsSubmitting,
 }: StripePaymentSectionProps) {
   const stripe = useStripe()
   const elements = useElements()
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null)
+
+  function calcFee(methodKey: string): number {
+    const config = availablePaymentMethods.find((m) => m.method_key === methodKey)
+    if (!config) return 0
+    return Math.round((baseAmount * (config.fee_percent / 100) + config.fee_flat) * 100) / 100
+  }
 
   async function handleConfirm() {
     if (!stripe || !elements) return
@@ -75,7 +86,9 @@ export default function StripePaymentSection({
       <PaymentElement
         options={{ layout: 'tabs' }}
         onChange={(e) => {
-          if (e.value?.type) setSelectedMethod(e.value.type)
+          const method = e.value?.type ?? null
+          setSelectedMethod(method)
+          onFeeConfirmed(method ? calcFee(method) : 0)
         }}
       />
 

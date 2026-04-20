@@ -1,4 +1,5 @@
 import { format, parseISO } from 'date-fns'
+import { formatInTimeZone } from 'date-fns-tz'
 import type { BookingStatus } from '@/types'
 
 /** Sentinel value stored in check_out for open-ended long-term bookings. */
@@ -24,7 +25,7 @@ export function formatDate(iso: string): string {
 
 export function formatDateTime(iso: string): string {
   try {
-    return format(parseISO(iso), 'MMM d, yyyy h:mm a')
+    return formatInTimeZone(parseISO(iso), 'UTC', 'MMM d, yyyy h:mm a') + ' UTC'
   } catch {
     return iso
   }

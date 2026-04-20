@@ -164,6 +164,12 @@ export default function BookingConfirmation({
               <span>{formatCurrency(f.amount)}</span>
             </div>
           ))}
+          {booking.processing_fee > 0 && (
+            <div className="flex justify-between text-on-surface-variant">
+              <span>Processing fee</span>
+              <span>{formatCurrency(booking.processing_fee)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-on-surface-variant">
             <span>Total amount</span>
             <span>{formatCurrency(booking.total_amount)}</span>
@@ -171,7 +177,7 @@ export default function BookingConfirmation({
           <div className="flex justify-between items-baseline">
             <span className="text-on-surface-variant">Paid today</span>
             <span className="text-primary font-bold text-xl">
-              {formatCurrency(booking.amount_paid)}
+              {formatCurrency(booking.amount_paid || booking.total_amount)}
             </span>
           </div>
           {booking.amount_due_at_checkin > 0 && (

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { syncContactInquiryToGHL } from '@/lib/ghl'
 import { evaluateAndQueueEmails } from '@/lib/email-queue'
 
 interface ContactBody {
@@ -21,14 +22,16 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // Log submission for now; GHL webhook integration can be added when credentials are available
-    console.log('Contact form submission:', {
+    // Sync to GHL in the background — does not block the response
+    syncContactInquiryToGHL({
       name: body.name,
       email: body.email,
       phone: body.phone,
+      message: body.message,
       smsConsent: body.smsConsent ?? false,
       marketingConsent: body.marketingConsent ?? false,
-      messageLength: body.message.length,
+    }).catch((err) => {
+      console.error('GHL contact sync error:', err)
     })
 
     evaluateAndQueueEmails('contact_submitted', {

@@ -5,7 +5,7 @@ let _client: Stripe | null = null
 function getClient(): Stripe {
   if (!_client) {
     _client = new Stripe(process.env.STRIPE_SECRET_KEY ?? '', {
-      apiVersion: '2025-02-24.acacia',
+      apiVersion: '2026-03-25.dahlia',
     })
   }
   return _client

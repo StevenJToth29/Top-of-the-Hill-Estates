@@ -26,23 +26,39 @@ export default async function BookingManagePage({ searchParams }: PageProps) {
 
   const supabase = createServiceRoleClient()
 
-  let bookingQuery = supabase
-    .from('bookings')
-    .select('*, room:rooms(*, property:properties(*))')
+  let bookingRaw = null
 
   if (hasReference) {
-    const prefix = booking_id.toLowerCase().slice(0, 8)
-    bookingQuery = bookingQuery
-      .filter('id::text', 'ilike', `${prefix}%`)
-      .ilike('guest_email', guest_email)
+    const isFullUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(booking_id)
+    if (isFullUUID) {
+      const { data } = await supabase
+        .from('bookings')
+        .select('*, room:rooms(*, property:properties(*))')
+        .eq('id', booking_id)
+        .ilike('guest_email', guest_email)
+        .maybeSingle()
+      bookingRaw = data
+    } else {
+      // Short 8-char reference: fetch all bookings for this email, match prefix client-side
+      const prefix = booking_id.toLowerCase().slice(0, 8)
+      const { data: candidates } = await supabase
+        .from('bookings')
+        .select('*, room:rooms(*, property:properties(*))')
+        .ilike('guest_email', guest_email)
+        .order('created_at', { ascending: false })
+      bookingRaw = candidates?.find((b) => b.id.toLowerCase().startsWith(prefix)) ?? null
+    }
   } else {
-    bookingQuery = bookingQuery
+    const { data: results, error: lookupError } = await supabase
+      .from('bookings')
+      .select('*, room:rooms(*, property:properties(*))')
       .ilike('guest_email', guest_email!)
       .eq('check_in', check_in!)
       .order('created_at', { ascending: false })
+      .limit(1)
+    if (lookupError) console.error('[manage] email+date lookup error:', lookupError)
+    bookingRaw = results?.[0] ?? null
   }
-
-  const { data: bookingRaw } = await bookingQuery.limit(1).maybeSingle()
 
   if (!bookingRaw || !bookingRaw.room || !bookingRaw.room.property) {
     return (

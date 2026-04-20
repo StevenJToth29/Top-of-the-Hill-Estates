@@ -134,6 +134,51 @@ export async function syncToGHL(booking: Booking): Promise<void> {
 }
 
 /**
+ * Syncs a contact-form inquiry to GoHighLevel — creates/updates the contact
+ * and optionally triggers GHL_CONTACT_WEBHOOK_URL with the full submission.
+ */
+export async function syncContactInquiryToGHL(data: {
+  name: string
+  email: string
+  phone?: string
+  message: string
+  smsConsent: boolean
+  marketingConsent: boolean
+}): Promise<void> {
+  const nameParts = data.name.trim().split(/\s+/)
+  const firstName = nameParts[0] ?? data.name
+  const lastName = nameParts.slice(1).join(' ')
+
+  const tags = ['contact-inquiry']
+  if (data.marketingConsent) tags.push('marketing-opted-in')
+  if (data.smsConsent) tags.push('sms-opted-in')
+
+  const ghlContactId = await createOrUpdateGHLContact({
+    firstName,
+    lastName,
+    email: data.email,
+    phone: data.phone ?? '',
+    tags,
+    customFields: {
+      inquiry_message: data.message,
+    },
+  })
+
+  const webhookUrl = process.env.GHL_CONTACT_WEBHOOK_URL ?? ''
+  if (webhookUrl) {
+    await triggerGHLWorkflow(webhookUrl, {
+      contactId: ghlContactId,
+      name: data.name,
+      email: data.email,
+      phone: data.phone ?? '',
+      message: data.message,
+      smsConsent: data.smsConsent,
+      marketingConsent: data.marketingConsent,
+    })
+  }
+}
+
+/**
  * Notifies GoHighLevel that a booking has been confirmed (payment succeeded).
  * Uses GHL_BOOKING_CONFIRMED_WEBHOOK_URL so you can route it to a separate
  * automation from the initial lead capture.

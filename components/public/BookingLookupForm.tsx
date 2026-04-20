@@ -12,9 +12,17 @@ const inputClass =
 export default function BookingLookupForm({ error }: { error: string | null }) {
   const router = useRouter()
   const [mode, setMode] = useState<Mode>('reference')
+  const [refCode, setRefCode] = useState('')
+  const [refEmail, setRefEmail] = useState('')
   const [emailDate, setEmailDate] = useState('')
   const [checkIn, setCheckIn] = useState('')
   const [dateError, setDateError] = useState('')
+
+  function handleReferenceSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const params = new URLSearchParams({ booking_id: refCode.trim(), guest_email: refEmail.trim() })
+    router.push(`/booking/manage?${params.toString()}`)
+  }
 
   function handleEmailDateSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -23,7 +31,7 @@ export default function BookingLookupForm({ error }: { error: string | null }) {
       setDateError('Please select a check-in date.')
       return
     }
-    const params = new URLSearchParams({ guest_email: emailDate, check_in: checkIn })
+    const params = new URLSearchParams({ guest_email: emailDate.trim(), check_in: checkIn })
     router.push(`/booking/manage?${params.toString()}`)
   }
 
@@ -64,15 +72,16 @@ export default function BookingLookupForm({ error }: { error: string | null }) {
         {error && <p className="text-error text-sm mb-4 font-body">{error}</p>}
 
         {mode === 'reference' ? (
-          <form method="GET" action="/booking/manage" className="space-y-4">
+          <form onSubmit={handleReferenceSubmit} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-on-surface-variant mb-1.5">
                 Booking Reference
               </label>
               <input
-                name="booking_id"
                 type="text"
                 required
+                value={refCode}
+                onChange={(e) => setRefCode(e.target.value)}
                 placeholder="e.g. A1B2C3D4"
                 className={`${inputClass} font-mono uppercase`}
               />
@@ -82,9 +91,10 @@ export default function BookingLookupForm({ error }: { error: string | null }) {
                 Email Address
               </label>
               <input
-                name="guest_email"
                 type="email"
                 required
+                value={refEmail}
+                onChange={(e) => setRefEmail(e.target.value)}
                 placeholder="you@example.com"
                 className={inputClass}
               />
