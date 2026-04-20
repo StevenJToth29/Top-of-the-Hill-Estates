@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { isRoomAvailable } from '@/lib/availability'
 import { syncToGHL } from '@/lib/ghl'
+import { evaluateAndQueueEmails } from '@/lib/email-queue'
 import type { Booking, BookingType, PaymentMethodConfig } from '@/types'
 
 interface CreateBookingBody {
@@ -200,6 +201,10 @@ export async function POST(request: Request) {
     syncToGHL(booking as Booking).catch((err) => {
       console.error('GHL sync error on booking creation:', err)
     })
+
+    evaluateAndQueueEmails('booking_pending', { type: 'booking', bookingId: booking.id }).catch(
+      (err) => { console.error('email queue error on booking_pending:', err) },
+    )
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
