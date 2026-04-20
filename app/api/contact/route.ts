@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { evaluateAndQueueEmails } from '@/lib/email-queue'
 
 interface ContactBody {
   name: string
@@ -29,6 +30,14 @@ export async function POST(request: NextRequest) {
       marketingConsent: body.marketingConsent ?? false,
       messageLength: body.message.length,
     })
+
+    evaluateAndQueueEmails('contact_submitted', {
+      type: 'contact',
+      name: body.name,
+      email: body.email,
+      phone: body.phone,
+      message: body.message,
+    }).catch((err) => { console.error('email queue error on contact_submitted:', err) })
 
     return NextResponse.json({ success: true })
   } catch (err) {
