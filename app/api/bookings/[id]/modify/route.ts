@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { evaluateAndQueueEmails } from '@/lib/email-queue'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { isWithinCancellationWindow } from '@/lib/cancellation'
 import { isRoomAvailableExcluding } from '@/lib/availability'
@@ -120,6 +121,11 @@ export async function POST(
       console.error('Failed to create modification request:', insertError)
       return NextResponse.json({ error: 'Failed to create modification request' }, { status: 500 })
     }
+
+    evaluateAndQueueEmails('modification_requested', {
+      type: 'booking',
+      bookingId: params.id,
+    }).catch((err) => { console.error('email queue error on modification_requested:', err) })
 
     return NextResponse.json({
       success: true,
