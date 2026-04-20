@@ -11,6 +11,7 @@ import {
   CalendarIcon,
   ChartBarIcon,
   Cog6ToothIcon,
+  EnvelopeIcon,
   HomeIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
@@ -27,6 +28,7 @@ export const NAV_ITEMS = [
   { label: 'Calendar', href: '/admin/calendar', icon: CalendarDaysIcon },
   { label: 'iCal Sync', href: '/admin/ical', icon: ArrowPathIcon },
   { label: 'Payout Accounts', href: '/admin/payout-accounts', icon: BanknotesIcon },
+  { label: 'Email', href: '/admin/email', icon: EnvelopeIcon },
   { label: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
 ]
 
