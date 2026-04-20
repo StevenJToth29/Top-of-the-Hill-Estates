@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { calculateRefund, resolvePolicy } from '@/lib/cancellation'
+import { evaluateAndQueueEmails, cancelBookingEmails } from '@/lib/email-queue'
 import type { Booking } from '@/types'
 
 export async function POST(
@@ -84,6 +85,20 @@ export async function POST(
         amount: Math.round(refund.refund_amount * 100),
       })
     }
+
+    evaluateAndQueueEmails('booking_cancelled', {
+      type: 'booking',
+      bookingId: params.id,
+    }).catch((err) => { console.error('email queue error on booking_cancelled:', err) })
+
+    evaluateAndQueueEmails('admin_cancelled', {
+      type: 'booking',
+      bookingId: params.id,
+    }).catch((err) => { console.error('email queue error on admin_cancelled:', err) })
+
+    cancelBookingEmails(params.id).catch((err) => {
+      console.error('cancelBookingEmails error:', err)
+    })
 
     return NextResponse.json({ success: true, refund_amount: refund.refund_amount })
   } catch (err) {
