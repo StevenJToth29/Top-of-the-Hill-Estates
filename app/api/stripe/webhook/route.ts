@@ -3,6 +3,7 @@ import Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { notifyGHLBookingConfirmed } from '@/lib/ghl'
+import { evaluateAndQueueEmails, seedReminderEmails } from '@/lib/email-queue'
 import type { Booking } from '@/types'
 
 export async function POST(request: NextRequest) {
@@ -43,6 +44,20 @@ export async function POST(request: NextRequest) {
 
         notifyGHLBookingConfirmed(booking as Booking).catch((err) => {
           console.error('GHL confirmation trigger error:', err)
+        })
+
+        evaluateAndQueueEmails('booking_confirmed', {
+          type: 'booking',
+          bookingId: (booking as Booking).id,
+        }).catch((err) => { console.error('email queue error on booking_confirmed:', err) })
+
+        evaluateAndQueueEmails('admin_new_booking', {
+          type: 'booking',
+          bookingId: (booking as Booking).id,
+        }).catch((err) => { console.error('email queue error on admin_new_booking:', err) })
+
+        seedReminderEmails((booking as Booking).id).catch((err) => {
+          console.error('seedReminderEmails error:', err)
         })
         break
       }
