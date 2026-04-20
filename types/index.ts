@@ -239,3 +239,80 @@ export interface CancellationPolicy {
   partial_refund_hours: number   // cancel more than this many hours out (within full window) → partial%
   partial_refund_percent: number // percentage refunded in the middle tier (0–100)
 }
+
+// ── Email system ──────────────────────────────────────────────────────────────
+
+export type TriggerEvent =
+  | 'booking_confirmed'
+  | 'booking_pending'
+  | 'booking_cancelled'
+  | 'contact_submitted'
+  | 'checkin_reminder'
+  | 'checkout_reminder'
+  | 'post_checkout'
+  | 'review_request'
+  | 'modification_requested'
+  | 'admin_new_booking'
+  | 'admin_cancelled'
+
+export type RecipientType = 'guest' | 'admin' | 'both'
+export type QueueStatus = 'pending' | 'sent' | 'failed' | 'cancelled'
+
+export interface ConditionRule {
+  field: string
+  op: 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte'
+  value: string | number | boolean
+}
+
+export interface ConditionBlock {
+  operator: 'AND' | 'OR'
+  rules: ConditionRule[]
+}
+
+export interface EmailTemplate {
+  id: string
+  name: string
+  subject: string
+  body: string
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface EmailAutomation {
+  id: string
+  name: string
+  trigger_event: TriggerEvent
+  is_active: boolean
+  delay_minutes: number
+  conditions: ConditionBlock
+  template_id: string | null
+  recipient_type: RecipientType
+  is_pre_planned: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface EmailQueue {
+  id: string
+  automation_id: string | null
+  template_id: string | null
+  booking_id: string | null
+  recipient_email: string
+  recipient_type: 'guest' | 'admin'
+  send_at: string
+  status: QueueStatus
+  resolved_variables: Record<string, string>
+  attempts: number
+  error: string | null
+  sent_at: string | null
+  created_at: string
+}
+
+export interface EmailSettings {
+  id: string
+  from_name: string
+  from_email: string
+  admin_recipients: string[]
+  review_url: string
+}
