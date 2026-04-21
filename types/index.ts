@@ -189,6 +189,9 @@ export interface SiteSettings {
   business_name: string
   logo_url?: string
   logo_size?: number
+  favicon_url?: string
+  favicon_large_url?: string
+  favicon_apple_url?: string
   business_hours?: string  // JSON-encoded BusinessHours
   global_house_rules?: string
   checkin_time?: string   // 24-hour "HH:mm", e.g. "15:00"
