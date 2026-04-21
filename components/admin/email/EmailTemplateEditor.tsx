@@ -1,15 +1,10 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { useEditor, EditorContent } from '@tiptap/react'
-import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
-import Link from '@tiptap/extension-link'
-import { VariableNode } from './VariableNode'
+import EmailEditor, { EditorRef, EmailEditorProps } from 'react-email-editor'
 import VariablePicker from './VariablePicker'
-import { resolveVariables } from '@/lib/email'
-import { SAMPLE_VARIABLES } from '@/lib/email-variables'
+import { VARIABLE_GROUPS } from '@/lib/email-variables'
 import type { EmailTemplate } from '@/types'
 
 const inputClass =
@@ -20,93 +15,95 @@ interface Props {
   template: EmailTemplate | null
 }
 
+function buildMergeTags() {
+  const tags: Record<string, { name: string; value: string; sample: string }> = {}
+  for (const group of VARIABLE_GROUPS) {
+    for (const v of group.variables) {
+      tags[v.key] = {
+        name: `${group.label}: ${v.label}`,
+        value: `{{${v.key}}}`,
+        sample: v.key,
+      }
+    }
+  }
+  return tags
+}
+
 export default function EmailTemplateEditor({ template }: Props) {
   const router = useRouter()
   const isNew = !template
+  const emailEditorRef = useRef<EditorRef>(null)
 
   const [name, setName] = useState(template?.name ?? '')
   const [subject, setSubject] = useState(template?.subject ?? '')
   const [isActive, setIsActive] = useState(template?.is_active ?? true)
-  const [showPreview, setShowPreview] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [editorReady, setEditorReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Underline,
-      Link.configure({ openOnClick: false }),
-      VariableNode,
-    ],
-    content: template?.body ?? '',
-  })
-
-  const getBodyHtml = useCallback(() => editor?.getHTML() ?? '', [editor])
-
-  function insertVariableInBody(key: string) {
-    editor?.chain().focus().insertContent({ type: 'variable', attrs: { key } }).run()
-  }
+  const onReady: EmailEditorProps['onReady'] = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (unlayer: any) => {
+      setEditorReady(true)
+      if (template?.design) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        unlayer.loadDesign(template.design as any)
+      }
+    },
+    [template],
+  )
 
   function insertVariableInSubject(key: string) {
-    setSubject((s) => s + `{{${key}}}`)
+    setSubject((prev) => prev + `{{${key}}}`)
   }
 
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault()
+  function handleSave() {
     if (!name.trim() || !subject.trim()) {
       setError('Name and subject are required')
       return
     }
+    if (!editorReady) {
+      setError('Editor is still loading — please wait')
+      return
+    }
+
     setSaving(true)
     setError(null)
-    try {
-      const payload = { name, subject, body: getBodyHtml(), is_active: isActive }
-      const url = isNew
-        ? '/api/admin/email/templates'
-        : `/api/admin/email/templates/${template!.id}`
-      const method = isNew ? 'POST' : 'PUT'
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        const json = await res.json()
-        setError((json as { error?: string }).error ?? 'Failed to save')
-        return
+
+    emailEditorRef.current?.editor?.exportHtml(async ({ html, design }) => {
+      try {
+        const payload = {
+          name: name.trim(),
+          subject: subject.trim(),
+          body: html,
+          design,
+          is_active: isActive,
+        }
+        const url = isNew
+          ? '/api/admin/email/templates'
+          : `/api/admin/email/templates/${template!.id}`
+        const res = await fetch(url, {
+          method: isNew ? 'POST' : 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        if (!res.ok) {
+          const json = await res.json()
+          setError((json as { error?: string }).error ?? 'Failed to save')
+          setSaving(false)
+          return
+        }
+        router.push('/admin/email/templates')
+        router.refresh()
+      } catch {
+        setError('Network error')
+        setSaving(false)
       }
-      router.push('/admin/email/templates')
-      router.refresh()
-    } catch {
-      setError('Network error')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const previewSubject = resolveVariables(subject, SAMPLE_VARIABLES)
-  const previewBody = resolveVariables(getBodyHtml(), SAMPLE_VARIABLES)
-
-  function toolbarBtn(label: string, active: boolean, onClick: () => void) {
-    return (
-      <button
-        key={label}
-        type="button"
-        onClick={onClick}
-        className={[
-          'rounded-lg px-2.5 py-1 text-xs font-medium transition-colors',
-          active
-            ? 'bg-surface-high text-primary'
-            : 'text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
-        ].join(' ')}
-      >
-        {label}
-      </button>
-    )
+    })
   }
 
   return (
-    <form onSubmit={handleSave} className="space-y-6">
+    <div className="space-y-6">
       <div>
         <label className={labelClass}>Template Name</label>
         <input
@@ -114,13 +111,13 @@ export default function EmailTemplateEditor({ template }: Props) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           className={inputClass}
-          placeholder="e.g. Booking Confirmation"
+          placeholder="e.g. Booking Confirmed"
         />
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className={labelClass}>Subject</label>
+          <label className={labelClass}>Subject Line</label>
           <VariablePicker onSelect={insertVariableInSubject} />
         </div>
         <input
@@ -128,56 +125,8 @@ export default function EmailTemplateEditor({ template }: Props) {
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
           className={inputClass}
-          placeholder="Your booking is confirmed!"
+          placeholder="Your booking at {{room_name}} is confirmed!"
         />
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <label className={labelClass}>Body</label>
-          <VariablePicker onSelect={insertVariableInBody} />
-        </div>
-        <div className="bg-surface-highest/40 rounded-xl overflow-hidden focus-within:ring-1 focus-within:ring-secondary/50">
-          <div className="flex flex-wrap items-center gap-1 px-3 py-2 border-b border-surface-high">
-            {toolbarBtn('Bold', !!editor?.isActive('bold'), () =>
-              editor?.chain().focus().toggleBold().run(),
-            )}
-            {toolbarBtn('Italic', !!editor?.isActive('italic'), () =>
-              editor?.chain().focus().toggleItalic().run(),
-            )}
-            {toolbarBtn('Underline', !!editor?.isActive('underline'), () =>
-              editor?.chain().focus().toggleUnderline().run(),
-            )}
-            {toolbarBtn('List', !!editor?.isActive('bulletList'), () =>
-              editor?.chain().focus().toggleBulletList().run(),
-            )}
-          </div>
-          <EditorContent
-            editor={editor}
-            className="prose prose-invert max-w-none px-4 py-3 text-on-surface min-h-[200px] focus:outline-none"
-          />
-        </div>
-      </div>
-
-      <div>
-        <button
-          type="button"
-          onClick={() => setShowPreview((v) => !v)}
-          className="text-sm text-primary hover:underline"
-        >
-          {showPreview ? 'Hide' : 'Show'} Preview
-        </button>
-        {showPreview && (
-          <div className="mt-3 bg-surface-highest/40 rounded-xl p-4 space-y-2">
-            <p className="text-sm text-on-surface-variant">
-              Subject: <span className="text-on-surface">{previewSubject}</span>
-            </p>
-            <div
-              className="prose prose-invert max-w-none text-sm text-on-surface"
-              dangerouslySetInnerHTML={{ __html: previewBody }}
-            />
-          </div>
-        )}
       </div>
 
       <div className="flex items-center gap-3">
@@ -203,11 +152,45 @@ export default function EmailTemplateEditor({ template }: Props) {
         </span>
       </div>
 
+      {template && !template.design && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-sm text-amber-400">
+          This template hasn't been edited in the visual editor yet. Build your design below and save — it will load automatically on future visits.
+        </div>
+      )}
+
+      <div>
+        <label className={labelClass}>Email Body</label>
+        <p className="text-xs text-on-surface-variant mb-2">
+          Use the Merge Tags button inside the editor to insert dynamic variables like{' '}
+          <code className="text-primary">{'{{guest_first_name}}'}</code>.
+        </p>
+        <div className="rounded-xl overflow-hidden border border-white/10">
+          <EmailEditor
+            ref={emailEditorRef}
+            onReady={onReady}
+            minHeight={620}
+            options={{
+              mergeTags: buildMergeTags(),
+              appearance: {
+                theme: 'modern_light',
+              },
+              features: {
+                textEditor: { spellChecker: true },
+              },
+            }}
+          />
+        </div>
+        {!editorReady && (
+          <p className="text-xs text-on-surface-variant mt-2">Loading editor…</p>
+        )}
+      </div>
+
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div className="flex items-center gap-3">
         <button
-          type="submit"
+          type="button"
+          onClick={handleSave}
           disabled={saving}
           className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-background disabled:opacity-60"
         >
@@ -215,12 +198,12 @@ export default function EmailTemplateEditor({ template }: Props) {
         </button>
         <button
           type="button"
-          onClick={() => router.back()}
+          onClick={() => { router.push('/admin/email/templates'); router.refresh() }}
           className="rounded-xl bg-surface-high px-6 py-2.5 text-sm font-semibold text-on-surface"
         >
           Cancel
         </button>
       </div>
-    </form>
+    </div>
   )
 }

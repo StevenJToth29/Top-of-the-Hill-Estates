@@ -36,4 +36,5 @@ export const STATUS_BADGE: Record<BookingStatus, string> = {
   confirmed: 'bg-secondary/20 text-secondary',
   cancelled: 'bg-error/20 text-error',
   completed: 'bg-primary/20 text-primary',
+  expired: 'bg-surface-container text-on-surface-variant',
 }
