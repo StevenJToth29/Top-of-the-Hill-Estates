@@ -58,7 +58,7 @@ export interface Room {
 }
 
 export type BookingType = 'short_term' | 'long_term'
-export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed'
+export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'expired'
 
 export interface Booking {
   id: string
@@ -91,6 +91,8 @@ export interface Booking {
   ghl_contact_id: string | null
   sms_consent: boolean
   marketing_consent: boolean
+  source?: string | null
+  notes?: string | null
   created_at: string
   updated_at: string
   // joined
