@@ -1,6 +1,6 @@
 'use client'
 
-import { format, differenceInDays } from 'date-fns'
+import { differenceInDays } from 'date-fns'
 import type { CalendarTask } from '@/types'
 
 interface CalendarTaskRowProps {
@@ -22,6 +22,8 @@ export function CalendarTaskRow({
   onTaskClick,
   onAddClick,
 }: CalendarTaskRowProps) {
+  if (days.length === 0) return null
+
   const firstDay = days[0]
   const lastDay = days[days.length - 1]
 
@@ -35,6 +37,7 @@ export function CalendarTaskRow({
         <div className="flex items-center justify-between gap-1">
           <span className="text-xs text-slate-500 font-medium truncate">{label}</span>
           <button
+            type="button"
             onClick={onAddClick}
             className="text-xs text-teal-500 hover:text-teal-700 font-semibold shrink-0"
             title="Add task"
@@ -56,6 +59,7 @@ export function CalendarTaskRow({
 
             return (
               <button
+                type="button"
                 key={`${task.id}-${task.due_date}`}
                 onClick={() => onTaskClick(task)}
                 className="absolute top-1 h-5 rounded text-xs text-white font-medium px-1.5 truncate max-w-full hover:opacity-80 transition-opacity"

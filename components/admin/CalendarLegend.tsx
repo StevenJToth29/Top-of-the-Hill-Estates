@@ -1,3 +1,5 @@
+'use client'
+
 const items = [
   { label: 'Available', style: { background: '#fff', border: '1px solid #E2E8F0' } },
   { label: 'Booked', style: { background: 'rgba(45,212,191,0.14)', borderTop: '2px solid #2DD4BF' } },

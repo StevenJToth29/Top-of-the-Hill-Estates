@@ -32,6 +32,7 @@ export function SelectionBar({
       <div className="w-px h-4 bg-slate-600" />
 
       <button
+        type="button"
         onClick={onBook}
         className="rounded-full px-3 py-1 text-xs font-semibold transition-colors"
         style={{ background: '#2DD4BF', color: '#0F172A' }}
@@ -40,6 +41,7 @@ export function SelectionBar({
       </button>
 
       <button
+        type="button"
         onClick={onBlock}
         className="rounded-full px-3 py-1 text-xs font-semibold bg-slate-700 hover:bg-slate-600 transition-colors"
       >
@@ -47,6 +49,7 @@ export function SelectionBar({
       </button>
 
       <button
+        type="button"
         onClick={onSetPrice}
         className="rounded-full px-3 py-1 text-xs font-semibold bg-slate-700 hover:bg-slate-600 transition-colors"
       >
@@ -54,6 +57,7 @@ export function SelectionBar({
       </button>
 
       <button
+        type="button"
         onClick={onClear}
         className="ml-1 rounded-full w-6 h-6 flex items-center justify-center bg-slate-700 hover:bg-slate-600 transition-colors text-slate-300 hover:text-white"
         aria-label="Clear selection"
