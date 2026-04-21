@@ -1,5 +1,18 @@
+import type { Metadata } from 'next'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import type { Property, Room, SiteSettings } from '@/types'
+
+export const metadata: Metadata = {
+  title: 'Room Rentals in Mesa & Tempe, AZ — Book Direct',
+  description:
+    'Fully furnished short-term and long-term rooms in Mesa and Tempe, Arizona. Flexible stays, no platform fees. Book directly with Top of the Hill Rooms.',
+  openGraph: {
+    title: 'Top of the Hill Rooms — Mesa & Tempe, AZ',
+    description:
+      'Fully furnished short-term and long-term rooms in Mesa and Tempe, Arizona. Flexible stays, no platform fees.',
+    url: '/',
+  },
+}
 import Hero from '@/components/public/Hero'
 import AboutSection from '@/components/public/AboutSection'
 import PropertiesSection from '@/components/public/PropertiesSection'

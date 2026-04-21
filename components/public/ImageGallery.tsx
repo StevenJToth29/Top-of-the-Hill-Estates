@@ -34,25 +34,31 @@ export default function ImageGallery({ images, roomName }: Props) {
 
   return (
     <>
-      <div
+      <button
+        type="button"
+        aria-label={`View ${roomName} photos — click to enlarge`}
         className="w-full aspect-video relative rounded-2xl overflow-hidden ring-1 ring-white/10 cursor-zoom-in"
         onClick={openLightbox}
       >
         <Image
           src={images[activeIndex]}
-          alt={`${roomName} — photo ${activeIndex + 1}`}
+          alt={`${roomName} — photo ${activeIndex + 1} of ${images.length}`}
           fill
           className="object-cover"
           priority={activeIndex === 0}
           sizes="(max-width: 1024px) 100vw, 66vw"
         />
-      </div>
+      </button>
 
       {images.length > 1 && (
-        <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+        <div className="flex gap-2 mt-3 overflow-x-auto pb-1" role="tablist" aria-label={`${roomName} photo thumbnails`}>
           {images.map((src, i) => (
             <button
               key={i}
+              type="button"
+              role="tab"
+              aria-selected={i === activeIndex}
+              aria-label={`${roomName} photo ${i + 1} of ${images.length}`}
               onClick={() => setActiveIndex(i)}
               className={`relative flex-shrink-0 w-20 h-14 rounded-xl overflow-hidden ring-1 transition-all ${
                 i === activeIndex
@@ -74,10 +80,16 @@ export default function ImageGallery({ images, roomName }: Props) {
 
       {lightboxOpen && (
         <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`${roomName} photo gallery`}
           className="fixed inset-0 z-50 flex items-center justify-center bg-background/90 backdrop-blur-xl"
           onClick={closeLightbox}
+          onKeyDown={(e) => { if (e.key === 'Escape') closeLightbox() }}
         >
           <button
+            type="button"
+            aria-label="Close photo gallery"
             onClick={closeLightbox}
             className="absolute top-4 right-4 p-2 rounded-full bg-surface-highest/60 text-on-surface hover:bg-surface-highest transition-colors"
           >
@@ -86,6 +98,8 @@ export default function ImageGallery({ images, roomName }: Props) {
 
           {images.length > 1 && (
             <button
+              type="button"
+              aria-label="Previous photo"
               onClick={(e) => { e.stopPropagation(); prev() }}
               className="absolute left-4 p-2 rounded-full bg-surface-highest/60 text-on-surface hover:bg-surface-highest transition-colors"
             >
@@ -99,7 +113,7 @@ export default function ImageGallery({ images, roomName }: Props) {
           >
             <Image
               src={images[activeIndex]}
-              alt={`${roomName} — photo ${activeIndex + 1}`}
+              alt={`${roomName} — photo ${activeIndex + 1} of ${images.length}`}
               fill
               className="object-contain rounded-2xl"
               sizes="100vw"
@@ -108,6 +122,8 @@ export default function ImageGallery({ images, roomName }: Props) {
 
           {images.length > 1 && (
             <button
+              type="button"
+              aria-label="Next photo"
               onClick={(e) => { e.stopPropagation(); next() }}
               className="absolute right-4 p-2 rounded-full bg-surface-highest/60 text-on-surface hover:bg-surface-highest transition-colors"
             >
@@ -116,7 +132,7 @@ export default function ImageGallery({ images, roomName }: Props) {
           )}
 
           {images.length > 1 && (
-            <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm text-on-surface-variant">
+            <span className="absolute bottom-4 left-1/2 -translate-x-1/2 text-sm text-on-surface-variant" aria-live="polite">
               {activeIndex + 1} / {images.length}
             </span>
           )}

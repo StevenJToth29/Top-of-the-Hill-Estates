@@ -1,4 +1,10 @@
+import type { Metadata } from 'next'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
+
+export const metadata: Metadata = {
+  title: 'Booking Confirmed',
+  robots: { index: false, follow: false },
+}
 import BookingConfirmation from '@/components/public/BookingConfirmation'
 import { resolvePolicy } from '@/lib/cancellation'
 import type { Booking, Room, Property, BookingFee } from '@/types'

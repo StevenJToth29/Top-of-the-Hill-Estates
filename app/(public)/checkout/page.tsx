@@ -1,4 +1,10 @@
+import type { Metadata } from 'next'
 import { Suspense } from 'react'
+
+export const metadata: Metadata = {
+  title: 'Complete Your Booking',
+  robots: { index: false, follow: false },
+}
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import CheckoutPageInner from '@/components/public/CheckoutPageInner'
 import type { PaymentMethodConfig } from '@/types'

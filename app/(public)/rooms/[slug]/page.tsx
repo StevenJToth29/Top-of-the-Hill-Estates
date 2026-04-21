@@ -1,14 +1,59 @@
 export const dynamic = 'force-dynamic'
 
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { format, addMonths } from 'date-fns'
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import { getBlockedDatesForRoom } from '@/lib/availability'
 import { resolvePolicy } from '@/lib/cancellation'
 import type { Room } from '@/types'
 import dynamicImport from 'next/dynamic'
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const supabase = await createServerSupabaseClient()
+  const { data: room } = await supabase
+    .from('rooms')
+    .select('name, description, nightly_rate, bedrooms, bathrooms, guest_capacity, images, property:properties(name, city, state)')
+    .eq('slug', params.slug)
+    .eq('is_active', true)
+    .single()
+
+  if (!room) return {}
+
+  const property = room.property as { name: string; city: string; state: string } | null
+  const location = property ? `${property.city}, ${property.state}` : 'Mesa/Tempe, AZ'
+  const title = `${room.name} in ${location}`
+  const bedroomStr = room.bedrooms > 0 ? `${room.bedrooms}BR` : 'Studio'
+  const description =
+    room.description
+      ? `${room.description.slice(0, 140).trimEnd()}… Book directly from $${room.nightly_rate}/night.`
+      : `${bedroomStr} room for up to ${room.guest_capacity} guests in ${location}. Short & long-term stays from $${room.nightly_rate}/night. No platform fees.`
+
+  const ogImage = Array.isArray(room.images) && room.images.length > 0
+    ? [{ url: room.images[0] as string, alt: room.name }]
+    : undefined
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url: `/rooms/${params.slug}`,
+      type: 'website',
+      ...(ogImage ? { images: ogImage } : {}),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      ...(ogImage ? { images: [ogImage[0].url] } : {}),
+    },
+  }
+}
 import ImageGallery from '@/components/public/ImageGallery'
 import BookingWidget from '@/components/public/BookingWidget'
+import RoomBackButton from '@/components/public/RoomBackButton'
 import AvailabilityCalendar from '@/components/public/AvailabilityCalendar'
 import AmenitiesGrid from '@/components/public/AmenitiesGrid'
 import PricingSection from '@/components/public/PricingSection'
@@ -41,7 +86,9 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
   const today = new Date()
   const sixMonthsOut = addMonths(today, 6)
 
-  const [{ data: roomFees, error: feesError }, blockedDates] = await Promise.all([
+  const serviceSupabase = createServiceRoleClient()
+
+  const [{ data: roomFees, error: feesError }, blockedDates, { data: rawOverrides }] = await Promise.all([
     supabase
       .from('room_fees')
       .select('*')
@@ -52,7 +99,19 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
       format(today, 'yyyy-MM-dd'),
       format(sixMonthsOut, 'yyyy-MM-dd'),
     ),
+    serviceSupabase
+      .from('date_overrides')
+      .select('date, price_override')
+      .eq('room_id', rawRoom.id)
+      .gte('date', format(today, 'yyyy-MM-dd'))
+      .lt('date', format(sixMonthsOut, 'yyyy-MM-dd'))
+      .not('price_override', 'is', null),
   ])
+
+  const dateOverrides: Record<string, number> = {}
+  for (const o of rawOverrides ?? []) {
+    if (o.price_override != null) dateOverrides[o.date] = Number(o.price_override)
+  }
 
   if (feesError) {
     console.error('[room-detail] Failed to fetch room_fees:', feesError)
@@ -69,6 +128,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
   return (
     <main className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+        <RoomBackButton />
         <ImageGallery images={room.images ?? []} roomName={room.name} />
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -163,6 +223,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
             <BookingWidget
               room={room}
               blockedDates={blockedDates}
+              dateOverrides={dateOverrides}
               initialCheckin={searchParams.checkin}
               initialCheckout={searchParams.checkout}
               initialGuests={searchParams.guests ? parseInt(searchParams.guests, 10) : undefined}

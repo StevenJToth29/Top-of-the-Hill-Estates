@@ -1,4 +1,10 @@
+import type { Metadata } from 'next'
 import { createServiceRoleClient } from '@/lib/supabase'
+
+export const metadata: Metadata = {
+  title: 'Manage Your Booking',
+  robots: { index: false, follow: false },
+}
 import { isWithinCancellationWindow, calculateRefund, resolvePolicy } from '@/lib/cancellation'
 import { getBlockedDatesForRoom } from '@/lib/availability'
 import { addYears, addDays, eachDayOfInterval, parseISO, format } from 'date-fns'
