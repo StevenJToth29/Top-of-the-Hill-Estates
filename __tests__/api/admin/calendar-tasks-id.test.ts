@@ -24,15 +24,15 @@ function makeAuthMock(user: typeof mockUser | null = mockUser) {
   }
 }
 
-function makeDbMock() {
+function makeDbMock(updateError: Error | null = null, deleteError: Error | null = null) {
   const single = jest.fn().mockResolvedValue({
-    data: { id: 'task-1', title: 'Updated', status: 'complete' },
-    error: null,
+    data: updateError ? null : { id: 'task-1', title: 'Updated', status: 'complete' },
+    error: updateError,
   })
   const select = jest.fn().mockReturnValue({ single })
   const eqUpdate = jest.fn().mockReturnValue({ select })
   const update = jest.fn().mockReturnValue({ eq: eqUpdate })
-  const eqDelete = jest.fn().mockResolvedValue({ error: null })
+  const eqDelete = jest.fn().mockResolvedValue({ error: deleteError })
   const del = jest.fn().mockReturnValue({ eq: eqDelete })
   const from = jest.fn((table: string) => {
     if (table === 'calendar_tasks') return { update, delete: del }
@@ -66,6 +66,13 @@ describe('PATCH /api/admin/calendar-tasks/[id]', () => {
     const res = await PATCH(makeReq('PATCH', { status: 'complete', title: 'Updated' }), params)
     expect(res.status).toBe(200)
   })
+
+  it('returns 500 when DB update fails', async () => {
+    ;(createServerSupabaseClient as jest.Mock).mockResolvedValue(makeAuthMock())
+    ;(createServiceRoleClient as jest.Mock).mockReturnValue(makeDbMock(new Error('DB failure')))
+    const res = await PATCH(makeReq('PATCH', { status: 'complete' }), params)
+    expect(res.status).toBe(500)
+  })
 })
 
 describe('DELETE /api/admin/calendar-tasks/[id]', () => {
@@ -83,5 +90,12 @@ describe('DELETE /api/admin/calendar-tasks/[id]', () => {
     ;(createServiceRoleClient as jest.Mock).mockReturnValue(makeDbMock())
     const res = await DELETE(makeReq('DELETE'), params)
     expect(res.status).toBe(200)
+  })
+
+  it('returns 500 when DB delete fails', async () => {
+    ;(createServerSupabaseClient as jest.Mock).mockResolvedValue(makeAuthMock())
+    ;(createServiceRoleClient as jest.Mock).mockReturnValue(makeDbMock(null, new Error('DB failure')))
+    const res = await DELETE(makeReq('DELETE'), params)
+    expect(res.status).toBe(500)
   })
 })

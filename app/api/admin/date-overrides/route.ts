@@ -20,8 +20,8 @@ export async function PUT(request: NextRequest) {
   if (!room_id || typeof room_id !== 'string') {
     return NextResponse.json({ error: 'Missing room_id' }, { status: 400 })
   }
-  if (!Array.isArray(dates) || dates.length === 0) {
-    return NextResponse.json({ error: 'Missing or empty dates array' }, { status: 400 })
+  if (!Array.isArray(dates) || dates.length === 0 || !(dates as unknown[]).every((d) => typeof d === 'string')) {
+    return NextResponse.json({ error: 'dates must be a non-empty array of date strings' }, { status: 400 })
   }
 
   const rows = (dates as string[]).map((date) => ({

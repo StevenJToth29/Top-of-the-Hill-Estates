@@ -26,7 +26,7 @@ function makeAuthMock(user: typeof mockUser | null = mockUser) {
 
 function makeDbMock(insertError: Error | null = null) {
   const single = jest.fn().mockResolvedValue({
-    data: { id: 'task-1', title: 'Clean Room', due_date: '2026-05-01', status: 'pending' },
+    data: insertError ? null : { id: 'task-1', title: 'Clean Room', due_date: '2026-05-01', status: 'pending' },
     error: insertError,
   })
   const select = jest.fn().mockReturnValue({ single })
@@ -78,5 +78,12 @@ describe('POST /api/admin/calendar-tasks', () => {
     expect(res.status).toBe(201)
     const body = await res.json()
     expect(body.task.title).toBe('Clean Room')
+  })
+
+  it('returns 500 when DB insert fails', async () => {
+    ;(createServerSupabaseClient as jest.Mock).mockResolvedValue(makeAuthMock())
+    ;(createServiceRoleClient as jest.Mock).mockReturnValue(makeDbMock(new Error('DB failure')))
+    const res = await POST(makeReq({ title: 'Clean Room', due_date: '2026-05-01' }))
+    expect(res.status).toBe(500)
   })
 })

@@ -93,4 +93,11 @@ describe('PUT /api/admin/date-overrides', () => {
     }))
     expect(res.status).toBe(200)
   })
+
+  it('returns 500 when DB upsert fails', async () => {
+    ;(createServerSupabaseClient as jest.Mock).mockResolvedValue(makeAuthMock())
+    ;(createServiceRoleClient as jest.Mock).mockReturnValue(makeDbMock(new Error('DB failure')))
+    const res = await PUT(makeReq({ room_id: 'r1', dates: ['2026-05-01'], is_blocked: true }))
+    expect(res.status).toBe(500)
+  })
 })

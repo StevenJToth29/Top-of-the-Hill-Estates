@@ -35,16 +35,19 @@ function makeDbMock(overrides: Record<string, unknown> = {}) {
   const dateOverrides: unknown[] = []
   const tasks: unknown[] = []
 
-  const makeQuery = (data: unknown[]) => ({
-    select: jest.fn().mockReturnThis(),
-    eq: jest.fn().mockReturnThis(),
-    in: jest.fn().mockReturnThis(),
-    gte: jest.fn().mockReturnThis(),
-    lte: jest.fn().mockReturnThis(),
-    lt: jest.fn().mockReturnThis(),
-    or: jest.fn().mockReturnThis(),
-    order: jest.fn().mockResolvedValue({ data: overrides[data as unknown as string] ?? data, error: null }),
-  })
+  const makeQuery = (data: unknown[]) => {
+    const resolved = { data: overrides[data as unknown as string] ?? data, error: null }
+    return {
+      select: jest.fn().mockReturnThis(),
+      eq: jest.fn().mockReturnThis(),
+      in: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockReturnThis(),
+      lte: jest.fn().mockReturnThis(),
+      lt: jest.fn().mockReturnThis(),
+      or: jest.fn().mockResolvedValue(resolved),
+      order: jest.fn().mockResolvedValue(resolved),
+    }
+  }
 
   return {
     from: jest.fn((table: string) => {
@@ -94,5 +97,16 @@ describe('GET /api/admin/calendar', () => {
     expect(body).toHaveProperty('dateOverrides')
     expect(body).toHaveProperty('tasks')
     expect(Array.isArray(body.rooms)).toBe(true)
+  })
+
+  it('returns calendar data with tasks array', async () => {
+    ;(createServerSupabaseClient as jest.Mock).mockResolvedValue(makeAuthMock())
+    ;(createServiceRoleClient as jest.Mock).mockReturnValue(makeDbMock())
+
+    const req = new NextRequest('http://localhost/api/admin/calendar?from=2026-05-01&to=2026-05-31')
+    const res = await GET(req)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(Array.isArray(body.tasks)).toBe(true)
   })
 })
