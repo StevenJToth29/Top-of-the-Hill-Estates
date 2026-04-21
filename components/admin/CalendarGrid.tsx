@@ -318,7 +318,7 @@ export function CalendarGrid({
                   'border-b border-slate-200 text-center',
                   isSun && 'border-l-2 border-slate-300',
                   isFriSat && 'bg-amber-50',
-                  todayDay && 'bg-teal-50',
+                  todayDay && 'bg-teal-100',
                 )}
                 style={{ padding: '3px 0', width: DAY_COL_WIDTH }}
               >
@@ -443,7 +443,7 @@ export function CalendarGrid({
                               'border-slate-200 text-center cursor-pointer transition-colors',
                               isFriSat && status === 'available' && 'bg-amber-50/40',
                               isSun && 'border-l-2 border-slate-300',
-                              todayCell && status === 'available' && 'bg-teal-50/40',
+                              todayCell && status === 'available' && 'bg-teal-100/60',
                             )}
                             style={{
                               height: 36,

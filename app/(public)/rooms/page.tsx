@@ -1,7 +1,8 @@
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { differenceInDays, parseISO, eachDayOfInterval, addDays, format } from 'date-fns'
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import { getAvailableRoomIds } from '@/lib/availability'
 import RoomsFilter from '@/components/public/RoomsFilter'
-import RoomsGrid, { type RoomWithProperty } from '@/components/public/RoomsGrid'
+import RoomsGrid, { type RoomWithProperty, type RoomRateInfo } from '@/components/public/RoomsGrid'
 
 export interface SearchParams {
   guests?: string
@@ -26,7 +27,7 @@ export default async function RoomsPage({
   const supabase = await createServerSupabaseClient()
   const { data: allRooms } = await supabase
     .from('rooms')
-    .select('*, property:properties(*)')
+    .select('*, property:properties(*), fees:room_fees(*)')
     .eq('is_active', true)
     .order('name')
 
@@ -66,6 +67,64 @@ export default async function RoomsPage({
     filtered = filtered.filter((r) => availableIds.has(r.id))
   }
 
+  // Calculate per-room totals (nightly + cleaning + fees) when dates are selected
+  let roomRates: Record<string, RoomRateInfo> = {}
+  if (searchParams.checkin && searchParams.checkout && filtered.length > 0) {
+    const checkinDate = parseISO(searchParams.checkin)
+    const checkoutDate = parseISO(searchParams.checkout)
+    const nights = differenceInDays(checkoutDate, checkinDate)
+
+    if (nights > 0) {
+      const roomIds = filtered.map((r) => r.id)
+      const serviceSupabase = createServiceRoleClient()
+      const { data: overrides } = await serviceSupabase
+        .from('date_overrides')
+        .select('room_id, date, price_override')
+        .in('room_id', roomIds)
+        .gte('date', searchParams.checkin)
+        .lt('date', searchParams.checkout)
+        .not('price_override', 'is', null)
+
+      const overrideMap: Record<string, Record<string, number>> = {}
+      for (const o of overrides ?? []) {
+        if (o.price_override != null) {
+          if (!overrideMap[o.room_id]) overrideMap[o.room_id] = {}
+          overrideMap[o.room_id][o.date] = Number(o.price_override)
+        }
+      }
+
+      const allDates = eachDayOfInterval({
+        start: checkinDate,
+        end: addDays(checkoutDate, -1),
+      }).map((d) => format(d, 'yyyy-MM-dd'))
+
+      const guests = searchParams.guests ? Math.max(1, parseInt(searchParams.guests, 10)) : 1
+
+      for (const room of filtered) {
+        const roomOverrides = overrideMap[room.id] ?? {}
+
+        // Nightly subtotal with date overrides
+        let nightlySubtotal = 0
+        for (const date of allDates) {
+          nightlySubtotal += roomOverrides[date] ?? room.nightly_rate
+        }
+
+        const cleaningFee = room.cleaning_fee ?? 0
+        const extraGuestFee = room.extra_guest_fee ?? 0
+        const extraGuests = Math.max(0, guests - 1)
+        const extraGuestTotal = extraGuests * extraGuestFee * nights
+
+        const genericFees = (room.fees ?? [])
+          .filter((f) => f.booking_type === 'short_term' || f.booking_type === 'both')
+          .reduce((sum, f) => sum + Number(f.amount), 0)
+
+        const total = nightlySubtotal + cleaningFee + extraGuestTotal + genericFees
+
+        roomRates[room.id] = { nightlySubtotal, total, nights }
+      }
+    }
+  }
+
   return (
     <main className="min-h-screen bg-background py-16 px-4">
       <div className="max-w-7xl mx-auto mb-12">
@@ -96,6 +155,7 @@ export default async function RoomsPage({
               checkout: searchParams.checkout,
               guests: searchParams.guests,
             }}
+            roomRates={roomRates}
           />
         )}
       </div>

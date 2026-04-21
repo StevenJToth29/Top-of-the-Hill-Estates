@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!room) return {}
 
-  const property = room.property as { name: string; city: string; state: string } | null
+  const property = room.property as unknown as { name: string; city: string; state: string } | null
   const location = property ? `${property.city}, ${property.state}` : 'Mesa/Tempe, AZ'
   const title = `${room.name} in ${location}`
   const bedroomStr = room.bedrooms > 0 ? `${room.bedrooms}BR` : 'Studio'

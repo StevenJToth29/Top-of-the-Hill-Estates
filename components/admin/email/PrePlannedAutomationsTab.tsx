@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import type { EmailAutomation, EmailTemplate } from '@/types'
 
 type DelayState = {
@@ -24,12 +24,6 @@ function encodeDelay({ value, unit, direction }: DelayState): number {
   return direction === 'before' ? -m : m
 }
 
-const RECIPIENT_LABELS: Record<string, string> = {
-  guest: 'Guest',
-  admin: 'Admin',
-  both: 'Both',
-}
-
 interface RowState {
   automation: EmailAutomation
   delay: DelayState
@@ -38,6 +32,167 @@ interface RowState {
 interface Props {
   automations: EmailAutomation[]
   templates: EmailTemplate[]
+}
+
+function AutoRow({
+  a,
+  delay,
+  isEven,
+  templates,
+  onToggle,
+  onUpdate,
+  onSaveDelay,
+  onTemplateChange,
+}: {
+  a: EmailAutomation
+  delay: DelayState
+  isEven: boolean
+  templates: EmailTemplate[]
+  onToggle: () => void
+  onUpdate: (u: { delay?: DelayState }) => void
+  onSaveDelay: (ds: DelayState) => void
+  onTemplateChange: (id: string | null) => void
+}) {
+  const [editDelay, setEditDelay] = useState(false)
+  const [localDelay, setLocalDelay] = useState(delay)
+
+  useEffect(() => setLocalDelay(delay), [delay])
+
+  const recipientBadge =
+    a.recipient_type === 'admin'
+      ? { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200' }
+      : { bg: 'bg-teal-50', text: 'text-teal-700', border: 'border-teal-200' }
+
+  const timingLabel =
+    localDelay.value === 0
+      ? 'Immediately'
+      : `${localDelay.value} ${localDelay.unit} ${localDelay.direction}`
+
+  const inputClass =
+    'bg-slate-50 rounded-md border border-slate-200 px-2 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-teal-400'
+  const rowBg = isEven ? 'bg-white' : 'bg-slate-50/50'
+
+  return (
+    <tr className={`${rowBg} hover:bg-teal-50/20 transition-colors`}>
+      {/* Event */}
+      <td className="px-4 py-3 border-b border-slate-100">
+        <span className="text-sm font-semibold text-slate-800">{a.name}</span>
+      </td>
+
+      {/* Template */}
+      <td className="px-4 py-3 border-b border-slate-100">
+        <select
+          value={a.template_id ?? ''}
+          onChange={(e) => onTemplateChange(e.target.value || null)}
+          className={inputClass + ' max-w-[180px]'}
+        >
+          <option value="">No template</option>
+          {templates.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
+      </td>
+
+      {/* Timing */}
+      <td className="px-4 py-3 border-b border-slate-100">
+        {editDelay ? (
+          <div className="flex items-center gap-1.5">
+            <input
+              type="number"
+              min={0}
+              value={localDelay.value}
+              onChange={(e) =>
+                setLocalDelay((d) => ({ ...d, value: Number(e.target.value) }))
+              }
+              className={inputClass + ' w-14'}
+            />
+            <select
+              value={localDelay.unit}
+              onChange={(e) =>
+                setLocalDelay((d) => ({
+                  ...d,
+                  unit: e.target.value as DelayState['unit'],
+                }))
+              }
+              className={inputClass}
+            >
+              <option value="minutes">min</option>
+              <option value="hours">hrs</option>
+              <option value="days">days</option>
+            </select>
+            {localDelay.value > 0 && (
+              <select
+                value={localDelay.direction}
+                onChange={(e) =>
+                  setLocalDelay((d) => ({
+                    ...d,
+                    direction: e.target.value as DelayState['direction'],
+                  }))
+                }
+                className={inputClass}
+              >
+                <option value="after">after</option>
+                <option value="before">before</option>
+              </select>
+            )}
+            <button
+              onClick={() => {
+                onSaveDelay(localDelay)
+                onUpdate({ delay: localDelay })
+                setEditDelay(false)
+              }}
+              className="px-2.5 py-1.5 bg-teal-400 text-slate-900 text-xs font-bold rounded-md"
+            >
+              ✓
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-600">{timingLabel}</span>
+            <button
+              onClick={() => setEditDelay(true)}
+              className="text-[11px] px-2 py-0.5 rounded border border-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              Edit
+            </button>
+          </div>
+        )}
+      </td>
+
+      {/* Send To */}
+      <td className="px-4 py-3 border-b border-slate-100">
+        <span
+          className={`text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-wide ${recipientBadge.bg} ${recipientBadge.text} ${recipientBadge.border}`}
+        >
+          {a.recipient_type === 'admin'
+            ? 'Admin'
+            : a.recipient_type === 'both'
+            ? 'Both'
+            : 'Guest'}
+        </span>
+      </td>
+
+      {/* Active */}
+      <td className="px-4 py-3 border-b border-slate-100 text-center">
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-label={`Toggle ${a.name}`}
+          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+            a.is_active ? 'bg-teal-400' : 'bg-slate-200'
+          }`}
+        >
+          <span
+            className={`inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform ${
+              a.is_active ? 'translate-x-5' : 'translate-x-0.5'
+            }`}
+          />
+        </button>
+      </td>
+    </tr>
+  )
 }
 
 export default function PrePlannedAutomationsTab({ automations, templates }: Props) {
@@ -75,119 +230,50 @@ export default function PrePlannedAutomationsTab({ automations, templates }: Pro
     await patchAutomation(id, { delay_minutes: encodeDelay(delayState) })
   }
 
-  const selectClass =
-    'bg-surface-highest/40 rounded-lg px-2 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50'
-
   return (
     <div className="space-y-2">
-      {error && (
-        <p className="text-sm text-red-400 px-1">{error}</p>
-      )}
-      {rows.map(({ automation: a, delay }) => (
-        <div
-          key={a.id}
-          className="flex flex-wrap items-center gap-3 bg-surface-highest/40 rounded-xl px-4 py-3"
-        >
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-on-surface text-sm">{a.name}</p>
-          </div>
-
-          <button
-            type="button"
-            aria-label={`Toggle ${a.name}`}
-            onClick={() => patchAutomation(a.id, { is_active: !a.is_active })}
-            className={[
-              'relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors',
-              a.is_active ? 'bg-primary' : 'bg-surface-high',
-            ].join(' ')}
-          >
-            <span
-              className={[
-                'inline-block h-3.5 w-3.5 transform rounded-full bg-background transition-transform',
-                a.is_active ? 'translate-x-5' : 'translate-x-0.5',
-              ].join(' ')}
-            />
-          </button>
-
-          <select
-            value={a.template_id ?? ''}
-            onChange={(e) =>
-              patchAutomation(a.id, { template_id: e.target.value || null })
-            }
-            className={selectClass}
-          >
-            <option value="">No template</option>
-            {templates.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-
-          <div className="flex items-center gap-1">
-            <input
-              type="number"
-              min={0}
-              value={delay.value}
-              onChange={(e) => {
-                const updated = { ...delay, value: Number(e.target.value) }
-                setRows((prev) =>
-                  prev.map((r) =>
-                    r.automation.id === a.id ? { ...r, delay: updated } : r,
-                  ),
-                )
-              }}
-              onBlur={() => saveDelay(a.id, delay)}
-              className="w-16 bg-surface-highest/40 rounded-lg px-2 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50"
-            />
-            <select
-              value={delay.unit}
-              onChange={(e) => {
-                const updated = {
-                  ...delay,
-                  unit: e.target.value as DelayState['unit'],
-                }
-                setRows((prev) =>
-                  prev.map((r) =>
-                    r.automation.id === a.id ? { ...r, delay: updated } : r,
-                  ),
-                )
-                saveDelay(a.id, updated)
-              }}
-              className={selectClass}
-            >
-              <option value="minutes">min</option>
-              <option value="hours">hrs</option>
-              <option value="days">days</option>
-            </select>
-            {delay.value > 0 && (
-              <select
-                value={delay.direction}
-                onChange={(e) => {
-                  const updated = {
-                    ...delay,
-                    direction: e.target.value as DelayState['direction'],
-                  }
+      {error && <p className="text-sm text-red-400 px-1">{error}</p>}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="bg-slate-50 border-b border-slate-100">
+              {['Event', 'Template', 'Timing', 'Send To', 'Active'].map((h, i) => (
+                <th
+                  key={h}
+                  className={`px-4 py-2.5 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-100 whitespace-nowrap ${
+                    i === 4 ? 'text-center' : 'text-left'
+                  }`}
+                >
+                  {h}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ automation: a, delay }, i) => (
+              <AutoRow
+                key={a.id}
+                a={a}
+                delay={delay}
+                isEven={i % 2 === 0}
+                templates={templates}
+                onToggle={() => patchAutomation(a.id, { is_active: !a.is_active })}
+                onUpdate={(updated) =>
                   setRows((prev) =>
                     prev.map((r) =>
-                      r.automation.id === a.id ? { ...r, delay: updated } : r,
+                      r.automation.id === a.id ? { ...r, ...updated } : r,
                     ),
                   )
-                  saveDelay(a.id, updated)
-                }}
-                className={selectClass}
-              >
-                <option value="after">after</option>
-                <option value="before">before</option>
-              </select>
-            )}
-          </div>
-
-          <span className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-surface-high text-on-surface-variant">
-            {RECIPIENT_LABELS[a.recipient_type] ?? a.recipient_type}
-          </span>
-        </div>
-      ))}
+                }
+                onSaveDelay={(ds) => saveDelay(a.id, ds)}
+                onTemplateChange={(id) =>
+                  patchAutomation(a.id, { template_id: id || null })
+                }
+              />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

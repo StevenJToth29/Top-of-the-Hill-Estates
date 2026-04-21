@@ -102,6 +102,7 @@ export async function POST(
         await stripe.refunds.create({
           payment_intent: booking.stripe_payment_intent_id,
           amount: Math.round(refundResult.refund_amount * 100),
+          reverse_transfer: true,
         })
       } else if (booking.status === 'pending') {
         try {
@@ -115,6 +116,7 @@ export async function POST(
               await stripe.refunds.create({
                 payment_intent: booking.stripe_payment_intent_id,
                 amount: pi.amount_received,
+                reverse_transfer: true,
               })
             }
           } else {

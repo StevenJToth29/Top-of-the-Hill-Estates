@@ -8,8 +8,7 @@ import { VARIABLE_GROUPS } from '@/lib/email-variables'
 import type { EmailTemplate } from '@/types'
 
 const inputClass =
-  'w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50'
-const labelClass = 'text-on-surface-variant text-sm mb-1 block'
+  'bg-slate-50 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-teal-400 focus:ring-1 focus:ring-teal-400/30 transition-colors'
 
 interface Props {
   template: EmailTemplate | null
@@ -103,106 +102,105 @@ export default function EmailTemplateEditor({ template }: Props) {
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <label className={labelClass}>Template Name</label>
+    <div className="flex flex-col h-full">
+      {/* ── Controls bar ── */}
+      <div className="flex-shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex flex-wrap items-center gap-3">
+        {/* Title */}
+        <span className="font-display text-sm font-bold text-slate-500 mr-1 whitespace-nowrap">
+          {isNew ? 'New Template' : 'Edit Template'}
+        </span>
+
+        {/* Name */}
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className={inputClass}
-          placeholder="e.g. Booking Confirmed"
+          className={`${inputClass} w-48`}
+          placeholder="Template name"
         />
-      </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-1">
-          <label className={labelClass}>Subject Line</label>
+        {/* Subject + variable picker */}
+        <div className="flex items-center gap-1.5 flex-1 min-w-[200px]">
+          <input
+            type="text"
+            value={subject}
+            onChange={(e) => setSubject(e.target.value)}
+            className={`${inputClass} flex-1`}
+            placeholder="Subject line — e.g. Your booking at {{room_name}} is confirmed!"
+          />
           <VariablePicker onSelect={insertVariableInSubject} />
         </div>
-        <input
-          type="text"
-          value={subject}
-          onChange={(e) => setSubject(e.target.value)}
-          className={inputClass}
-          placeholder="Your booking at {{room_name}} is confirmed!"
-        />
-      </div>
 
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={isActive}
-          onClick={() => setIsActive((v) => !v)}
-          className={[
-            'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none',
-            isActive ? 'bg-primary' : 'bg-surface-high',
-          ].join(' ')}
-        >
-          <span
+        {/* Active toggle */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={isActive}
+            onClick={() => setIsActive((v) => !v)}
             className={[
-              'inline-block h-4 w-4 transform rounded-full bg-background transition-transform',
-              isActive ? 'translate-x-6' : 'translate-x-1',
+              'relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none flex-shrink-0',
+              isActive ? 'bg-teal-400' : 'bg-slate-200',
             ].join(' ')}
-          />
-        </button>
-        <span className="text-sm text-on-surface-variant">
-          {isActive ? 'Active' : 'Inactive'}
-        </span>
-      </div>
-
-      {template && !template.design && (
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-sm text-amber-400">
-          This template hasn't been edited in the visual editor yet. Build your design below and save — it will load automatically on future visits.
+          >
+            <span
+              className={[
+                'inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform',
+                isActive ? 'translate-x-5' : 'translate-x-0.5',
+              ].join(' ')}
+            />
+          </button>
+          <span className="text-xs text-slate-500 whitespace-nowrap">
+            {isActive ? 'Active' : 'Inactive'}
+          </span>
         </div>
-      )}
 
-      <div>
-        <label className={labelClass}>Email Body</label>
-        <p className="text-xs text-on-surface-variant mb-2">
-          Use the Merge Tags button inside the editor to insert dynamic variables like{' '}
-          <code className="text-primary">{'{{guest_first_name}}'}</code>.
-        </p>
-        <div className="rounded-xl overflow-hidden border border-white/10">
-          <EmailEditor
-            ref={emailEditorRef}
-            onReady={onReady}
-            minHeight={620}
-            options={{
-              mergeTags: buildMergeTags(),
-              appearance: {
-                theme: 'modern_light',
-              },
-              features: {
-                textEditor: { spellChecker: true },
-              },
-            }}
-          />
-        </div>
-        {!editorReady && (
-          <p className="text-xs text-on-surface-variant mt-2">Loading editor…</p>
-        )}
-      </div>
+        {/* Error */}
+        {error && <span className="text-xs text-red-500">{error}</span>}
 
-      {error && <p className="text-sm text-red-400">{error}</p>}
+        {/* Spacer */}
+        <div className="flex-1" />
 
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={saving}
-          className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-background disabled:opacity-60"
-        >
-          {saving ? 'Saving…' : isNew ? 'Create Template' : 'Save Template'}
-        </button>
+        {/* Buttons */}
         <button
           type="button"
           onClick={() => { router.push('/admin/email/templates'); router.refresh() }}
-          className="rounded-xl bg-surface-high px-6 py-2.5 text-sm font-semibold text-on-surface"
+          className="px-4 py-2 rounded-lg border border-slate-200 bg-white text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
         >
           Cancel
         </button>
+        <button
+          type="button"
+          onClick={handleSave}
+          disabled={saving || !editorReady}
+          className="px-4 py-2 rounded-lg bg-teal-400 hover:bg-teal-500 text-slate-900 text-sm font-bold transition-colors disabled:opacity-60"
+        >
+          {saving ? 'Saving…' : isNew ? 'Create Template' : 'Save Template'}
+        </button>
+      </div>
+
+      {/* ── Unlayer editor fills the rest ── */}
+      {template && !template.design && (
+        <div className="flex-shrink-0 bg-amber-50 border-b border-amber-200 px-6 py-2 text-xs text-amber-700">
+          This template hasn&apos;t been edited in the visual editor yet. Build your design below and save.
+        </div>
+      )}
+      {!editorReady && (
+        <div className="flex-shrink-0 bg-slate-50 border-b border-slate-100 px-6 py-2 text-xs text-slate-400">
+          Loading editor…
+        </div>
+      )}
+      <div className="flex-1 min-h-0">
+        <EmailEditor
+          ref={emailEditorRef}
+          onReady={onReady}
+          minHeight="100%"
+          options={{
+            mergeTags: buildMergeTags(),
+            appearance: { theme: 'modern_light' },
+            features: { textEditor: { spellChecker: true } },
+          }}
+        />
       </div>
     </div>
   )

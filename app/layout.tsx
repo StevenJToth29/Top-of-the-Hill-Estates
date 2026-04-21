@@ -5,6 +5,7 @@ import { createServiceRoleClient } from '@/lib/supabase'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
 import Script from 'next/script'
+import { PostHogProvider } from '@/components/PostHogProvider'
 import './globals.css'
 
 const manrope = Manrope({
@@ -109,9 +110,11 @@ export default function RootLayout({
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        {children}
-        <Analytics />
-        <SpeedInsights />
+        <PostHogProvider>
+          {children}
+          <Analytics />
+          <SpeedInsights />
+        </PostHogProvider>
         <Script
           src="https://www.googletagmanager.com/gtag/js?id=G-TT32W08P1P"
           strategy="afterInteractive"

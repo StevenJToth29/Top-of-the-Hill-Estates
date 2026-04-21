@@ -68,7 +68,7 @@ export default function RoomCard({ room }: Props) {
           <div>
             {(room.show_nightly_rate ?? true) && (
               <p className="text-on-surface font-bold text-lg">
-                ${room.nightly_rate.toFixed(0)}
+                Variable rate
                 <span className="text-on-surface-variant font-normal text-sm"> / night</span>
               </p>
             )}

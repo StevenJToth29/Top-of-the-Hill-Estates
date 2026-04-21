@@ -110,6 +110,13 @@ export default function CheckoutPageInner({
   return (
     <main className="min-h-screen bg-background py-12 px-4">
       <div className="max-w-5xl mx-auto">
+        <a
+          href={bookingParams.room_slug ? `/rooms/${bookingParams.room_slug}` : '/rooms'}
+          className="inline-flex items-center gap-2 text-sm text-on-surface-variant hover:text-on-surface transition-colors mb-6"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+          Back to room
+        </a>
         <h1 className="font-display text-3xl font-bold text-on-surface mb-8">
           Complete Your Booking
         </h1>

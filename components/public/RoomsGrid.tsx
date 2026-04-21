@@ -5,23 +5,50 @@ import type { Property, Room } from '@/types'
 
 export type RoomWithProperty = Room & { property: Property }
 
+export interface RoomRateInfo {
+  nightlySubtotal: number
+  total: number
+  nights: number
+}
+
 interface SearchContext {
   checkin?: string
   checkout?: string
   guests?: string
 }
 
-export default function RoomsGrid({ rooms, searchContext }: { rooms: RoomWithProperty[]; searchContext?: SearchContext }) {
+export default function RoomsGrid({
+  rooms,
+  searchContext,
+  roomRates = {},
+}: {
+  rooms: RoomWithProperty[]
+  searchContext?: SearchContext
+  roomRates?: Record<string, RoomRateInfo>
+}) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {rooms.map((room) => (
-        <InlineRoomCard key={room.id} room={room} searchContext={searchContext} />
+        <InlineRoomCard
+          key={room.id}
+          room={room}
+          searchContext={searchContext}
+          rateInfo={roomRates[room.id]}
+        />
       ))}
     </div>
   )
 }
 
-function InlineRoomCard({ room, searchContext }: { room: RoomWithProperty; searchContext?: SearchContext }) {
+function InlineRoomCard({
+  room,
+  searchContext,
+  rateInfo,
+}: {
+  room: RoomWithProperty
+  searchContext?: SearchContext
+  rateInfo?: RoomRateInfo
+}) {
   const primaryImage = room.images?.[0] ?? null
 
   const bookHref = (() => {
@@ -69,12 +96,26 @@ function InlineRoomCard({ room, searchContext }: { room: RoomWithProperty; searc
 
         <div className="flex items-baseline gap-3 mt-auto pt-2">
           {room.nightly_rate > 0 && (
-            <span className="font-body font-bold text-primary">
-              ${room.nightly_rate.toLocaleString()}
-              <span className="text-xs font-normal text-on-surface-variant ml-0.5">
-                /night
+            rateInfo ? (
+              <div className="flex flex-col">
+                <span className="font-body font-bold text-primary">
+                  ${rateInfo.total.toLocaleString()}
+                  <span className="text-xs font-normal text-on-surface-variant ml-0.5">
+                    total
+                  </span>
+                </span>
+                <span className="text-xs text-on-surface-variant">
+                  {rateInfo.nights} night{rateInfo.nights !== 1 ? 's' : ''}{' · '}incl. fees
+                </span>
+              </div>
+            ) : (
+              <span className="font-body font-bold text-primary">
+                Variable rate
+                <span className="text-xs font-normal text-on-surface-variant ml-0.5">
+                  /night
+                </span>
               </span>
-            </span>
+            )
           )}
           {room.monthly_rate > 0 && (
             <span className="font-body text-sm text-on-surface-variant">

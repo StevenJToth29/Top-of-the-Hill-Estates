@@ -27,7 +27,13 @@ export async function POST(request: Request) {
   if (!label) return NextResponse.json({ error: 'label is required' }, { status: 400 })
 
   try {
-    const stripeAccount = await stripe.accounts.create({ type: 'express' })
+    const stripeAccount = await stripe.accounts.create({
+      type: 'express',
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+    })
 
     const supabase = createServiceRoleClient()
     const { data, error } = await supabase

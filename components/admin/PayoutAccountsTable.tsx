@@ -2,7 +2,13 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import type { StripeAccount } from '@/types'
+
+const StripeConnectPanel = dynamic(
+  () => import('@/components/admin/StripeConnectPanel'),
+  { ssr: false },
+)
 
 interface PayoutAccountsTableProps {
   accounts: StripeAccount[]
@@ -12,6 +18,14 @@ const inputClass =
   'w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-1 focus:ring-secondary/50'
 const labelClass = 'block text-sm font-medium text-on-surface-variant mb-1.5'
 
+const PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? ''
+
+async function safeJson(res: Response): Promise<Record<string, unknown>> {
+  const text = await res.text()
+  if (!text) return {}
+  try { return JSON.parse(text) } catch { return {} }
+}
+
 export default function PayoutAccountsTable({ accounts: initial }: PayoutAccountsTableProps) {
   const router = useRouter()
   const [accounts, setAccounts] = useState<StripeAccount[]>(initial)
@@ -20,6 +34,7 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
   const [label, setLabel] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
+  const [onboardingAccount, setOnboardingAccount] = useState<StripeAccount | null>(null)
 
   function openAdd() {
     setEditingId(null)
@@ -56,15 +71,17 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ label }),
         })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error ?? 'Save failed')
+        const data = await safeJson(res)
+        if (!res.ok) throw new Error((data.error as string) ?? 'Save failed')
 
         if (editingId) {
-          setAccounts((prev) => prev.map((a) => (a.id === editingId ? data : a)))
+          setAccounts((prev) => prev.map((a) => (a.id === editingId ? (data as unknown as StripeAccount) : a)))
           cancelForm()
         } else {
+          const newAccount = data as unknown as StripeAccount
+          setAccounts((prev) => [...prev, newAccount])
           cancelForm()
-          router.push(`/admin/payout-accounts/${data.id}`)
+          setOnboardingAccount(newAccount)
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Save failed')
@@ -77,8 +94,8 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
     startTransition(async () => {
       try {
         const res = await fetch(`/api/admin/payout-accounts/${account.id}`, { method: 'DELETE' })
-        const data = await res.json()
-        if (!res.ok) throw new Error(data.error ?? 'Delete failed')
+        const data = await safeJson(res)
+        if (!res.ok) throw new Error((data.error as string) ?? 'Delete failed')
         setAccounts((prev) => prev.filter((a) => a.id !== account.id))
       } catch (err) {
         alert(err instanceof Error ? err.message : 'Delete failed')
@@ -115,7 +132,7 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
           </div>
           {!editingId && (
             <p className="text-xs text-on-surface-variant/60">
-              A new Stripe connected account will be created automatically. You'll be taken to the onboarding page next.
+              A new Stripe connected account will be created. You&apos;ll complete onboarding below.
             </p>
           )}
           {error && (
@@ -147,11 +164,38 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
         </div>
       )}
 
-      {accounts.length === 0 ? (
+      {onboardingAccount && (
+        <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl overflow-hidden">
+          <div className="px-6 py-4 bg-surface-container/60 flex items-center justify-between">
+            <div>
+              <p className="font-display font-semibold text-on-surface">{onboardingAccount.label}</p>
+              <p className="text-xs text-on-surface-variant/70 font-mono mt-0.5">{onboardingAccount.stripe_account_id}</p>
+            </div>
+            <button
+              onClick={() => {
+                setOnboardingAccount(null)
+                router.push(`/admin/payout-accounts/${onboardingAccount.id}`)
+              }}
+              className="text-xs text-on-surface-variant hover:text-on-surface transition-colors"
+            >
+              Skip for now
+            </button>
+          </div>
+          <div className="p-6">
+            <StripeConnectPanel
+              dbAccountId={onboardingAccount.id}
+              detailsSubmitted={false}
+              publishableKey={PUBLISHABLE_KEY}
+            />
+          </div>
+        </div>
+      )}
+
+      {accounts.length === 0 && !onboardingAccount ? (
         <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-8 text-center text-on-surface-variant">
           No payout accounts yet. Add one to start routing property payments.
         </div>
-      ) : (
+      ) : accounts.length > 0 && !onboardingAccount ? (
         <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -197,7 +241,7 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
             </tbody>
           </table>
         </div>
-      )}
+      ) : null}
     </div>
   )
 }

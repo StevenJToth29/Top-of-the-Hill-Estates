@@ -6,6 +6,26 @@ import { syncToGHL } from '@/lib/ghl'
 import { evaluateAndQueueEmails } from '@/lib/email-queue'
 import type { Booking, BookingType, PaymentMethodConfig } from '@/types'
 
+function computeNightlySubtotal(
+  checkIn: string,
+  checkOut: string,
+  baseRate: number,
+  overrideMap: Record<string, number>,
+): number {
+  const [ciY, ciM, ciD] = checkIn.split('-').map(Number)
+  const [coY, coM, coD] = checkOut.split('-').map(Number)
+  const start = new Date(Date.UTC(ciY, ciM - 1, ciD))
+  const end = new Date(Date.UTC(coY, coM - 1, coD))
+  let total = 0
+  const cur = new Date(start)
+  while (cur < end) {
+    const dateStr = cur.toISOString().slice(0, 10)
+    total += overrideMap[dateStr] ?? baseRate
+    cur.setUTCDate(cur.getUTCDate() + 1)
+  }
+  return total
+}
+
 interface CreateBookingBody {
   room_id: string
   booking_type: BookingType
@@ -106,14 +126,31 @@ export async function POST(request: Request) {
     const extra_guest_fee = room.extra_guest_fee ?? 0
     const extraGuests = Math.max(0, safeGuestCount - 1)
 
+    // Fetch per-night price overrides for short-term bookings
+    let overrideMap: Record<string, number> = {}
+    if (booking_type === 'short_term') {
+      const { data: overrides } = await supabase
+        .from('date_overrides')
+        .select('date, price_override')
+        .eq('room_id', room_id)
+        .gte('date', check_in)
+        .lt('date', check_out)
+        .not('price_override', 'is', null)
+
+      for (const o of overrides ?? []) {
+        if (o.price_override != null) overrideMap[o.date] = Number(o.price_override)
+      }
+    }
+
     let total_amount: number
     let snapshotCleaningFee: number
     let snapshotSecurityDeposit: number
     let snapshotExtraGuestFee: number
 
     if (booking_type === 'short_term') {
+      const nightlySubtotal = computeNightlySubtotal(check_in, check_out, nightly_rate, overrideMap)
       const extra_guest_total = extraGuests * extra_guest_fee * safeTotalNights
-      total_amount = safeTotalNights * nightly_rate + cleaning_fee + extra_guest_total + genericFeesTotal
+      total_amount = nightlySubtotal + cleaning_fee + extra_guest_total + genericFeesTotal
       snapshotCleaningFee = cleaning_fee
       snapshotSecurityDeposit = 0
       snapshotExtraGuestFee = extra_guest_total

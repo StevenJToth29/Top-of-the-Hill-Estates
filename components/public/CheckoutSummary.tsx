@@ -41,6 +41,13 @@ export default function CheckoutSummary({ params, roomName, propertyName, checki
     (f) => f.booking_type === params.booking_type || f.booking_type === 'both'
   )
 
+  // Derive the actual nightly subtotal from total_amount rather than recalculating
+  // from nightly_rate, so per-night price overrides are reflected correctly.
+  const extraGuestTotal = extraGuests * params.extra_guest_fee * params.total_nights
+  const genericFeesTotal = applicableFees.reduce((sum, f) => sum + f.amount, 0)
+  const nightlySubtotal = params.total_amount - params.cleaning_fee - extraGuestTotal - genericFeesTotal
+  const hasUniformRate = Math.abs(nightlySubtotal - params.total_nights * params.nightly_rate) < 0.01
+
   return (
     <div className="bg-surface-container rounded-2xl p-6 space-y-6">
       <div>
@@ -116,11 +123,11 @@ export default function CheckoutSummary({ params, roomName, propertyName, checki
           <>
             <div className="flex justify-between text-sm">
               <span className="text-on-surface-variant">
-                {params.total_nights} night{params.total_nights !== 1 ? 's' : ''} ×{' '}
-                {formatCurrency(params.nightly_rate)}/night
+                {params.total_nights} night{params.total_nights !== 1 ? 's' : ''}
+                {hasUniformRate && <> × {formatCurrency(params.nightly_rate)}/night</>}
               </span>
               <span className="text-on-surface">
-                {formatCurrency(params.total_nights * params.nightly_rate)}
+                {formatCurrency(nightlySubtotal)}
               </span>
             </div>
             {params.cleaning_fee > 0 && (

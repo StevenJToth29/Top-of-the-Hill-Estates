@@ -1,25 +1,27 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { PencilSquareIcon, PlusIcon } from '@heroicons/react/24/outline'
+import { PlusIcon } from '@heroicons/react/24/outline'
 import { createServiceRoleClient } from '@/lib/supabase'
-import type { Room, Property } from '@/types'
-import RoomStatusToggle from './RoomStatusToggle'
+import type { Room, Property, ICalSource } from '@/types'
+import SyncAllButton from '@/components/admin/SyncAllButton'
+import RoomCardWithIcal from './RoomCardWithIcal'
 
-type RoomWithProperty = Room & { property: Property }
+type RoomWithIcal = Room & { property: Property; ical_sources: ICalSource[] }
 
 export default async function AdminRoomsPage() {
   const supabase = createServiceRoleClient()
   const [{ data: rooms }, { count: propertyCount }] = await Promise.all([
-    supabase.from('rooms').select('*, property:properties(*)').order('name'),
+    supabase.from('rooms').select('*, property:properties(*), ical_sources(*)').order('name'),
     supabase.from('properties').select('id', { count: 'exact', head: true }),
   ])
 
-  const typedRooms = (rooms ?? []) as RoomWithProperty[]
+  const typedRooms = (rooms ?? []) as RoomWithIcal[]
   const hasProperties = (propertyCount ?? 0) > 0
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? ''
 
   // Group by property
-  const grouped = typedRooms.reduce<Record<string, { property: Property; rooms: RoomWithProperty[] }>>(
+  const grouped = typedRooms.reduce<Record<string, { property: Property; rooms: RoomWithIcal[] }>>(
     (acc, room) => {
       const propId = room.property_id
       if (!acc[propId]) {
@@ -40,23 +42,26 @@ export default async function AdminRoomsPage() {
             <h1 className="font-display text-3xl font-bold text-on-surface">Rooms</h1>
             <p className="text-on-surface-variant mt-1">{typedRooms.length} rooms across {Object.keys(grouped).length} properties</p>
           </div>
-          {hasProperties ? (
-            <Link
-              href="/admin/rooms/new"
-              className="flex items-center gap-2 bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-5 py-2.5 hover:opacity-90 transition-opacity"
-            >
-              <PlusIcon className="w-4 h-4" />
-              Add New Room
-            </Link>
-          ) : (
-            <span
-              title="Create a property first before adding rooms."
-              className="flex items-center gap-2 bg-surface-container text-on-surface-variant font-semibold rounded-2xl px-5 py-2.5 cursor-not-allowed opacity-50 select-none"
-            >
-              <PlusIcon className="w-4 h-4" />
-              Add New Room
-            </span>
-          )}
+          <div className="flex items-center gap-3">
+            <SyncAllButton />
+            {hasProperties ? (
+              <Link
+                href="/admin/rooms/new"
+                className="flex items-center gap-2 bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-5 py-2.5 hover:opacity-90 transition-opacity"
+              >
+                <PlusIcon className="w-4 h-4" />
+                Add New Room
+              </Link>
+            ) : (
+              <span
+                title="Create a property first before adding rooms."
+                className="flex items-center gap-2 bg-surface-container text-on-surface-variant font-semibold rounded-2xl px-5 py-2.5 cursor-not-allowed opacity-50 select-none"
+              >
+                <PlusIcon className="w-4 h-4" />
+                Add New Room
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Properties + rooms */}
@@ -91,37 +96,7 @@ export default async function AdminRoomsPage() {
               {/* Room rows */}
               <div className="divide-y divide-outline-variant">
                 {propRooms.map((room) => (
-                  <div key={room.id} className="flex items-center gap-4 px-6 py-4">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-on-surface truncate">{room.name}</p>
-                      <p className="text-sm text-on-surface-variant/60 mt-0.5">
-                        ${room.nightly_rate}/night · ${room.monthly_rate}/mo ·{' '}
-                        {room.bedrooms}bd / {room.bathrooms}ba
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-3 shrink-0">
-                      <span
-                        className={`text-xs rounded-full px-2.5 py-1 font-medium ${
-                          room.is_active
-                            ? 'bg-secondary/10 text-secondary'
-                            : 'bg-error-container/30 text-error'
-                        }`}
-                      >
-                        {room.is_active ? 'Active' : 'Inactive'}
-                      </span>
-
-                      <RoomStatusToggle roomId={room.id} isActive={room.is_active} />
-
-                      <Link
-                        href={`/admin/rooms/${room.id}/edit`}
-                        className="flex items-center gap-1.5 text-sm bg-surface-container rounded-xl px-3 py-1.5 text-on-surface-variant hover:bg-surface-high transition-colors"
-                      >
-                        <PencilSquareIcon className="w-4 h-4" />
-                        Edit
-                      </Link>
-                    </div>
-                  </div>
+                  <RoomCardWithIcal key={room.id} room={room} siteUrl={siteUrl} />
                 ))}
               </div>
             </div>

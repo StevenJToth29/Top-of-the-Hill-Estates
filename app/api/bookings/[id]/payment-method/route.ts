@@ -2,6 +2,21 @@ import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
 
+type BookingRow = {
+  id: string
+  booking_type: string
+  total_amount: number
+  processing_fee: number | null
+  status: string
+  stripe_payment_intent_id: string | null
+  room: {
+    property: {
+      platform_fee_percent: number
+      stripe_account: { stripe_account_id: string } | null
+    } | null
+  } | null
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } },
@@ -18,7 +33,10 @@ export async function PATCH(
 
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select('id, booking_type, total_amount, processing_fee, status, stripe_payment_intent_id')
+      .select(`
+        id, booking_type, total_amount, processing_fee, status, stripe_payment_intent_id,
+        room:rooms(property:properties(platform_fee_percent, stripe_account:stripe_accounts(stripe_account_id)))
+      `)
       .eq('id', params.id)
       .single()
 
@@ -26,18 +44,20 @@ export async function PATCH(
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
     }
 
-    if (booking.status !== 'pending') {
+    const typedBooking = booking as unknown as BookingRow
+
+    if (typedBooking.status !== 'pending') {
       return NextResponse.json({ error: 'Booking is not in pending status' }, { status: 400 })
     }
 
-    if (!booking.stripe_payment_intent_id) {
+    if (!typedBooking.stripe_payment_intent_id) {
       return NextResponse.json({ error: 'Booking payment session not found' }, { status: 409 })
     }
 
     const { data: methodConfig, error: configError } = await supabase
       .from('payment_method_configs')
       .select('fee_percent, fee_flat, is_enabled')
-      .eq('booking_type', booking.booking_type)
+      .eq('booking_type', typedBooking.booking_type)
       .eq('method_key', method_key)
       .single()
 
@@ -51,23 +71,20 @@ export async function PATCH(
 
     // Derive base amount so repeated PATCH calls (method changes) stay correct.
     // Round to 2 decimal places to avoid floating-point drift (e.g. 514.80 - 14.80).
-    const base_amount = Math.round((Number(booking.total_amount) - Number(booking.processing_fee ?? 0)) * 100) / 100
+    const base_amount = Math.round((Number(typedBooking.total_amount) - Number(typedBooking.processing_fee ?? 0)) * 100) / 100
     const processing_fee = Math.round(
       (base_amount * (Number(methodConfig.fee_percent) / 100) + Number(methodConfig.fee_flat)) * 100
     ) / 100
     const grand_total = Math.round((base_amount + processing_fee) * 100) / 100
 
-    // Compute updated application_fee_amount so the processing fee stays on the platform
-    // and only the base amount is transferred to the connected account.
-    // Delta approach: subtract old processing fee, add new one — works on first call and method switches.
-    const currentPI = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id)
-    const currentAppFee = currentPI.application_fee_amount ?? null
-    const oldProcessingFeeCents = Math.round(Number(booking.processing_fee ?? 0) * 100)
-    const newProcessingFeeCents = Math.round(processing_fee * 100)
-    const newAppFeeCents =
-      currentAppFee !== null
-        ? currentAppFee - oldProcessingFeeCents + newProcessingFeeCents
-        : null
+    // application_fee_amount = (base × platform_fee_percent) + full processing_fee
+    // This keeps the entire customer-facing processing fee on the platform account,
+    // so the connected account always receives exactly base × (1 - platform_fee_percent).
+    const connectedAccountId = typedBooking.room?.property?.stripe_account?.stripe_account_id
+    const platformFeePercent = Number(typedBooking.room?.property?.platform_fee_percent ?? 0)
+    const newAppFeeCents = connectedAccountId
+      ? Math.round(base_amount * 100 * (platformFeePercent / 100)) + Math.round(processing_fee * 100)
+      : null
 
     // DB first: if this fails, Stripe is untouched and the call is safely retryable.
     const { error: updateError } = await supabase
@@ -80,7 +97,7 @@ export async function PATCH(
     }
 
     try {
-      await stripe.paymentIntents.update(booking.stripe_payment_intent_id, {
+      await stripe.paymentIntents.update(typedBooking.stripe_payment_intent_id, {
         amount: Math.round(grand_total * 100),
         ...(newAppFeeCents !== null && { application_fee_amount: newAppFeeCents }),
       })
@@ -88,7 +105,7 @@ export async function PATCH(
       // Roll back the DB update so the booking stays consistent with Stripe.
       await supabase
         .from('bookings')
-        .update({ processing_fee: booking.processing_fee, total_amount: booking.total_amount })
+        .update({ processing_fee: typedBooking.processing_fee, total_amount: typedBooking.total_amount })
         .eq('id', params.id)
       throw stripeErr
     }

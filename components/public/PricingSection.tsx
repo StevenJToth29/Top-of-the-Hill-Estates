@@ -25,8 +25,8 @@ export default function PricingSection({
           <div className="bg-surface-container rounded-xl p-4 space-y-1">
             <p className="text-xs text-on-surface-variant">Short-term</p>
             <p className="font-display text-2xl font-bold text-on-surface">
-              ${nightlyRate.toLocaleString()}
-              <span className="text-sm font-normal text-on-surface-variant">/night</span>
+              Variable rate
+              <span className="text-sm font-normal text-on-surface-variant"> /night</span>
             </p>
             <p className="text-xs text-on-surface-variant">
               Min. {minNightsShortTerm} night{minNightsShortTerm !== 1 ? 's' : ''}

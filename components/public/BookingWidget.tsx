@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { format, differenceInDays, parseISO, addDays } from 'date-fns'
 import type { Room, BookingType, RoomFee, CancellationPolicy } from '@/types'
@@ -10,6 +10,7 @@ import CancellationPolicyDisplay from './CancellationPolicyDisplay'
 interface Props {
   room: Room
   blockedDates: string[]
+  dateOverrides?: Record<string, number>
   initialCheckin?: string
   initialCheckout?: string
   initialGuests?: number
@@ -36,7 +37,7 @@ const pillBase =
 const pillActive = 'bg-secondary/20 text-secondary border border-secondary/50'
 const pillInactive = 'bg-surface-container text-on-surface-variant hover:text-on-surface'
 
-export default function BookingWidget({ room, blockedDates, initialCheckin, initialCheckout, initialGuests, stripeFeePercent = 2.9, stripeFeeFlat = 0.30, cancellationPolicy }: Props) {
+export default function BookingWidget({ room, blockedDates, dateOverrides = {}, initialCheckin, initialCheckout, initialGuests, stripeFeePercent = 2.9, stripeFeeFlat = 0.30, cancellationPolicy }: Props) {
   const router = useRouter()
   const blockedSet = useMemo(() => new Set(blockedDates), [blockedDates])
 
@@ -56,6 +57,15 @@ export default function BookingWidget({ room, blockedDates, initialCheckin, init
 
   const today = useMemo(() => formatDate(new Date()), [])
 
+  // Keep URL in sync with selected dates so the back button can restore them
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (checkIn) params.set('checkin', checkIn); else params.delete('checkin')
+    if (checkOut) params.set('checkout', checkOut); else params.delete('checkout')
+    params.set('guests', String(guests))
+    window.history.replaceState(null, '', `?${params.toString()}`)
+  }, [checkIn, checkOut, guests])
+
   const roomFees: RoomFee[] = useMemo(() => room.fees ?? [], [room.fees])
   const cleaningFee = room.cleaning_fee ?? 0
   const securityDeposit = room.security_deposit ?? 0
@@ -69,7 +79,23 @@ export default function BookingWidget({ room, blockedDates, initialCheckin, init
   }, [checkIn, blockedDates])
 
   const nights = checkIn && checkOut ? differenceInDays(parseISO(checkOut), parseISO(checkIn)) : 0
-  const subtotal = nights * room.nightly_rate
+
+  const subtotal = useMemo(() => {
+    if (nights <= 0 || !checkIn || !checkOut) return 0
+    const [ciY, ciM, ciD] = checkIn.split('-').map(Number)
+    const start = new Date(Date.UTC(ciY, ciM - 1, ciD))
+    let total = 0
+    for (let i = 0; i < nights; i++) {
+      const d = new Date(start)
+      d.setUTCDate(d.getUTCDate() + i)
+      const dateStr = d.toISOString().slice(0, 10)
+      total += dateOverrides[dateStr] ?? room.nightly_rate
+    }
+    return total
+  }, [nights, checkIn, checkOut, dateOverrides, room.nightly_rate])
+
+  const hasRateVariation = nights > 0 && subtotal !== nights * room.nightly_rate
+
   const extraGuests = Math.max(0, guests - 1)
 
   // Short-term fee totals
@@ -257,7 +283,8 @@ export default function BookingWidget({ room, blockedDates, initialCheckin, init
             <div className="bg-surface-container rounded-xl p-4 space-y-2 text-sm">
               <div className="flex justify-between text-on-surface-variant">
                 <span>
-                  {nights} night{nights !== 1 ? 's' : ''} × ${room.nightly_rate.toLocaleString()}
+                  {nights} night{nights !== 1 ? 's' : ''}
+                  {!hasRateVariation && ` × $${room.nightly_rate.toLocaleString()}`}
                 </span>
                 <span>${subtotal.toLocaleString()}</span>
               </div>

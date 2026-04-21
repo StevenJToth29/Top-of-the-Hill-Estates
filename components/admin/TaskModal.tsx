@@ -10,7 +10,7 @@ const RECURRENCE_OPTIONS = [
   { label: 'Daily', value: 'FREQ=DAILY' },
   { label: 'Weekly', value: 'FREQ=WEEKLY' },
   { label: 'Monthly', value: 'FREQ=MONTHLY' },
-  { label: 'Custom (RRULE)', value: 'custom' },
+  { label: 'Custom Rule', value: 'custom' },
 ]
 
 interface TaskModalProps {

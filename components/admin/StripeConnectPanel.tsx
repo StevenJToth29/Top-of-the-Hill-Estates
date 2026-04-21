@@ -29,7 +29,8 @@ export default function StripeConnectPanel({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ account_id: dbAccountId }),
     })
-    const data = await res.json()
+    const text = await res.text()
+    const data = text ? JSON.parse(text) : {}
     if (!res.ok) throw new Error(data.error ?? 'Failed to create session')
     return data.client_secret as string
   }, [dbAccountId])
@@ -49,6 +50,7 @@ export default function StripeConnectPanel({
         <ConnectAccountManagement />
       ) : (
         <ConnectAccountOnboarding
+          collectionOptions={{ fields: 'eventually_due' }}
           onExit={() => {
             setOnboardingDone(true)
             router.refresh()

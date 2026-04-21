@@ -4,6 +4,26 @@ import { isRoomAvailable } from '@/lib/availability'
 import { OPEN_ENDED_DATE } from '@/lib/format'
 import type { BookingType } from '@/types'
 
+function computeNightlySubtotal(
+  checkIn: string,
+  checkOut: string,
+  baseRate: number,
+  overrideMap: Record<string, number>,
+): number {
+  const [ciY, ciM, ciD] = checkIn.split('-').map(Number)
+  const [coY, coM, coD] = checkOut.split('-').map(Number)
+  const start = new Date(Date.UTC(ciY, ciM - 1, ciD))
+  const end = new Date(Date.UTC(coY, coM - 1, coD))
+  let total = 0
+  const cur = new Date(start)
+  while (cur < end) {
+    const dateStr = cur.toISOString().slice(0, 10)
+    total += overrideMap[dateStr] ?? baseRate
+    cur.setUTCDate(cur.getUTCDate() + 1)
+  }
+  return total
+}
+
 export async function POST(request: Request) {
   const serverClient = await createServerSupabaseClient()
   const { data: { user }, error: authError } = await serverClient.auth.getUser()
@@ -81,14 +101,36 @@ export async function POST(request: Request) {
   const extra_guest_fee = room.extra_guest_fee ?? 0
   const extraGuests = Math.max(0, guestCount - 1)
 
+  // Fetch per-night price overrides for short-term bookings
+  let overrideMap: Record<string, number> = {}
+  if (bookingType === 'short_term' && checkOut !== OPEN_ENDED_DATE) {
+    const { data: overrides } = await supabase
+      .from('date_overrides')
+      .select('date, price_override')
+      .eq('room_id', body.room_id as string)
+      .gte('date', body.check_in as string)
+      .lt('date', checkOut)
+      .not('price_override', 'is', null)
+
+    for (const o of overrides ?? []) {
+      if (o.price_override != null) overrideMap[o.date] = Number(o.price_override)
+    }
+  }
+
   let total_amount: number
   let snapshotCleaningFee: number
   let snapshotSecurityDeposit: number
   let snapshotExtraGuestFee: number
 
   if (bookingType === 'short_term') {
+    const nightlySubtotal = computeNightlySubtotal(
+      body.check_in as string,
+      checkOut,
+      room.nightly_rate,
+      overrideMap,
+    )
     const extraGuestTotal = extraGuests * extra_guest_fee * totalNights
-    total_amount = totalNights * room.nightly_rate + cleaning_fee + extraGuestTotal
+    total_amount = nightlySubtotal + cleaning_fee + extraGuestTotal
     snapshotCleaningFee = cleaning_fee
     snapshotSecurityDeposit = 0
     snapshotExtraGuestFee = extraGuestTotal

@@ -12,14 +12,12 @@ jest.mock('@/lib/supabase', () => ({
 jest.mock('@/lib/stripe', () => ({
   stripe: {
     paymentIntents: {
-      retrieve: jest.fn(),
       update: jest.fn(),
     },
   },
 }))
 
 const mockCreateServiceClient = createServiceRoleClient as jest.Mock
-const mockStripeRetrieve = (stripe.paymentIntents.retrieve as jest.Mock)
 const mockStripeUpdate = (stripe.paymentIntents.update as jest.Mock)
 
 function makeRequest(body: Record<string, unknown>) {
@@ -78,7 +76,6 @@ function createDbMocks(opts: {
 }
 
 beforeEach(() => {
-  mockStripeRetrieve.mockResolvedValue({ application_fee_amount: null })
   mockStripeUpdate.mockResolvedValue({})
 })
 
@@ -193,6 +190,50 @@ describe('PATCH /api/bookings/[id]/payment-method – fee calculation', () => {
     expect(body.processing_fee).toBe(5)
     expect(body.grand_total).toBe(505)
     expect(mockStripeUpdate).toHaveBeenCalledWith('pi_test_123', { amount: 50500 })
+  })
+
+  test('sets application_fee_amount to (base × platform_fee_percent) + processing_fee when connected account exists', async () => {
+    // $450 base, 20% platform fee, card method (2.9% + $0.30)
+    // processing_fee = 450 * 2.9% + 0.30 = 13.05 + 0.30 = 13.35
+    // grand_total = 463.35
+    // application_fee_amount = round(450 * 0.20 * 100) + round(13.35 * 100) = 9000 + 1335 = 10335
+    // connected account receives: 46335 - 10335 = 36000 cents = $360 = base × 80%
+    const bookingWithProperty = {
+      ...defaultBooking,
+      total_amount: 450,
+      processing_fee: 0,
+      room: {
+        property: {
+          platform_fee_percent: 20,
+          stripe_account: { stripe_account_id: 'acct_test123' },
+        },
+      },
+    }
+    const db = createDbMocks({ booking: bookingWithProperty })
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    const res = await PATCH(makeRequest({ method_key: 'card' }), routeParams)
+
+    expect(res.status).toBe(200)
+    expect(mockStripeUpdate).toHaveBeenCalledWith('pi_test_123', {
+      amount: 46335,
+      application_fee_amount: 10335,
+    })
+  })
+
+  test('omits application_fee_amount when no connected account', async () => {
+    const bookingNoAccount = {
+      ...defaultBooking,
+      total_amount: 450,
+      processing_fee: 0,
+      room: { property: { platform_fee_percent: 20, stripe_account: null } },
+    }
+    const db = createDbMocks({ booking: bookingNoAccount })
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    await PATCH(makeRequest({ method_key: 'card' }), routeParams)
+
+    expect(mockStripeUpdate).toHaveBeenCalledWith('pi_test_123', { amount: 46335 })
   })
 
   test('updates booking processing_fee and total_amount', async () => {

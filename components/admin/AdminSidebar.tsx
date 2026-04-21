@@ -2,7 +2,6 @@
 
 import { createClient } from '@/lib/supabase-browser'
 import {
-  ArrowPathIcon,
   ArrowRightOnRectangleIcon,
   BanknotesIcon,
   Bars3Icon,
@@ -12,9 +11,16 @@ import {
   ChartBarIcon,
   Cog6ToothIcon,
   EnvelopeIcon,
-  HomeIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
+
+function BedIcon({ className }: { className?: string }) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.5V19h18v-5.5M3 13.5A2.5 2.5 0 015.5 11h13A2.5 2.5 0 0121 13.5M3 13.5V8a1 1 0 011-1h1.5M21 13.5V8a1 1 0 00-1-1h-1.5M5.5 7V5.5A1.5 1.5 0 017 4h3.5a1.5 1.5 0 011.5 1.5V7m0 0h-6m6 0h2m0 0V5.5A1.5 1.5 0 0113.5 4H17a1.5 1.5 0 011.5 1.5V7" />
+    </svg>
+  )
+}
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -22,10 +28,9 @@ import { useState } from 'react'
 export const NAV_ITEMS = [
   { label: 'Dashboard', href: '/admin', icon: ChartBarIcon },
   { label: 'Properties', href: '/admin/properties', icon: BuildingOfficeIcon },
-  { label: 'Rooms', href: '/admin/rooms', icon: HomeIcon },
+  { label: 'Rooms', href: '/admin/rooms', icon: BedIcon },
   { label: 'Bookings', href: '/admin/bookings', icon: CalendarIcon },
   { label: 'Calendar', href: '/admin/calendar', icon: CalendarDaysIcon },
-  { label: 'iCal Sync', href: '/admin/ical', icon: ArrowPathIcon },
   { label: 'Payout', href: '/admin/payout-accounts', icon: BanknotesIcon },
   { label: 'Email', href: '/admin/email/settings', icon: EnvelopeIcon },
   { label: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
