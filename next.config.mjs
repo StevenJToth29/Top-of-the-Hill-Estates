@@ -15,6 +15,12 @@ const nextConfig = {
       },
     ],
   },
+  webpack(config) {
+    // @vercel/flags-core dynamically imports this optional package at runtime;
+    // stub it so webpack doesn't fail trying to bundle a non-existent module.
+    config.resolve.alias['@vercel/flags-definitions'] = false
+    return config
+  },
 }
 
 export default nextConfig
