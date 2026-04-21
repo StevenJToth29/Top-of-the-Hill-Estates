@@ -200,6 +200,9 @@ export default function BookingConfirmation({
             ? 'Deposit is non-refundable. Please review your lease agreement for full cancellation terms.'
             : `Full refund if cancelled more than ${cancellationPolicy.full_refund_days} days before check-in. ${cancellationPolicy.partial_refund_percent}% refund if cancelled more than ${cancellationPolicy.partial_refund_hours} hours but within ${cancellationPolicy.full_refund_days} days. No refund within ${cancellationPolicy.partial_refund_hours} hours of check-in.`
           }
+          {' '}
+          <span className="font-semibold text-on-surface">Payment processing fees are never refundable</span>
+          {booking.processing_fee > 0 ? ` (${formatCurrency(booking.processing_fee)} on this booking).` : '.'}
         </p>
       </section>
 
@@ -235,6 +238,14 @@ export default function BookingConfirmation({
               : `Full refund if cancelled more than ${cancellationPolicy.full_refund_days} days before check-in. ${cancellationPolicy.partial_refund_percent}% refund if cancelled more than ${cancellationPolicy.partial_refund_hours} hours but within ${cancellationPolicy.full_refund_days} days. No refund within ${cancellationPolicy.partial_refund_hours} hours of check-in.`
             }
           </p>
+          {booking.processing_fee > 0 && (
+            <div className="flex items-start gap-2.5 rounded-xl bg-error/8 border border-error/20 px-4 py-3">
+              <span className="mt-0.5 text-error text-base leading-none">⚠</span>
+              <p className="text-sm text-on-surface-variant">
+                The <span className="font-semibold text-on-surface">{formatCurrency(booking.processing_fee)} processing fee</span> is <span className="font-semibold text-error">non-refundable</span> regardless of when you cancel.
+              </p>
+            </div>
+          )}
           {cancelError && <p className="text-error text-sm">{cancelError}</p>}
           {!cancelConfirm ? (
             <button

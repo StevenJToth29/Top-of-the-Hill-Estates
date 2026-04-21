@@ -13,13 +13,15 @@ function fmt$(n: number) {
 interface MonthData {
   label: string
   revenue: number
+  processingFees: number
+  net: number
   occupancyPercent: number
   isCurrent: boolean
 }
 
 function RevenueChart({ data }: { data: MonthData[] }) {
   const W = 480, H = 160, padL = 44, padB = 28, padT = 12, padR = 16
-  const maxRev = Math.max(...data.map(d => d.revenue), 1)
+  const maxNet = Math.max(...data.map(d => d.net), 1)
   const bw = (W - padL - padR) / data.length
   const barW = bw * 0.52
 
@@ -31,14 +33,14 @@ function RevenueChart({ data }: { data: MonthData[] }) {
           <g key={p}>
             <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="#F1F5F9" strokeWidth={1} />
             <text x={padL - 6} y={y + 4} fontSize={9} textAnchor="end" fill={MUTED}>
-              {fmt$(maxRev * p)}
+              {fmt$(maxNet * p)}
             </text>
           </g>
         )
       })}
       {data.map((d, i) => {
         const x = padL + i * bw + (bw - barW) / 2
-        const bh = maxRev > 0 ? (d.revenue / maxRev) * H : 0
+        const bh = maxNet > 0 ? (d.net / maxNet) * H : 0
         const y = padT + H - bh
         return (
           <g key={i}>
@@ -50,7 +52,7 @@ function RevenueChart({ data }: { data: MonthData[] }) {
               rx={4}
               fill={d.isCurrent ? TEAL : 'rgba(45,212,191,0.25)'}
             />
-            {d.isCurrent && d.revenue > 0 && (
+            {d.isCurrent && d.net > 0 && (
               <text
                 x={x + barW / 2}
                 y={y - 5}
@@ -59,7 +61,7 @@ function RevenueChart({ data }: { data: MonthData[] }) {
                 textAnchor="middle"
                 fill={TEAL_DARK}
               >
-                {fmt$(d.revenue)}
+                {fmt$(d.net)}
               </text>
             )}
             <text
@@ -165,6 +167,8 @@ function OccupancyChart({ data }: { data: MonthData[] }) {
 interface Props {
   monthlyData: MonthData[]
   currentRevenue: number
+  currentProcessingFees: number
+  currentNet: number
   revenueDelta: number
   currentOccupancy: number
   occupancyDelta: number
@@ -173,6 +177,8 @@ interface Props {
 export default function DashboardCharts({
   monthlyData,
   currentRevenue,
+  currentProcessingFees,
+  currentNet,
   revenueDelta,
   currentOccupancy,
   occupancyDelta,
@@ -190,18 +196,18 @@ export default function DashboardCharts({
         className="rounded-xl border bg-white p-5 shadow-sm"
         style={{ borderColor: '#E2E8F0' }}
       >
-        <div className="mb-4 flex items-baseline justify-between">
+        <div className="mb-4 flex items-start justify-between">
           <div>
             <p className="font-display text-[15px] font-[800]" style={{ color: TEXT }}>
               Revenue
             </p>
             <p className="mt-0.5 text-xs" style={{ color: MUTED }}>
-              Last 6 months
+              Last 6 months · net
             </p>
           </div>
           <div className="text-right">
             <p className="font-display text-xl font-[800]" style={{ color: TEAL_DARK }}>
-              {fmt$Long(currentRevenue)}
+              {fmt$Long(currentNet)}
             </p>
             <p
               className="mt-0.5 text-xs font-semibold"
@@ -209,6 +215,14 @@ export default function DashboardCharts({
             >
               {revenueDelta >= 0 ? '▲' : '▼'} {Math.abs(revenueDelta)}% vs last month
             </p>
+            <div className="mt-1.5 space-y-0.5 text-right">
+              <p className="text-[11px]" style={{ color: MUTED }}>
+                Gross <span style={{ color: TEXT, fontWeight: 600 }}>{fmt$Long(currentRevenue)}</span>
+              </p>
+              <p className="text-[11px]" style={{ color: MUTED }}>
+                Fees <span style={{ color: '#DC2626', fontWeight: 600 }}>−{fmt$Long(currentProcessingFees)}</span>
+              </p>
+            </div>
           </div>
         </div>
         <RevenueChart data={monthlyData} />

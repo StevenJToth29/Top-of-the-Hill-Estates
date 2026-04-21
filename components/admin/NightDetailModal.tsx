@@ -34,7 +34,7 @@ export function NightDetailModal({
     <ModalShell title={dateLabel} onClose={onClose}>
       {status === 'available' && (
         <AvailableState date={date} room={room} override={override}
-          onBook={onBook} onBlock={onBlock} onSaveRate={onSaveRate} />
+          onBook={onBook} onBlock={onBlock} onSaveRate={onSaveRate} onClose={onClose} />
       )}
       {status === 'booked' && booking && (
         <BookedState booking={booking}
@@ -52,9 +52,9 @@ export function NightDetailModal({
   )
 }
 
-function AvailableState({ date, room, override, onBook, onBlock, onSaveRate }: {
+function AvailableState({ date, room, override, onBook, onBlock, onSaveRate, onClose }: {
   date: string; room: Room; override?: DateOverride
-  onBook: () => void; onBlock: () => void
+  onBook: () => void; onBlock: () => void; onClose: () => void
   onSaveRate: (roomId: string, date: string, price: number, note: string) => Promise<void>
 }) {
   const currentPrice = override?.price_override ?? room.nightly_rate
@@ -73,9 +73,9 @@ function AvailableState({ date, room, override, onBook, onBlock, onSaveRate }: {
     setError(null)
     try {
       await onSaveRate(room.id, date, p, note)
+      onClose()
     } catch {
       setError('Failed to save rate')
-    } finally {
       setSaving(false)
     }
   }

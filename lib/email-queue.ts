@@ -59,6 +59,7 @@ export function buildBookingVariables(
     guest_email: booking.guest_email,
     guest_phone: booking.guest_phone,
     booking_id: booking.id,
+    booking_reference: booking.id.slice(0, 8).toUpperCase(),
     check_in_date: fmtDate(booking.check_in),
     check_out_date: fmtDate(booking.check_out),
     total_nights: String(booking.total_nights),

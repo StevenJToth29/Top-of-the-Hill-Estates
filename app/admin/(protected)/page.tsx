@@ -21,7 +21,7 @@ export const dynamic = 'force-dynamic'
 type RoomRow = { id: string; name: string; nightly_rate: number; property: { name: string } | null }
 type ConfirmedRow = {
   id: string; room_id: string; check_in: string; check_out: string
-  amount_paid: number; total_amount: number; created_at: string
+  amount_paid: number; total_amount: number; processing_fee: number | null; created_at: string
 }
 type PendingRow = { id: string; total_amount: number; amount_paid: number }
 type UpcomingRow = {
@@ -55,7 +55,7 @@ export default async function AdminDashboardPage() {
 
     supabase
       .from('bookings')
-      .select('id, room_id, check_in, check_out, amount_paid, total_amount, created_at')
+      .select('id, room_id, check_in, check_out, amount_paid, total_amount, processing_fee, created_at')
       .eq('status', 'confirmed')
       .gte('check_out', format(sevenMonthsAgo, 'yyyy-MM-dd'))
       .order('created_at', { ascending: false }),
@@ -121,9 +121,10 @@ export default async function AdminDashboardPage() {
     return Math.min(100, Math.round((bookedNights / capacity) * 100))
   }
 
-  const thisMonthRevenue = confirmed
-    .filter(b => b.created_at.startsWith(thisMonthKey))
-    .reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+  const thisMonthBookings = confirmed.filter(b => b.created_at.startsWith(thisMonthKey))
+  const thisMonthRevenue = thisMonthBookings.reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+  const thisMonthProcessingFees = thisMonthBookings.reduce((s, b) => s + (b.processing_fee ?? 0), 0)
+  const thisMonthNet = thisMonthRevenue - thisMonthProcessingFees
 
   const lastMonthRevenue = confirmed
     .filter(b => b.created_at.startsWith(lastMonthKey))
@@ -159,11 +160,12 @@ export default async function AdminDashboardPage() {
     const mStart = startOfMonth(d)
     const mEnd = endOfMonth(d)
     const mKey = format(mStart, 'yyyy-MM')
-    const revenue = confirmed
-      .filter(b => b.created_at.startsWith(mKey))
-      .reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+    const mBookings = confirmed.filter(b => b.created_at.startsWith(mKey))
+    const revenue = mBookings.reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+    const processingFees = mBookings.reduce((s, b) => s + (b.processing_fee ?? 0), 0)
+    const net = revenue - processingFees
     const occ = calcOccupancy(mStart, mEnd, getDaysInMonth(d))
-    return { label: format(d, 'MMM'), revenue, occupancyPercent: occ, isCurrent: mKey === thisMonthKey }
+    return { label: format(d, 'MMM'), revenue, processingFees, net, occupancyPercent: occ, isCurrent: mKey === thisMonthKey }
   })
 
   const mEnd = endOfMonth(now)
@@ -223,6 +225,8 @@ export default async function AdminDashboardPage() {
 
       <DashboardStats
         thisMonthRevenue={thisMonthRevenue}
+        thisMonthProcessingFees={thisMonthProcessingFees}
+        thisMonthNet={thisMonthNet}
         revenueDelta={revenueDelta}
         occupancyPercent={occupancyPercent}
         occupancyDelta={occupancyDelta}
@@ -235,6 +239,8 @@ export default async function AdminDashboardPage() {
       <DashboardCharts
         monthlyData={monthlyData}
         currentRevenue={thisMonthRevenue}
+        currentProcessingFees={thisMonthProcessingFees}
+        currentNet={thisMonthNet}
         revenueDelta={revenueDelta}
         currentOccupancy={occupancyPercent}
         occupancyDelta={occupancyDelta}

@@ -4,10 +4,26 @@ import { useState } from 'react'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import type { Booking, Room, Property, BookingModificationRequest, CancellationPolicy } from '@/types'
 import { calculateRefund, DEFAULT_POLICY } from '@/lib/cancellation'
-import { formatCurrency, formatDate, formatDateTime, STATUS_BADGE, OPEN_ENDED_DATE } from '@/lib/format'
-import clsx from 'clsx'
+import { formatCurrency, formatDate, formatDateTime, OPEN_ENDED_DATE } from '@/lib/format'
 import CancelBookingModal from './CancelBookingModal'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+
+const todayStr = new Date().toISOString().split('T')[0]
+
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  confirmed: { label: 'Confirmed', color: '#059669', bg: 'rgba(5,150,105,0.08)',  border: 'rgba(5,150,105,0.2)' },
+  pending:   { label: 'Pending',   color: '#D97706', bg: 'rgba(217,119,6,0.08)',  border: 'rgba(217,119,6,0.2)' },
+  cancelled: { label: 'Cancelled', color: '#DC2626', bg: 'rgba(220,38,38,0.07)',  border: 'rgba(220,38,38,0.18)' },
+  completed: { label: 'Completed', color: '#2563EB', bg: 'rgba(37,99,235,0.07)',  border: 'rgba(37,99,235,0.2)' },
+}
+
+const SOURCE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  direct:         { label: 'Direct',      color: '#1FB2A0', bg: 'rgba(45,212,191,0.08)' },
+  airbnb:         { label: 'Airbnb',      color: '#E61E4D', bg: 'rgba(230,30,77,0.07)' },
+  vrbo:           { label: 'VRBO',        color: '#1C6AB1', bg: 'rgba(28,106,177,0.08)' },
+  'booking.com':  { label: 'Booking.com', color: '#003580', bg: 'rgba(0,53,128,0.07)' },
+  other:          { label: 'Other',       color: '#64748B', bg: '#F1F5F9' },
+}
 
 type Props = {
   booking: Booking & { room: Room & { property: Property } }
@@ -15,12 +31,43 @@ type Props = {
   cancellationPolicy?: CancellationPolicy
 }
 
+function Row({
+  label,
+  val,
+  valStyle,
+}: {
+  label: string
+  val: React.ReactNode
+  valStyle?: React.CSSProperties
+}) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '9px 0', borderBottom: '1px solid #F8FAFC' }}>
+      <span style={{ fontSize: 12, color: '#94A3B8', flexShrink: 0, width: 110 }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: '#0F172A', textAlign: 'right', ...valStyle }}>{val}</span>
+    </div>
+  )
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ fontSize: 11, fontFamily: 'Manrope, sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94A3B8', marginTop: 8, marginBottom: 2 }}>
+      {children}
+    </div>
+  )
+}
+
 export default function BookingDetailPanel({ booking, modificationRequests = [], cancellationPolicy }: Props) {
   const [showCancelModal, setShowCancelModal] = useState(false)
-  const [reinstateLoading, setReinstateLoading] = useState(false)
-  const [reinstateConfirm, setReinstateConfirm] = useState(false)
-  const [reinstateError, setReinstateError] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState(false)
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
+
+  function handleClose() {
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete('id')
+    router.push(`${pathname}?${next.toString()}`)
+  }
 
   const isOpenEnded = booking.check_out === OPEN_ENDED_DATE
   const nights = isOpenEnded
@@ -35,185 +82,331 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
     router.refresh()
   }
 
-  async function handleReinstate() {
-    setReinstateLoading(true)
-    setReinstateError(null)
+  async function handleConfirm() {
+    setConfirming(true)
     try {
-      const res = await fetch(`/api/admin/bookings/${booking.id}/reinstate`, { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to reinstate booking')
-      setReinstateConfirm(false)
+      await fetch(`/api/admin/bookings/${booking.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'confirmed' }),
+      })
+      handleClose()
       router.refresh()
-    } catch (err) {
-      setReinstateError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
-      setReinstateLoading(false)
+      setConfirming(false)
     }
   }
 
   const room = booking.room
   const property = room?.property
 
+  const statusCfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.other
+  const sourceCfg = SOURCE_CONFIG[booking.source ?? 'direct'] ?? SOURCE_CONFIG.other
+
+  const guestInitials = [booking.guest_first_name?.[0], booking.guest_last_name?.[0]].filter(Boolean).join('').toUpperCase()
+
+  const totalPaid = booking.amount_paid ?? 0
+  const totalAmount = booking.total_amount ?? 0
+  const due = totalAmount - totalPaid
+  const paidPct = totalAmount > 0 ? Math.min(100, Math.round((totalPaid / totalAmount) * 100)) : 0
+  const fullyPaid = due <= 0
+
   return (
     <>
-      <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-6 space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="font-display text-lg font-bold text-on-surface">Booking Details</h2>
-          <div className="flex items-center gap-3">
-            <span
-              className={clsx(
-                'rounded-full px-3 py-1 text-xs font-semibold capitalize',
-                STATUS_BADGE[booking.status],
-              )}
+      {/* Backdrop */}
+      <div
+        onClick={handleClose}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          background: 'rgba(15,23,42,0.25)',
+          backdropFilter: 'blur(2px)',
+          zIndex: 99,
+        }}
+      />
+
+      {/* Panel */}
+      <div
+        style={{
+          position: 'fixed',
+          right: 0,
+          top: 0,
+          height: '100vh',
+          width: 400,
+          zIndex: 100,
+          background: '#FFFFFF',
+          boxShadow: '-8px 0 32px rgba(0,0,0,0.12)',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Inner scroll container */}
+        <div style={{ height: '100%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        {/* Sticky Header */}
+        <div
+          style={{
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            background: '#FFFFFF',
+            borderBottom: '1px solid #F1F5F9',
+            padding: '20px 20px 16px',
+          }}
+        >
+          {/* Top row: id + name left, close right */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+            <div>
+              <div style={{ fontSize: 11, fontFamily: 'Manrope, sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94A3B8', marginBottom: 4 }}>
+                #{booking.id.slice(0, 8)}
+              </div>
+              <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 20, fontWeight: 800, color: '#0F172A', lineHeight: 1.2 }}>
+                {booking.guest_first_name} {booking.guest_last_name}
+              </div>
+            </div>
+            <button
+              onClick={handleClose}
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                border: '1px solid #CBD5E1',
+                background: '#F8FAFC',
+                fontSize: 18,
+                color: '#94A3B8',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
             >
-              {booking.status}
+              ×
+            </button>
+          </div>
+
+          {/* Badge row */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {/* Status badge */}
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: statusCfg.bg, color: statusCfg.color, border: `1px solid ${statusCfg.border}` }}>
+              {statusCfg.label}
             </span>
-            <span className="rounded-full px-3 py-1 text-xs font-semibold bg-surface-highest/40 text-on-surface-variant capitalize">
+            {/* Source badge */}
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: sourceCfg.bg, color: sourceCfg.color }}>
+              {sourceCfg.label}
+            </span>
+            {/* Type badge */}
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#F1F5F9', color: '#64748B' }}>
               {booking.booking_type === 'short_term' ? 'Short-term' : 'Long-term'}
             </span>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          <Section title="Guest">
-            <Field label="Name" value={`${booking.guest_first_name} ${booking.guest_last_name}`} />
-            <Field label="Email" value={booking.guest_email} />
-            <Field label="Phone" value={booking.guest_phone} />
-            <Field label="SMS Consent" value={booking.sms_consent ? 'Yes' : 'No'} />
-            <Field label="Marketing Consent" value={booking.marketing_consent ? 'Yes' : 'No'} />
-          </Section>
+        {/* Scrollable body */}
+        <div style={{ flex: 1, padding: '0 20px' }}>
 
-          <Section title="Room">
-            <Field label="Room" value={room?.name ?? '—'} />
-            <Field label="Property" value={property?.name ?? '—'} />
-            {property?.address && (
-              <Field
-                label="Address"
-                value={`${property.address}, ${property.city}, ${property.state}`}
-              />
-            )}
-          </Section>
+          {/* Guest card */}
+          <div style={{ margin: '16px 0', padding: 14, background: 'rgba(45,212,191,0.08)', borderRadius: 12, border: '1px solid rgba(45,212,191,0.22)', display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(45,212,191,0.2)', color: '#1FB2A0', fontFamily: 'Manrope, sans-serif', fontWeight: 800, fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              {guestInitials || '?'}
+            </div>
+            <div>
+              <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: '#0F172A' }}>
+                {booking.guest_first_name} {booking.guest_last_name}
+              </div>
+              {booking.guest_email && (
+                <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>{booking.guest_email}</div>
+              )}
+              {booking.guest_phone && (
+                <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }}>{booking.guest_phone}</div>
+              )}
+            </div>
+          </div>
 
-          <Section title="Dates">
-            <Field label="Check-in" value={formatDate(booking.check_in)} />
-            <Field label="Check-out" value={formatDate(booking.check_out)} />
-            {nights !== null && (
-              <Field label="Total Nights" value={`${nights} night${nights !== 1 ? 's' : ''}`} />
-            )}
-          </Section>
+          {/* Stay Details */}
+          <SectionLabel>Stay Details</SectionLabel>
+          {room?.name && <Row label="Room" val={room.name} />}
+          {property?.name && <Row label="Property" val={property.name} />}
+          <Row
+            label="Check-in"
+            val={
+              booking.check_in === todayStr
+                ? <span><span style={{ color: '#1FB2A0' }}>{formatDate(booking.check_in)}</span> <span style={{ color: '#1FB2A0', fontSize: 11 }}>· Today</span></span>
+                : formatDate(booking.check_in)
+            }
+          />
+          <Row
+            label="Check-out"
+            val={
+              isOpenEnded
+                ? 'Open-ended'
+                : booking.check_out === todayStr
+                  ? <span style={{ color: '#D97706' }}>{formatDate(booking.check_out)}</span>
+                  : formatDate(booking.check_out)
+            }
+          />
+          <Row
+            label="Duration"
+            val={
+              isOpenEnded
+                ? 'Open-ended'
+                : nights !== null
+                  ? `${nights} night${nights !== 1 ? 's' : ''}`
+                  : '—'
+            }
+          />
+          <Row label="Guests" val={String(booking.guest_count ?? '—')} />
 
-          <Section title="Payment">
-            <Field label="Total Amount" value={formatCurrency(booking.total_amount)} />
-            <Field label="Amount Paid" value={formatCurrency(booking.amount_paid)} />
-            <Field label="Due at Check-in" value={formatCurrency(booking.amount_due_at_checkin)} />
-            {booking.stripe_payment_intent_id && (
-              <div>
-                <span className="text-xs text-on-surface-variant">Payment Intent</span>
+          {/* Payment */}
+          <SectionLabel>Payment</SectionLabel>
+          <Row label="Total" val={formatCurrency(totalAmount)} />
+          <Row label="Paid" val={formatCurrency(totalPaid)} valStyle={{ color: '#059669' }} />
+          <Row
+            label="Outstanding"
+            val={
+              fullyPaid
+                ? 'Fully paid ✓'
+                : formatCurrency(due)
+            }
+            valStyle={{ color: fullyPaid ? '#059669' : '#DC2626' }}
+          />
+
+          {/* Progress bar */}
+          <div style={{ padding: '8px 0 4px' }}>
+            <div style={{ height: 6, borderRadius: 999, background: '#F1F5F9', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${paidPct}%`, borderRadius: 999, background: fullyPaid ? '#059669' : '#D97706', transition: 'width 0.3s' }} />
+            </div>
+            <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>{paidPct}% of total collected</div>
+          </div>
+
+          <Row label="Due at Check-in" val={formatCurrency(booking.amount_due_at_checkin)} />
+          {booking.stripe_payment_intent_id && (
+            <Row
+              label="Stripe"
+              val={
                 <a
                   href={`https://dashboard.stripe.com/payments/${booking.stripe_payment_intent_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block mt-0.5 text-sm text-secondary hover:text-secondary/80 truncate"
+                  style={{ color: '#2DD4BF', textDecoration: 'none', fontSize: 12, wordBreak: 'break-all' }}
                 >
                   {booking.stripe_payment_intent_id}
                 </a>
-              </div>
-            )}
-          </Section>
+              }
+            />
+          )}
 
-          <Section title="Meta">
-            {booking.ghl_contact_id && (
-              <Field label="GHL Contact ID" value={booking.ghl_contact_id} />
-            )}
-            <Field label="Booking ID" value={booking.id} />
-            <Field label="Created" value={formatDateTime(booking.created_at)} />
-            {booking.cancelled_at && (
-              <Field label="Cancelled At" value={formatDateTime(booking.cancelled_at)} />
-            )}
-            {booking.cancellation_reason && (
-              <Field label="Cancellation Reason" value={booking.cancellation_reason} />
-            )}
-            {booking.refund_amount != null && (
-              <Field label="Refund Amount" value={formatCurrency(booking.refund_amount)} />
-            )}
-          </Section>
+          {/* Notes */}
+          {booking.notes && (
+            <div style={{ background: '#F8FAFC', border: '1px solid #F1F5F9', borderRadius: 10, padding: 12, margin: '16px 0' }}>
+              <SectionLabel>Notes</SectionLabel>
+              <div style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6, marginTop: 6 }}>{booking.notes}</div>
+            </div>
+          )}
+
+          {/* Booking Info */}
+          <SectionLabel>Booking Info</SectionLabel>
+          <Row label="Booking ID" val={<span style={{ fontFamily: 'monospace', fontSize: 12 }}>{booking.id}</span>} />
+          <Row
+            label="Source"
+            val={<span style={{ color: sourceCfg.color }}>{sourceCfg.label}</span>}
+          />
+          <Row label="Created" val={formatDateTime(booking.created_at)} />
+          {booking.ghl_contact_id && (
+            <Row label="GHL Contact" val={<span style={{ fontFamily: 'monospace', fontSize: 12 }}>{booking.ghl_contact_id}</span>} />
+          )}
+          {booking.cancelled_at && (
+            <Row label="Cancelled At" val={formatDateTime(booking.cancelled_at)} />
+          )}
+          {booking.cancellation_reason && (
+            <Row label="Cancel Reason" val={booking.cancellation_reason} />
+          )}
+          {booking.refund_amount != null && (
+            <Row label="Refund Amount" val={formatCurrency(booking.refund_amount)} />
+          )}
+
+          {/* Cancellation policy section */}
+          {canCancel && refund && (
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: 14, margin: '16px 0' }}>
+              <SectionLabel>Cancellation Policy</SectionLabel>
+              <p style={{ fontSize: 13, color: '#64748B', margin: '8px 0 6px', lineHeight: 1.5 }}>{refund.policy_description}</p>
+              <p style={{ fontSize: 13, color: '#64748B', marginBottom: 10 }}>
+                Estimated refund:{' '}
+                <strong style={{ color: '#0F172A' }}>{formatCurrency(refund.refund_amount)}</strong>{' '}
+                ({refund.refund_percentage}%)
+              </p>
+              <button
+                onClick={() => setShowCancelModal(true)}
+                style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.18)', color: '#DC2626', borderRadius: 9, padding: '7px 14px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+              >
+                Cancel Booking
+              </button>
+            </div>
+          )}
+
+          {/* Modification requests */}
+          {modificationRequests.length > 0 && (
+            <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 12, padding: 14, margin: '16px 0 24px' }}>
+              <SectionLabel>Modification Requests</SectionLabel>
+              <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {modificationRequests.map((req) => (
+                  <ModificationRequestRow key={req.id} req={req} bookingId={booking.id} />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bottom spacer when no modification requests */}
+          {modificationRequests.length === 0 && <div style={{ height: 24 }} />}
         </div>
 
-        {booking.status === 'cancelled' && (
-          <div className="rounded-xl bg-surface-container p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-on-surface">Reinstate Booking</h3>
-            <p className="text-sm text-on-surface-variant">
-              Restores status to <span className="font-medium text-on-surface">pending</span>. The original Stripe payment was cancelled or refunded — you will need to collect payment separately.
-            </p>
-            {reinstateError && <p className="text-error text-sm">{reinstateError}</p>}
-            {!reinstateConfirm ? (
-              <button
-                onClick={() => setReinstateConfirm(true)}
-                className="rounded-xl bg-secondary/20 px-4 py-2 text-sm font-semibold text-secondary hover:bg-secondary/30 transition-colors"
-              >
-                Reinstate Booking
-              </button>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-sm text-on-surface-variant">Are you sure you want to reinstate this booking?</p>
-                <div className="flex gap-3">
-                  <button
-                    onClick={handleReinstate}
-                    disabled={reinstateLoading}
-                    className="rounded-xl bg-secondary/20 px-4 py-2 text-sm font-semibold text-secondary hover:bg-secondary/30 transition-colors disabled:opacity-50"
-                  >
-                    {reinstateLoading ? 'Reinstating…' : 'Yes, Reinstate'}
-                  </button>
-                  <button
-                    onClick={() => { setReinstateConfirm(false); setReinstateError(null) }}
-                    className="rounded-xl bg-surface-highest/40 px-4 py-2 text-sm font-semibold text-on-surface-variant hover:bg-surface-highest/60 transition-colors"
-                  >
-                    Never mind
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {canCancel && refund && (
-          <div className="rounded-xl bg-surface-container p-4 space-y-3">
-            <h3 className="text-sm font-semibold text-on-surface">Cancellation Policy</h3>
-            <p className="text-sm text-on-surface-variant">{refund.policy_description}</p>
-            <p className="text-sm text-on-surface-variant">
-              Estimated refund:{' '}
-              <span className="font-semibold text-on-surface">
-                {formatCurrency(refund.refund_amount)}
-              </span>{' '}
-              ({refund.refund_percentage}%)
-            </p>
+        {/* Sticky Footer */}
+        <div
+          style={{
+            position: 'sticky',
+            bottom: 0,
+            background: '#FFFFFF',
+            borderTop: '1px solid #F1F5F9',
+            padding: '14px 20px',
+            display: 'flex',
+            gap: 8,
+            flexWrap: 'wrap',
+          }}
+        >
+          {booking.status === 'pending' && (
+            <button
+              onClick={handleConfirm}
+              disabled={confirming}
+              style={{ background: '#2DD4BF', color: '#0F172A', border: 'none', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: confirming ? 'not-allowed' : 'pointer', opacity: confirming ? 0.7 : 1 }}
+            >
+              {confirming ? 'Confirming…' : '✓ Confirm Booking'}
+            </button>
+          )}
+          {booking.status !== 'cancelled' && (
             <button
               onClick={() => setShowCancelModal(true)}
-              className="rounded-xl bg-error/20 px-4 py-2 text-sm font-semibold text-error hover:bg-error/30 transition-colors"
+              style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.18)', color: '#DC2626', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
             >
               Cancel Booking
             </button>
-          </div>
-        )}
+          )}
+          <button
+            disabled
+            style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#94A3B8', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'not-allowed' }}
+          >
+            ✏ Edit
+          </button>
+        </div>
+        </div>{/* end inner scroll container */}
 
-        {modificationRequests.length > 0 && (
-          <div className="rounded-xl bg-surface-container p-4 space-y-4">
-            <h3 className="text-sm font-semibold text-on-surface">Modification Requests</h3>
-            {modificationRequests.map((req) => (
-              <ModificationRequestRow key={req.id} req={req} bookingId={booking.id} />
-            ))}
-          </div>
+        {showCancelModal && (
+          <CancelBookingModal
+            contained
+            booking={booking}
+            cancellationPolicy={cancellationPolicy ?? DEFAULT_POLICY}
+            onCancel={handleCancelled}
+            onClose={() => setShowCancelModal(false)}
+          />
         )}
       </div>
-
-      {showCancelModal && (
-        <CancelBookingModal
-          booking={booking}
-          cancellationPolicy={cancellationPolicy ?? DEFAULT_POLICY}
-          onCancel={handleCancelled}
-          onClose={() => setShowCancelModal(false)}
-        />
-      )}
     </>
   )
 }
@@ -319,26 +512,6 @@ function ModificationRequestRow({
           </div>
         </div>
       )}
-    </div>
-  )
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="space-y-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-on-surface-variant">
-        {title}
-      </h3>
-      <div className="space-y-2">{children}</div>
-    </div>
-  )
-}
-
-function Field({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <span className="text-xs text-on-surface-variant">{label}</span>
-      <p className="mt-0.5 text-sm text-on-surface break-all">{value}</p>
     </div>
   )
 }

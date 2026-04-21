@@ -51,7 +51,7 @@ const COLUMNS: { label: string; key: SortKey }[] = [
   { label: 'Check-in', key: 'check_in' },
   { label: 'Check-out', key: 'check_out' },
   { label: 'Type', key: 'booking_type' },
-  { label: 'Amount', key: 'total_amount' },
+  { label: 'Amount / Net', key: 'total_amount' },
   { label: 'Status', key: 'status' },
 ]
 
@@ -219,11 +219,29 @@ export function RecentBookingsWidget({ bookings, today }: RecentBookingsWidgetPr
                         {booking.booking_type === 'short_term' ? 'Short' : 'Long'}
                       </span>
                     </td>
-                    <td
-                      className="px-4 py-3 whitespace-nowrap text-right text-[13px] font-semibold"
-                      style={{ color: '#0F172A' }}
-                    >
-                      ${(booking.total_amount ?? 0).toLocaleString()}
+                    <td className="px-4 py-3 whitespace-nowrap text-right">
+                      {(() => {
+                        const gross = booking.total_amount ?? 0
+                        const fee = booking.processing_fee ?? 0
+                        const net = gross - fee
+                        return (
+                          <div className="space-y-0.5">
+                            <div className="text-[13px] font-semibold" style={{ color: '#0F172A' }}>
+                              ${net.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                            </div>
+                            {fee > 0 && (
+                              <>
+                                <div className="text-[11px]" style={{ color: '#94A3B8' }}>
+                                  Gross ${gross.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                                </div>
+                                <div className="text-[11px]" style={{ color: '#DC2626' }}>
+                                  −${fee.toLocaleString('en-US', { maximumFractionDigits: 2 })} fee
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )
+                      })()}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <span

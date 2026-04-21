@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Booking, CancellationPolicy } from '@/types'
 import { calculateRefund } from '@/lib/cancellation'
 import { formatCurrency } from '@/lib/format'
@@ -12,9 +13,10 @@ type Props = {
   cancellationPolicy: CancellationPolicy
   onCancel: () => void
   onClose: () => void
+  contained?: boolean
 }
 
-export default function CancelBookingModal({ booking, cancellationPolicy, onCancel, onClose }: Props) {
+export default function CancelBookingModal({ booking, cancellationPolicy, onCancel, onClose, contained }: Props) {
   const policy = calculateRefund(booking, new Date(), cancellationPolicy)
 
   // Pre-select the option that matches the policy
@@ -28,8 +30,10 @@ export default function CancelBookingModal({ booking, cancellationPolicy, onCanc
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fullAmount = booking.amount_paid
-  const halfAmount = Math.round(booking.amount_paid * (cancellationPolicy.partial_refund_percent / 100) * 100) / 100
+  const processingFee = booking.processing_fee ?? 0
+  const refundableBase = booking.amount_paid - processingFee
+  const fullAmount = Math.round(refundableBase * 100) / 100
+  const halfAmount = Math.round(refundableBase * (cancellationPolicy.partial_refund_percent / 100) * 100) / 100
 
   const choiceAmount =
     refundChoice === 'full' ? fullAmount
@@ -67,8 +71,15 @@ export default function CancelBookingModal({ booking, cancellationPolicy, onCanc
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-xl p-4">
+  const content = (
+    <div
+      className={contained
+        ? 'absolute inset-0 z-10 flex items-center justify-center p-4'
+        : 'fixed inset-0 z-[200] flex items-center justify-center p-4'}
+      style={contained
+        ? { backdropFilter: 'blur(10px)', background: 'rgba(248,250,252,0.88)' }
+        : { backdropFilter: 'blur(4px)', background: 'rgba(15,23,42,0.35)' }}
+    >
       <div className="w-full max-w-md bg-surface-container rounded-2xl p-6 shadow-2xl space-y-5">
         <h2 className="font-display text-xl font-bold text-on-surface">Cancel Booking</h2>
 
@@ -114,6 +125,11 @@ export default function CancelBookingModal({ booking, cancellationPolicy, onCanc
           <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider">
             Refund Amount
           </p>
+          {processingFee > 0 && (
+            <p className="text-xs text-on-surface-variant bg-surface-highest/40 rounded-lg px-3 py-2">
+              Processing fee of <span className="font-semibold text-on-surface">{formatCurrency(processingFee)}</span> is non-refundable and excluded from the amounts below.
+            </p>
+          )}
           <div className="grid grid-cols-3 gap-2">
             {options.map((opt) => {
               const isSelected = refundChoice === opt.value
@@ -182,4 +198,9 @@ export default function CancelBookingModal({ booking, cancellationPolicy, onCanc
       </div>
     </div>
   )
+
+  if (!contained) {
+    return createPortal(content, document.body)
+  }
+  return content
 }

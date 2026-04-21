@@ -5,9 +5,10 @@ interface StatCardProps {
   deltaUnit?: string
   sub?: string
   accent: string
+  breakdown?: { label: string; value: string; muted?: boolean }[]
 }
 
-function StatCard({ label, value, delta, deltaUnit = '%', sub, accent }: StatCardProps) {
+function StatCard({ label, value, delta, deltaUnit = '%', sub, accent, breakdown }: StatCardProps) {
   const isUp = delta !== undefined && delta > 0
   const isDown = delta !== undefined && delta < 0
   const deltaColor = isUp ? '#059669' : isDown ? '#DC2626' : '#94A3B8'
@@ -48,6 +49,21 @@ function StatCard({ label, value, delta, deltaUnit = '%', sub, accent }: StatCar
             )}
           </div>
         )}
+        {breakdown && breakdown.length > 0 && (
+          <div className="mt-3 space-y-1 border-t pt-3" style={{ borderColor: '#F1F5F9' }}>
+            {breakdown.map((row) => (
+              <div key={row.label} className="flex items-center justify-between">
+                <span className="text-[11px]" style={{ color: '#94A3B8' }}>{row.label}</span>
+                <span
+                  className="text-[11px] font-semibold tabular-nums"
+                  style={{ color: row.muted ? '#94A3B8' : '#0F172A' }}
+                >
+                  {row.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -55,6 +71,8 @@ function StatCard({ label, value, delta, deltaUnit = '%', sub, accent }: StatCar
 
 interface DashboardStatsProps {
   thisMonthRevenue: number
+  thisMonthProcessingFees: number
+  thisMonthNet: number
   revenueDelta: number
   occupancyPercent: number
   occupancyDelta: number
@@ -66,6 +84,8 @@ interface DashboardStatsProps {
 
 export default function DashboardStats({
   thisMonthRevenue,
+  thisMonthProcessingFees,
+  thisMonthNet,
   revenueDelta,
   occupancyPercent,
   occupancyDelta,
@@ -81,11 +101,16 @@ export default function DashboardStats({
     <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
       <StatCard
         label="Revenue This Month"
-        value={fmt$(thisMonthRevenue)}
+        value={fmt$(thisMonthNet)}
         delta={revenueDelta}
         deltaUnit="%"
         sub="vs last month"
         accent="#2DD4BF"
+        breakdown={[
+          { label: 'Gross amount', value: fmt$(thisMonthRevenue) },
+          { label: 'Processing fees', value: `−${fmt$(thisMonthProcessingFees)}`, muted: true },
+          { label: 'Net revenue', value: fmt$(thisMonthNet) },
+        ]}
       />
       <StatCard
         label="Occupancy Rate"

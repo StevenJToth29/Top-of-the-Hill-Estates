@@ -21,7 +21,8 @@ export const VARIABLE_GROUPS: VariableGroup[] = [
   {
     label: 'Booking',
     variables: [
-      { key: 'booking_id', label: 'Booking ID' },
+      { key: 'booking_id', label: 'Booking ID (full)' },
+      { key: 'booking_reference', label: 'Booking reference #' },
       { key: 'check_in_date', label: 'Check-in date' },
       { key: 'check_out_date', label: 'Check-out date' },
       { key: 'total_nights', label: 'Nights' },
@@ -66,6 +67,7 @@ export const SAMPLE_VARIABLES: Record<string, string> = {
   guest_email: 'jane.smith@example.com',
   guest_phone: '(555) 234-5678',
   booking_id: 'BK-2024-001',
+  booking_reference: 'BK2024001',
   check_in_date: 'Friday, June 6, 2025',
   check_out_date: 'Monday, June 9, 2025',
   total_nights: '3',
