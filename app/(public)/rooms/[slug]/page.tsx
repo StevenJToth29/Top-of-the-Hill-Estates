@@ -1,10 +1,12 @@
+export const dynamic = 'force-dynamic'
+
 import { notFound } from 'next/navigation'
 import { format, addMonths } from 'date-fns'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import { getBlockedDatesForRoom } from '@/lib/availability'
 import { resolvePolicy } from '@/lib/cancellation'
 import type { Room } from '@/types'
-import dynamic from 'next/dynamic'
+import dynamicImport from 'next/dynamic'
 import ImageGallery from '@/components/public/ImageGallery'
 import BookingWidget from '@/components/public/BookingWidget'
 import AvailabilityCalendar from '@/components/public/AvailabilityCalendar'
@@ -12,7 +14,7 @@ import AmenitiesGrid from '@/components/public/AmenitiesGrid'
 import PricingSection from '@/components/public/PricingSection'
 import CancellationPolicyDisplay from '@/components/public/CancellationPolicyDisplay'
 
-const LocationMap = dynamic(() => import('@/components/public/LocationMap'), { ssr: false })
+const LocationMap = dynamicImport(() => import('@/components/public/LocationMap'), { ssr: false })
 
 interface Props {
   params: { slug: string }
@@ -58,28 +60,11 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
 
   const room = { ...rawRoom, fees: roomFees ?? [] } as unknown as Room
 
-  // Geocode exact address server-side; coordinates are passed to the map but street is never rendered
-  let mapCoords: { lat: number; lng: number } | null = null
-  if (room.property && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY) {
-    try {
-      const addressParts = [
-        room.property.address,
-        room.property.city,
-        room.property.state,
-        room.property.zip,
-      ].filter(Boolean).join(', ')
-      const address = encodeURIComponent(addressParts)
-      const geoRes = await fetch(
-        `https://maps.googleapis.com/maps/api/geocode/json?address=${address}&key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}`,
-        { next: { revalidate: 86400 } },
-      )
-      const geoData = await geoRes.json()
-      const loc = geoData?.results?.[0]?.geometry?.location
-      if (loc) mapCoords = { lat: loc.lat, lng: loc.lng }
-    } catch {
-      // silently skip map if geocoding fails
-    }
-  }
+  const mapAddress = room.property
+    ? [room.property.address, room.property.city, room.property.state, room.property.zip]
+        .filter(Boolean)
+        .join(', ')
+    : null
 
   return (
     <main className="min-h-screen bg-background">
@@ -159,7 +144,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
 
             <CancellationPolicyDisplay variant="short_term" policy={resolvedPolicy} />
 
-            {mapCoords && (
+            {mapAddress && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
               <div className="space-y-3">
                 <div className="flex items-baseline justify-between">
                   <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
@@ -169,7 +154,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
                     Exact address provided after booking
                   </p>
                 </div>
-                <LocationMap lat={mapCoords.lat} lng={mapCoords.lng} />
+                <LocationMap address={mapAddress} />
               </div>
             )}
           </div>
