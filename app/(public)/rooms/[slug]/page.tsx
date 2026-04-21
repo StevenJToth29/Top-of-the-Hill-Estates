@@ -54,6 +54,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 import ImageGallery from '@/components/public/ImageGallery'
 import BookingWidget from '@/components/public/BookingWidget'
+import BookingToggle from '@/components/public/BookingToggle'
 import RoomBackButton from '@/components/public/RoomBackButton'
 import AvailabilityCalendar from '@/components/public/AvailabilityCalendar'
 import AmenitiesGrid from '@/components/public/AmenitiesGrid'
@@ -223,12 +224,17 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
 
           <div className="lg:col-span-1">
             {showHospitableWidget ? (
-              <iframe
-                id="booking-iframe"
-                sandbox="allow-top-navigation allow-scripts allow-same-origin"
-                style={{ width: '100%', height: '900px' }}
-                frameBorder={0}
-                src="https://booking.hospitable.com/widget/a1999599-baa9-453f-b197-2b94e2f8ef8d/2023906"
+              <BookingToggle
+                room={room}
+                blockedDates={blockedDates}
+                dateOverrides={dateOverrides}
+                initialCheckin={searchParams.checkin}
+                initialCheckout={searchParams.checkout}
+                initialGuests={searchParams.guests ? parseInt(searchParams.guests, 10) : undefined}
+                stripeFeePercent={siteSettings?.stripe_fee_percent != null ? Number(siteSettings.stripe_fee_percent) : 2.9}
+                stripeFeeFlat={siteSettings?.stripe_fee_flat != null ? Number(siteSettings.stripe_fee_flat) : 0.30}
+                cancellationPolicy={resolvedPolicy}
+                hospitableWidgetSrc="https://booking.hospitable.com/widget/a1999599-baa9-453f-b197-2b94e2f8ef8d/2023906"
               />
             ) : (
               <BookingWidget
