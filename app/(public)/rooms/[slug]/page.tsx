@@ -8,6 +8,7 @@ import { getBlockedDatesForRoom } from '@/lib/availability'
 import { resolvePolicy } from '@/lib/cancellation'
 import type { Room } from '@/types'
 import dynamicImport from 'next/dynamic'
+import { hospitableBookingFlag } from '@/flags'
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = await createServerSupabaseClient()
@@ -67,6 +68,7 @@ interface Props {
 }
 
 export default async function RoomDetailPage({ params, searchParams }: Props) {
+  const showHospitableWidget = await hospitableBookingFlag()
   const supabase = await createServerSupabaseClient()
   const [{ data: rawRoom }, { data: siteSettings }] = await Promise.all([
     supabase
@@ -220,17 +222,27 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
           </div>
 
           <div className="lg:col-span-1">
-            <BookingWidget
-              room={room}
-              blockedDates={blockedDates}
-              dateOverrides={dateOverrides}
-              initialCheckin={searchParams.checkin}
-              initialCheckout={searchParams.checkout}
-              initialGuests={searchParams.guests ? parseInt(searchParams.guests, 10) : undefined}
-              stripeFeePercent={siteSettings?.stripe_fee_percent != null ? Number(siteSettings.stripe_fee_percent) : 2.9}
-              stripeFeeFlat={siteSettings?.stripe_fee_flat != null ? Number(siteSettings.stripe_fee_flat) : 0.30}
-              cancellationPolicy={resolvedPolicy}
-            />
+            {showHospitableWidget ? (
+              <iframe
+                id="booking-iframe"
+                sandbox="allow-top-navigation allow-scripts allow-same-origin"
+                style={{ width: '100%', height: '900px' }}
+                frameBorder={0}
+                src="https://booking.hospitable.com/widget/a1999599-baa9-453f-b197-2b94e2f8ef8d/2023906"
+              />
+            ) : (
+              <BookingWidget
+                room={room}
+                blockedDates={blockedDates}
+                dateOverrides={dateOverrides}
+                initialCheckin={searchParams.checkin}
+                initialCheckout={searchParams.checkout}
+                initialGuests={searchParams.guests ? parseInt(searchParams.guests, 10) : undefined}
+                stripeFeePercent={siteSettings?.stripe_fee_percent != null ? Number(siteSettings.stripe_fee_percent) : 2.9}
+                stripeFeeFlat={siteSettings?.stripe_fee_flat != null ? Number(siteSettings.stripe_fee_flat) : 0.30}
+                cancellationPolicy={resolvedPolicy}
+              />
+            )}
           </div>
         </div>
       </div>
