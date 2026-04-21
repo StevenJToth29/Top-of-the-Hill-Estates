@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Manrope, Plus_Jakarta_Sans } from 'next/font/google'
+import { unstable_cache } from 'next/cache'
 import { createServiceRoleClient } from '@/lib/supabase'
 import './globals.css'
 
@@ -15,12 +16,21 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   display: 'swap',
 })
 
+const getFaviconSettings = unstable_cache(
+  async () => {
+    const supabase = createServiceRoleClient()
+    const { data } = await supabase
+      .from('site_settings')
+      .select('favicon_url, favicon_large_url, favicon_apple_url')
+      .single()
+    return data
+  },
+  ['site_settings_favicon'],
+  { revalidate: 3600, tags: ['site_settings'] },
+)
+
 export async function generateMetadata(): Promise<Metadata> {
-  const supabase = createServiceRoleClient()
-  const { data: settings } = await supabase
-    .from('site_settings')
-    .select('favicon_url, favicon_large_url, favicon_apple_url')
-    .single()
+  const settings = await getFaviconSettings()
 
   return {
     title: 'Top of the Hill Rooms',

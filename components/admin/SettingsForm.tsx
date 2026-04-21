@@ -60,8 +60,7 @@ async function compressImage(file: File, maxWidth = 400): Promise<Blob> {
       canvas.height = img.height * scale
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      canvas.toBlob((blob) => resolve(blob!), 'image/png', 0.95)
-      URL.revokeObjectURL(url)
+      canvas.toBlob((blob) => { URL.revokeObjectURL(url); resolve(blob!) }, 'image/png', 0.95)
     }
     img.src = url
   })
@@ -491,7 +490,7 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
               {faviconUploading ? 'Uploading…' : 'Upload Favicon'}
             </button>
             <p className="text-xs text-on-surface-variant/60">
-              PNG, JPEG or WebP · Generates 32px, 192px and 180px variants automatically
+              PNG, JPEG or WebP · Square image recommended · Generates 32px, 192px and 180px variants automatically
             </p>
             {faviconError && (
               <p className="text-xs text-error">{faviconError}</p>

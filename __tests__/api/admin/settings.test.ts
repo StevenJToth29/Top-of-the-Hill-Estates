@@ -11,6 +11,8 @@ jest.mock('@/lib/supabase', () => ({
   createServiceRoleClient: jest.fn(),
 }))
 
+jest.mock('next/cache', () => ({ revalidateTag: jest.fn() }))
+
 const mockCreateServerClient = createServerSupabaseClient as jest.Mock
 const mockCreateServiceClient = createServiceRoleClient as jest.Mock
 

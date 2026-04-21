@@ -1,5 +1,6 @@
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
+import { revalidateTag } from 'next/cache'
 
 export async function PATCH(request: Request) {
   const serverClient = await createServerSupabaseClient()
@@ -49,5 +50,6 @@ export async function PATCH(request: Request) {
   }
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  revalidateTag('site_settings')
   return NextResponse.json({ success: true })
 }
