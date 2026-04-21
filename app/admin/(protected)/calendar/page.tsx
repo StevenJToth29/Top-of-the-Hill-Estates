@@ -1,64 +1,73 @@
-import { format, addMonths } from 'date-fns'
-import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
+import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
-import RoomsCalendar from '@/components/admin/RoomsCalendar'
-import type { Room, Property, Booking, ICalBlock } from '@/types'
-
-export const dynamic = 'force-dynamic'
+import { CalendarClient } from '@/components/admin/CalendarClient'
+import type { CalendarData } from '@/types'
 
 export default async function AdminCalendarPage() {
   const serverClient = await createServerSupabaseClient()
-  const { data: { user } } = await serverClient.auth.getUser()
-  if (!user) redirect('/admin/login')
+  const { data: { user }, error: authError } = await serverClient.auth.getUser()
+  if (authError || !user) redirect('/admin/login')
 
   const supabase = createServiceRoleClient()
+  const today = new Date()
+  const from = format(startOfMonth(today), 'yyyy-MM-dd')
+  const to = format(endOfMonth(today), 'yyyy-MM-dd')
 
-  const { data: rooms } = await supabase
-    .from('rooms')
-    .select('*, property:properties(name)')
-    .eq('is_active', true)
-    .order('name')
+  const [roomsRes, bookingsRes, icalRes, overridesRes, tasksRes] = await Promise.all([
+    supabase
+      .from('rooms')
+      .select('*, property:properties(id, name)')
+      .eq('is_active', true)
+      .order('name'),
 
-  const today = format(new Date(), 'yyyy-MM-dd')
-  const threeMonthsOut = format(addMonths(new Date(), 3), 'yyyy-MM-dd')
+    supabase
+      .from('bookings')
+      .select('*')
+      .in('status', ['confirmed', 'pending'])
+      .lt('check_in', to)
+      .gte('check_out', from),
 
-  const { data: bookings } = await supabase
-    .from('bookings')
-    .select('id, room_id, check_in, check_out, guest_first_name, guest_last_name, status')
-    .in('status', ['confirmed', 'pending'])
-    .gte('check_out', today)
-    .lte('check_in', threeMonthsOut)
+    supabase
+      .from('ical_blocks')
+      .select('*')
+      .lt('start_date', to)
+      .gte('end_date', from),
 
-  const { data: icalBlocks } = await supabase
-    .from('ical_blocks')
-    .select('room_id, start_date, end_date, summary, platform')
-    .gte('end_date', today)
-    .lte('start_date', threeMonthsOut)
+    supabase
+      .from('date_overrides')
+      .select('*')
+      .gte('date', from)
+      .lte('date', to),
 
-  const typedRooms = (rooms ?? []) as Array<Room & { property: Property }>
-  const typedBookings = (bookings ?? []) as Booking[]
-  const typedIcalBlocks = (icalBlocks ?? []) as ICalBlock[]
+    supabase
+      .from('calendar_tasks')
+      .select('*')
+      .or(`recurrence_rule.not.is.null,and(due_date.gte.${from},due_date.lte.${to})`),
+  ])
+
+  const initialData: CalendarData = {
+    rooms: roomsRes.data ?? [],
+    bookings: bookingsRes.data ?? [],
+    icalBlocks: icalRes.data ?? [],
+    dateOverrides: overridesRes.data ?? [],
+    tasks: tasksRes.data ?? [],
+  }
+
+  const initialMonth = format(startOfMonth(today), 'yyyy-MM-dd')
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-[1600px]">
-        <div className="mb-6">
-          <h1 className="font-display text-2xl font-bold text-primary">
-            Room Availability Calendar
+    <div className="p-6 space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-800" style={{ fontFamily: 'Manrope, sans-serif' }}>
+            Calendar
           </h1>
-          <p className="mt-1 text-sm text-on-surface-variant">
-            {typedRooms.length} active room{typedRooms.length !== 1 ? 's' : ''} ·{' '}
-            {typedBookings.length} upcoming booking{typedBookings.length !== 1 ? 's' : ''} ·{' '}
-            {typedIcalBlocks.length} iCal block{typedIcalBlocks.length !== 1 ? 's' : ''}
-          </p>
+          <p className="text-sm text-slate-500 mt-0.5">Manage bookings, pricing, and tasks</p>
         </div>
-
-        <RoomsCalendar
-          rooms={typedRooms}
-          bookings={typedBookings}
-          icalBlocks={typedIcalBlocks}
-        />
       </div>
-    </main>
+
+      <CalendarClient initialData={initialData} initialMonth={initialMonth} />
+    </div>
   )
 }
