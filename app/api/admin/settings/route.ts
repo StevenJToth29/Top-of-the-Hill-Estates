@@ -21,6 +21,9 @@ export async function PATCH(request: Request) {
   }
   if (body.logo_url !== undefined) fields.logo_url = body.logo_url
   if (body.logo_size !== undefined) fields.logo_size = body.logo_size
+  if (body.favicon_url !== undefined)       fields.favicon_url = body.favicon_url
+  if (body.favicon_large_url !== undefined) fields.favicon_large_url = body.favicon_large_url
+  if (body.favicon_apple_url !== undefined) fields.favicon_apple_url = body.favicon_apple_url
   if (body.business_hours !== undefined) fields.business_hours = body.business_hours
   if (body.global_house_rules !== undefined) fields.global_house_rules = body.global_house_rules
   if (body.checkin_time !== undefined) fields.checkin_time = body.checkin_time

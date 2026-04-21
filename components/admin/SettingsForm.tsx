@@ -491,7 +491,7 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
               {faviconUploading ? 'Uploading…' : 'Upload Favicon'}
             </button>
             <p className="text-xs text-on-surface-variant/60">
-              PNG, JPEG, WebP or SVG · Generates 32px, 192px and 180px variants automatically
+              PNG, JPEG or WebP · Generates 32px, 192px and 180px variants automatically
             </p>
             {faviconError && (
               <p className="text-xs text-error">{faviconError}</p>
@@ -500,7 +500,7 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
           <input
             ref={faviconInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            accept="image/png,image/jpeg,image/webp"
             className="hidden"
             onChange={handleFaviconUpload}
           />
