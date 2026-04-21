@@ -15,6 +15,7 @@ interface Props {
   stripeFeeFlat?: number
   cancellationPolicy: CancellationPolicy
   hospitableWidgetSrc: string
+  initialMode?: 'direct' | 'hospitable'
 }
 
 export default function BookingToggle({
@@ -28,8 +29,9 @@ export default function BookingToggle({
   stripeFeeFlat,
   cancellationPolicy,
   hospitableWidgetSrc,
+  initialMode = 'direct',
 }: Props) {
-  const [mode, setMode] = useState<'direct' | 'hospitable'>('direct')
+  const [mode, setMode] = useState<'direct' | 'hospitable'>(initialMode)
 
   return (
     <div className="space-y-3">

@@ -65,7 +65,7 @@ const LocationMap = dynamicImport(() => import('@/components/public/LocationMap'
 
 interface Props {
   params: { slug: string }
-  searchParams: { checkin?: string; checkout?: string; guests?: string }
+  searchParams: { checkin?: string; checkout?: string; guests?: string; source?: string }
 }
 
 export default async function RoomDetailPage({ params, searchParams }: Props) {
@@ -235,6 +235,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
                 stripeFeeFlat={siteSettings?.stripe_fee_flat != null ? Number(siteSettings.stripe_fee_flat) : 0.30}
                 cancellationPolicy={resolvedPolicy}
                 hospitableWidgetSrc="https://booking.hospitable.com/widget/a1999599-baa9-453f-b197-2b94e2f8ef8d/2023906"
+                initialMode={searchParams.source === 'happ' ? 'hospitable' : 'direct'}
               />
             ) : (
               <BookingWidget
