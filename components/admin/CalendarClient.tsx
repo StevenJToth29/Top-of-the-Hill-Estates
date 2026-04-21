@@ -44,6 +44,7 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
   const [currentMonth, setCurrentMonth] = useState(() => new Date(initialMonth + 'T00:00:00'))
   const [data, setData] = useState<CalendarData>(initialData)
   const [loading, setLoading] = useState(false)
+  const [fetchError, setFetchError] = useState<string | null>(null)
   const [selection, setSelection] = useState<DragSelection | null>(null)
   const [modal, setModal] = useState<ModalState>({ type: 'none' })
 
@@ -59,6 +60,7 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
 
   async function fetchMonth(month: Date) {
     setLoading(true)
+    setFetchError(null)
     const from = format(startOfMonth(month), 'yyyy-MM-dd')
     const to = format(endOfMonth(month), 'yyyy-MM-dd')
     try {
@@ -66,22 +68,26 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
       if (res.ok) {
         const json: CalendarData = await res.json()
         setData(json)
+      } else {
+        setFetchError('Failed to load calendar data')
       }
+    } catch {
+      setFetchError('Failed to load calendar data')
     } finally {
       setLoading(false)
     }
   }
 
-  function goToPrevMonth() {
+  async function goToPrevMonth() {
     const prev = addMonths(currentMonth, -1)
     setCurrentMonth(prev)
-    fetchMonth(prev)
+    await fetchMonth(prev)
   }
 
-  function goToNextMonth() {
+  async function goToNextMonth() {
     const next = addMonths(currentMonth, 1)
     setCurrentMonth(next)
-    fetchMonth(next)
+    await fetchMonth(next)
   }
 
   function closeModal() {
@@ -101,11 +107,13 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
 
   function handleBook() {
     if (!selection) return
+    const checkOutDate = new Date(selection.endDate + 'T00:00:00')
+    checkOutDate.setDate(checkOutDate.getDate() + 1)
     setModal({
       type: 'addBooking',
       roomId: selection.roomId,
       checkIn: selection.startDate,
-      checkOut: selection.endDate,
+      checkOut: format(checkOutDate, 'yyyy-MM-dd'),
     })
   }
 
@@ -159,7 +167,8 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
         (b) =>
           b.room_id === nightModal.roomId &&
           nightModal.date >= b.check_in &&
-          nightModal.date < b.check_out,
+          nightModal.date < b.check_out &&
+          (b.status === 'confirmed' || b.status === 'pending'),
       )
     : undefined
   const nightIcal = nightModal
@@ -198,6 +207,9 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
           </button>
           {loading && (
             <span className="text-xs text-slate-400 animate-pulse">Loading…</span>
+          )}
+          {fetchError && (
+            <span className="text-xs text-red-500">{fetchError}</span>
           )}
         </div>
 
@@ -272,14 +284,41 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
             closeModal()
             setModal({ type: 'block', roomId: modal.roomId, from: modal.date, to: modal.date })
           }}
-          onUnblock={(roomId, date) => {
+          onUnblock={async (roomId, date) => {
             removeBlock(roomId, date)
             closeModal()
-            fetch('/api/admin/date-overrides', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ room_id: roomId, dates: [date], is_blocked: false }),
-            })
+            try {
+              const res = await fetch('/api/admin/date-overrides', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ room_id: roomId, dates: [date], is_blocked: false }),
+              })
+              if (!res.ok) {
+                // Rollback: re-block the date
+                applyOverrides([{
+                  id: `${roomId}-${date}`,
+                  room_id: roomId,
+                  date,
+                  price_override: null,
+                  is_blocked: true,
+                  block_reason: null,
+                  note: null,
+                  created_at: new Date().toISOString(),
+                }])
+              }
+            } catch {
+              // Rollback on network error
+              applyOverrides([{
+                id: `${roomId}-${date}`,
+                room_id: roomId,
+                date,
+                price_override: null,
+                is_blocked: true,
+                block_reason: null,
+                note: null,
+                created_at: new Date().toISOString(),
+              }])
+            }
           }}
           onViewBooking={(bookingId) => {
             router.push(`/admin/bookings?id=${bookingId}`)
@@ -294,24 +333,33 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
             closeModal()
           }}
           onSaveRate={async (roomId, date, price, note) => {
-            const rows = [
-              {
-                id: `${roomId}-${date}`,
-                room_id: roomId,
-                date,
-                price_override: price,
-                is_blocked: false,
-                block_reason: null,
-                note: note || null,
-                created_at: new Date().toISOString(),
-              },
-            ]
-            applyOverrides(rows)
-            await fetch('/api/admin/date-overrides', {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ room_id: roomId, dates: [date], price_override: price, note }),
-            })
+            const optimisticRow = {
+              id: `${roomId}-${date}`,
+              room_id: roomId,
+              date,
+              price_override: price,
+              is_blocked: false,
+              block_reason: null,
+              note: note || null,
+              created_at: new Date().toISOString(),
+            }
+            applyOverrides([optimisticRow])
+            try {
+              const res = await fetch('/api/admin/date-overrides', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ room_id: roomId, dates: [date], price_override: price, note }),
+              })
+              if (!res.ok) {
+                throw new Error('Failed to save rate')
+              }
+            } catch {
+              // Rollback to previous price (revert by re-fetching would be ideal; for now revert override)
+              applyOverrides([{
+                ...optimisticRow,
+                price_override: null,
+              }])
+            }
           }}
         />
       )}

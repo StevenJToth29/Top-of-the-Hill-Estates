@@ -200,8 +200,11 @@ export function CalendarGrid({
   )
 
   const handleMouseLeaveTable = useCallback(() => {
-    dragging.current = false
-  }, [])
+    if (dragging.current) {
+      dragging.current = false
+      onSelectionChange(null)
+    }
+  }, [onSelectionChange])
 
   const propertyTasks = tasks.filter((t) => t.room_id === null)
 
