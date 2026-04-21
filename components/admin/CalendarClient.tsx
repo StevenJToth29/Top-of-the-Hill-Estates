@@ -48,7 +48,7 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
   const [selection, setSelection] = useState<DragSelection | null>(null)
   const [modal, setModal] = useState<ModalState>({ type: 'none' })
 
-  const { overrideMap, getOverride, applyOverrides, removeBlock } = useDateOverrides(
+  const { overrideMap, getOverride, applyOverrides, removeBlock, resetOverrides } = useDateOverrides(
     data.dateOverrides,
   )
 
@@ -68,6 +68,7 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
       if (res.ok) {
         const json: CalendarData = await res.json()
         setData(json)
+        resetOverrides(json.dateOverrides)
       } else {
         setFetchError('Failed to load calendar data')
       }

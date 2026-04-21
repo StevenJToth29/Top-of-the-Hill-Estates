@@ -114,6 +114,8 @@ export async function POST(request: Request) {
       guest_phone: body.guest_phone,
       sms_consent: body.sms_consent ?? false,
       marketing_consent: body.marketing_consent ?? false,
+      source: body.source ?? null,
+      notes: body.notes ?? null,
       check_in: body.check_in,
       check_out: checkOut,
       total_nights: totalNights,

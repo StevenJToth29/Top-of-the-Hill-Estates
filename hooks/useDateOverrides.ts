@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import type { DateOverride } from '@/types'
 
 export type OverrideMap = Record<string, Record<string, DateOverride>>
@@ -16,6 +16,10 @@ function buildMap(overrides: DateOverride[]): OverrideMap {
 
 export function useDateOverrides(initial: DateOverride[]) {
   const [overrides, setOverrides] = useState<DateOverride[]>(initial)
+
+  const resetOverrides = useCallback((rows: DateOverride[]) => {
+    setOverrides(rows)
+  }, [])
 
   const overrideMap = buildMap(overrides)
 
@@ -58,5 +62,5 @@ export function useDateOverrides(initial: DateOverride[]) {
     [],
   )
 
-  return { overrides, overrideMap, getOverride, applyOverrides, removeBlock }
+  return { overrides, overrideMap, getOverride, applyOverrides, removeBlock, resetOverrides }
 }
