@@ -44,7 +44,7 @@ export function SetPriceModal({
   const filtered = allDates.filter((d) => {
     const dow = getDay(d)
     if (applyTo === 'weekends') return dow === 5 || dow === 6
-    if (applyTo === 'weekdays') return dow >= 1 && dow <= 4
+    if (applyTo === 'weekdays') return dow >= 1 && dow <= 5
     return true
   })
 

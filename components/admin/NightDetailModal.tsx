@@ -94,7 +94,7 @@ function AvailableState({ date, room, override, onBook, onBlock, onSaveRate }: {
             min={1} step={1}
             className="w-full rounded-lg border border-slate-200 pl-7 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
         </div>
-        {priceMin != null && priceMax != null && (() => {
+        {priceMin != null && priceMax != null && priceMax > priceMin && (() => {
           const pNum = parseFloat(price)
           const showMarker = pNum >= priceMin && pNum <= priceMax
           return (
@@ -192,20 +192,36 @@ function BookedState({ booking, onViewBooking, onCancelBooking }: {
   )
 }
 
-function BlockedState({ date, room, override, onUnblock }: {
-  date: string; room: Room; override?: DateOverride; onUnblock: () => void
+function BlockedState({
+  date, room, override, onUnblock,
+}: {
+  date: string
+  room: Room
+  override?: DateOverride
+  onUnblock: () => void
 }) {
   const [reason, setReason] = useState(override?.block_reason ?? '')
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleSaveReason() {
     setSaving(true)
-    await fetch('/api/admin/date-overrides', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ room_id: room.id, dates: [date], is_blocked: true, block_reason: reason }),
-    })
-    setSaving(false)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/date-overrides', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room_id: room.id, dates: [date], is_blocked: true, block_reason: reason }),
+      })
+      if (!res.ok) {
+        const j = await res.json()
+        setError(j.error ?? 'Failed to save note')
+      }
+    } catch {
+      setError('Failed to save note')
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -213,11 +229,15 @@ function BlockedState({ date, room, override, onUnblock }: {
       <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full bg-red-50 text-red-600 border border-red-100">
         ✕ Blocked
       </span>
+
       <div>
         <label className="block text-xs font-medium text-slate-600 mb-1">Block Reason</label>
         <input type="text" value={reason} onChange={(e) => setReason(e.target.value)}
           className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
       </div>
+
+      {error && <p className="text-xs text-red-500">{error}</p>}
+
       <div className="flex gap-2 pt-2">
         <button type="button" onClick={onUnblock}
           className="px-3 py-2 rounded-lg text-xs font-semibold text-white bg-green-500 hover:bg-green-600 transition-colors">
