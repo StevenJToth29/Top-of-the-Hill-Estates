@@ -49,6 +49,8 @@ export interface Room {
   cancellation_policy?: string | null
   use_property_cancellation_policy?: boolean
   ical_export_token: string
+  price_min?: number | null
+  price_max?: number | null
   created_at: string
   updated_at: string
   // joined
@@ -274,6 +276,7 @@ export interface EmailTemplate {
   name: string
   subject: string
   body: string
+  design: Record<string, unknown> | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -315,4 +318,39 @@ export interface EmailSettings {
   from_email: string
   admin_recipients: string[]
   review_url: string
+}
+
+// ── Calendar overrides & tasks ────────────────────────────────────────────────
+
+export interface DateOverride {
+  id: string
+  room_id: string
+  date: string            // ISO date "YYYY-MM-DD"
+  price_override: number | null
+  is_blocked: boolean
+  block_reason: string | null
+  note: string | null
+  created_at: string
+}
+
+export interface CalendarTask {
+  id: string
+  room_id: string | null  // null = property-wide
+  title: string
+  description: string | null
+  due_date: string        // ISO date "YYYY-MM-DD"
+  recurrence_rule: string | null   // iCal RRULE string
+  recurrence_end_date: string | null
+  status: 'pending' | 'complete'
+  color: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface CalendarData {
+  rooms: Room[]
+  bookings: Booking[]
+  icalBlocks: ICalBlock[]
+  dateOverrides: DateOverride[]
+  tasks: CalendarTask[]
 }
