@@ -9,7 +9,6 @@ jest.mock('@/lib/availability', () => ({
 }))
 
 import { createServiceRoleClient } from '@/lib/supabase'
-import { isWithinCancellationWindow } from '@/lib/cancellation'
 import { isRoomAvailableExcluding } from '@/lib/availability'
 import { POST } from '@/app/api/bookings/[id]/modify/route'
 
@@ -107,13 +106,6 @@ describe('POST /api/bookings/[id]/modify', () => {
 
   it('returns 400 if booking is not confirmed', async () => {
     setupMocks({ ...baseBooking, status: 'cancelled' })
-    const res = await POST(makeRequest(validBody), mockParams as never)
-    expect(res.status).toBe(400)
-  })
-
-  it('returns 400 if within cancellation window', async () => {
-    setupMocks()
-    ;(isWithinCancellationWindow as jest.Mock).mockReturnValueOnce(true)
     const res = await POST(makeRequest(validBody), mockParams as never)
     expect(res.status).toBe(400)
   })

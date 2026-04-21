@@ -11,11 +11,15 @@ jest.mock('@/lib/supabase', () => ({
 
 jest.mock('@/lib/stripe', () => ({
   stripe: {
-    paymentIntents: { update: jest.fn() },
+    paymentIntents: {
+      retrieve: jest.fn(),
+      update: jest.fn(),
+    },
   },
 }))
 
 const mockCreateServiceClient = createServiceRoleClient as jest.Mock
+const mockStripeRetrieve = (stripe.paymentIntents.retrieve as jest.Mock)
 const mockStripeUpdate = (stripe.paymentIntents.update as jest.Mock)
 
 function makeRequest(body: Record<string, unknown>) {
@@ -74,6 +78,7 @@ function createDbMocks(opts: {
 }
 
 beforeEach(() => {
+  mockStripeRetrieve.mockResolvedValue({ application_fee_amount: null })
   mockStripeUpdate.mockResolvedValue({})
 })
 
