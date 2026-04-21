@@ -14,7 +14,7 @@
 
 | File | Change |
 |------|--------|
-| `supabase/migrations/018_favicon_urls.sql` | CREATE — adds 3 columns to `site_settings` |
+| `supabase/migrations/020_favicon_urls.sql` | CREATE — adds 3 columns to `site_settings` |
 | `types/index.ts` | MODIFY — add 3 fields to `SiteSettings` interface |
 | `components/admin/SettingsForm.tsx` | MODIFY — add favicon state, upload handler, UI section |
 | `app/layout.tsx` | MODIFY — switch to `generateMetadata`, add icons |
@@ -29,7 +29,7 @@
 - [ ] **Step 1: Create the migration file**
 
 ```sql
--- supabase/migrations/018_favicon_urls.sql
+-- supabase/migrations/020_favicon_urls.sql
 ALTER TABLE site_settings
   ADD COLUMN IF NOT EXISTS favicon_url       text,
   ADD COLUMN IF NOT EXISTS favicon_large_url text,
@@ -58,7 +58,7 @@ Expected: 3 rows returned.
 - [ ] **Step 4: Commit**
 
 ```bash
-git add supabase/migrations/018_favicon_urls.sql
+git add supabase/migrations/020_favicon_urls.sql
 git commit -m "feat: add favicon URL columns to site_settings"
 ```
 
