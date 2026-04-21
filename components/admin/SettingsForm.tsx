@@ -67,6 +67,27 @@ async function compressImage(file: File, maxWidth = 400): Promise<Blob> {
   })
 }
 
+async function resizeToPng(file: File, size: number): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = size
+      canvas.height = size
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(img, 0, 0, size, size)
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url)
+        if (blob) resolve(blob)
+        else reject(new Error('Canvas toBlob returned null'))
+      }, 'image/png')
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Image load failed')) }
+    img.src = url
+  })
+}
+
 export default function SettingsForm({ settings, paymentMethodConfigs }: SettingsFormProps) {
   const [form, setForm] = useState({
     id: settings.id,
@@ -82,6 +103,9 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
     checkout_time: settings.checkout_time ?? '10:00',
     stripe_fee_percent: settings.stripe_fee_percent ?? 2.9,
     stripe_fee_flat: settings.stripe_fee_flat ?? 0.30,
+    favicon_url: settings.favicon_url ?? '',
+    favicon_large_url: settings.favicon_large_url ?? '',
+    favicon_apple_url: settings.favicon_apple_url ?? '',
   })
   const [hours, setHours] = useState<BusinessHours>(() => parseHours(settings.business_hours))
   const [cancellationPolicy, setCancellationPolicy] = useState<CancellationPolicy>(
@@ -94,6 +118,9 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoError, setLogoError] = useState('')
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const [faviconUploading, setFaviconUploading] = useState(false)
+  const [faviconError, setFaviconError] = useState('')
+  const faviconInputRef = useRef<HTMLInputElement>(null)
   const [methodConfigs, setMethodConfigs] = useState<PaymentMethodConfig[]>(paymentMethodConfigs)
   const [methodSaving, setMethodSaving] = useState<Record<string, boolean>>({})
   const [methodError, setMethodError] = useState<Record<string, string>>({})
@@ -150,6 +177,47 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
     } finally {
       setLogoUploading(false)
       if (logoInputRef.current) logoInputRef.current.value = ''
+    }
+  }
+
+  async function handleFaviconUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setFaviconUploading(true)
+    setFaviconError('')
+    try {
+      const supabase = createClient()
+      const ts = Date.now()
+      const sizes: Array<{ key: 'favicon_url' | 'favicon_large_url' | 'favicon_apple_url'; size: number; name: string }> = [
+        { key: 'favicon_url',       size: 32,  name: `favicon/32-${ts}.png`  },
+        { key: 'favicon_large_url', size: 192, name: `favicon/192-${ts}.png` },
+        { key: 'favicon_apple_url', size: 180, name: `favicon/180-${ts}.png` },
+      ]
+
+      const urls: Record<string, string> = {}
+
+      for (const { key, size, name } of sizes) {
+        const blob = await resizeToPng(file, size)
+        const { data, error: uploadError } = await supabase.storage
+          .from('site-assets')
+          .upload(name, blob, { contentType: 'image/png', upsert: false })
+        if (uploadError) throw uploadError
+        const { data: { publicUrl } } = supabase.storage.from('site-assets').getPublicUrl(data.path)
+        urls[key] = publicUrl
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        favicon_url: urls.favicon_url,
+        favicon_large_url: urls.favicon_large_url,
+        favicon_apple_url: urls.favicon_apple_url,
+      }))
+      setSaved(false)
+    } catch (err) {
+      setFaviconError(err instanceof Error ? err.message : 'Upload failed')
+    } finally {
+      setFaviconUploading(false)
+      if (faviconInputRef.current) faviconInputRef.current.value = ''
     }
   }
 
@@ -390,6 +458,58 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
             <span>Large</span>
           </div>
         </div>
+      </section>
+
+      <div className="h-px bg-outline-variant" />
+
+      {/* Favicon */}
+      <section className="space-y-4">
+        <h2 className="font-display text-base font-semibold text-on-surface">Favicon</h2>
+        <div className="flex items-center gap-6">
+          <div className="rounded-xl bg-surface-container flex items-center justify-center shrink-0" style={{ width: 48, height: 48 }}>
+            {form.favicon_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={form.favicon_url}
+                alt="Favicon preview"
+                width={32}
+                height={32}
+                className="object-contain"
+              />
+            ) : (
+              <span className="text-on-surface-variant/40 text-xs">No icon</span>
+            )}
+          </div>
+          <div className="space-y-2">
+            <button
+              type="button"
+              disabled={faviconUploading}
+              onClick={() => faviconInputRef.current?.click()}
+              className="flex items-center gap-2 bg-surface-container hover:bg-surface-high text-on-surface-variant text-sm font-medium rounded-xl px-4 py-2.5 transition-colors disabled:opacity-50"
+            >
+              <PhotoIcon className="w-4 h-4" />
+              {faviconUploading ? 'Uploading…' : 'Upload Favicon'}
+            </button>
+            <p className="text-xs text-on-surface-variant/60">
+              PNG, JPEG, WebP or SVG · Generates 32px, 192px and 180px variants automatically
+            </p>
+            {faviconError && (
+              <p className="text-xs text-error">{faviconError}</p>
+            )}
+          </div>
+          <input
+            ref={faviconInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+            className="hidden"
+            onChange={handleFaviconUpload}
+          />
+        </div>
+        {form.favicon_url && form.favicon_url !== settings.favicon_url && (
+          <p className="text-xs text-secondary">
+            Favicon uploaded — click Save Settings below to apply it site-wide.
+          </p>
+        )}
       </section>
 
       <div className="h-px bg-outline-variant" />
