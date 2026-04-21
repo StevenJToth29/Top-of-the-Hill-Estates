@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { evaluateAndQueueEmails } from '@/lib/email-queue'
 import { createServiceRoleClient } from '@/lib/supabase'
-import { isWithinCancellationWindow } from '@/lib/cancellation'
 import { isRoomAvailableExcluding } from '@/lib/availability'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 
@@ -43,14 +42,8 @@ export async function POST(
       return NextResponse.json({ error: 'Booking cannot be modified in its current state' }, { status: 400 })
     }
 
-    const windowHours: number = booking.room?.cancellation_window_hours ?? 72
-    const now = new Date()
-
-    if (isWithinCancellationWindow(booking, now, windowHours)) {
-      return NextResponse.json(
-        { error: `Modifications are not available within ${windowHours} hours of check-in` },
-        { status: 400 },
-      )
+    if (booking.booking_type === 'long_term') {
+      return NextResponse.json({ error: 'Long-term bookings cannot be modified online. Please contact us.' }, { status: 400 })
     }
 
     // Check for existing pending modification request

@@ -42,9 +42,3 @@ export async function sendEmail(params: {
   }
 }
 
-export function resolveVariables(
-  text: string,
-  variables: Record<string, string>,
-): string {
-  return text.replace(/\{\{(\w+)\}\}/g, (_match, key: string) => variables[key] ?? '')
-}

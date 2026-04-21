@@ -28,6 +28,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const body = (await request.json()) as Record<string, unknown>
+  if (!body.name || !body.subject || !body.body) {
+    return NextResponse.json({ error: 'name, subject, and body are required' }, { status: 400 })
+  }
   const supabase = createServiceRoleClient()
   const { data, error } = await supabase
     .from('email_templates')

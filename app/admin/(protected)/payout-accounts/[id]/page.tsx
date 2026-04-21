@@ -2,9 +2,11 @@ export const dynamic = 'force-dynamic'
 
 import { notFound, redirect } from 'next/navigation'
 import Link from 'next/link'
+import nextDynamic from 'next/dynamic'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import { stripe } from '@/lib/stripe'
-import StripeConnectPanel from '@/components/admin/StripeConnectPanel'
+
+const StripeConnectPanel = nextDynamic(() => import('@/components/admin/StripeConnectPanel'), { ssr: false })
 
 interface PageProps {
   params: { id: string }

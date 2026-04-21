@@ -116,20 +116,31 @@ export async function PATCH(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Two-step replace (not transactional): delete all existing fees, then insert new set
-  const { error: deleteError } = await supabase.from('room_fees').delete().eq('room_id', id)
-  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
-
   const fees: { label: string; amount: number; booking_type: 'short_term' | 'long_term' | 'both' }[] = fields.fees ?? []
   const validBookingTypes = new Set(['short_term', 'long_term', 'both'])
   if (fees.some((f) => !validBookingTypes.has(f.booking_type))) {
     return NextResponse.json({ error: 'Invalid booking_type — must be short_term, long_term, or both' }, { status: 400 })
   }
+
+  // Snapshot existing fees before delete so we can roll back if insert fails
+  const { data: existingFees } = await supabase.from('room_fees').select('*').eq('room_id', id)
+
+  const { error: deleteError } = await supabase.from('room_fees').delete().eq('room_id', id)
+  if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
+
   if (fees.length > 0) {
     const { error: feesError } = await supabase
       .from('room_fees')
       .insert(fees.map((f) => ({ room_id: id, label: f.label, amount: f.amount, booking_type: f.booking_type })))
-    if (feesError) return NextResponse.json({ error: feesError.message }, { status: 500 })
+    if (feesError) {
+      // Restore original fees to avoid data loss
+      if (existingFees?.length) {
+        await supabase.from('room_fees').insert(
+          existingFees.map((f) => ({ room_id: id, label: f.label, amount: f.amount, booking_type: f.booking_type })),
+        )
+      }
+      return NextResponse.json({ error: feesError.message }, { status: 500 })
+    }
   }
 
   return NextResponse.json({ success: true })

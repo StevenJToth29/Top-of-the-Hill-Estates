@@ -6,9 +6,9 @@ import { createServiceRoleClient } from '@/lib/supabase'
 import { sendEmail } from '@/lib/email'
 
 jest.mock('@/lib/supabase', () => ({ createServiceRoleClient: jest.fn() }))
-jest.mock('@/lib/email', () => ({
-  sendEmail: jest.fn(),
-  resolveVariables: jest.requireActual('@/lib/email').resolveVariables,
+jest.mock('@/lib/email', () => ({ sendEmail: jest.fn() }))
+jest.mock('@/lib/email-variables', () => ({
+  ...jest.requireActual('@/lib/email-variables'),
 }))
 
 const mockCreateServiceClient = createServiceRoleClient as jest.Mock

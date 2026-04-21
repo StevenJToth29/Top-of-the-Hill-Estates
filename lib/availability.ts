@@ -81,6 +81,62 @@ export async function isRoomAvailable(
 }
 
 /**
+ * Batch version of isRoomAvailable. Fetches all bookings and iCal blocks for
+ * every room in a single pair of queries instead of 2 queries per room.
+ * Returns the subset of roomIds that are fully available for the date range.
+ */
+export async function getAvailableRoomIds(
+  roomIds: string[],
+  checkIn: string,
+  checkOut: string,
+): Promise<Set<string>> {
+  if (roomIds.length === 0) return new Set()
+
+  const supabase = createServiceRoleClient()
+
+  const [{ data: bookings }, { data: icalBlocks }] = await Promise.all([
+    supabase
+      .from('bookings')
+      .select('room_id, check_in, check_out')
+      .in('room_id', roomIds)
+      .in('status', ['confirmed', 'pending'])
+      .lt('check_in', checkOut)
+      .gte('check_out', checkIn),
+    supabase
+      .from('ical_blocks')
+      .select('room_id, start_date, end_date')
+      .in('room_id', roomIds)
+      .lt('start_date', checkOut)
+      .gte('end_date', checkIn),
+  ])
+
+  // Build per-room blocked-date sets
+  const blockedByRoom = new Map<string, Set<string>>()
+  for (const id of roomIds) blockedByRoom.set(id, new Set())
+
+  for (const b of bookings ?? []) {
+    const set = blockedByRoom.get(b.room_id)!
+    addDateRangeToSet(set, b.check_in, b.check_out, checkOut)
+  }
+  for (const b of icalBlocks ?? []) {
+    const set = blockedByRoom.get(b.room_id)!
+    addDateRangeToSet(set, b.start_date, b.end_date, checkOut)
+  }
+
+  const requestedDays = eachDayOfInterval({
+    start: parseISO(checkIn),
+    end: addDays(parseISO(checkOut), -1),
+  }).map((day) => format(day, 'yyyy-MM-dd'))
+
+  const available = new Set<string>()
+  for (const id of roomIds) {
+    const blocked = blockedByRoom.get(id)!
+    if (requestedDays.every((day) => !blocked.has(day))) available.add(id)
+  }
+  return available
+}
+
+/**
  * Same as isRoomAvailable but excludes one booking from the blocked set.
  * Use this when checking availability for a modification of an existing booking
  * so the guest's own dates are not counted as blocked.

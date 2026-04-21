@@ -57,6 +57,18 @@ export async function PATCH(
     ) / 100
     const grand_total = Math.round((base_amount + processing_fee) * 100) / 100
 
+    // Compute updated application_fee_amount so the processing fee stays on the platform
+    // and only the base amount is transferred to the connected account.
+    // Delta approach: subtract old processing fee, add new one — works on first call and method switches.
+    const currentPI = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id)
+    const currentAppFee = currentPI.application_fee_amount ?? null
+    const oldProcessingFeeCents = Math.round(Number(booking.processing_fee ?? 0) * 100)
+    const newProcessingFeeCents = Math.round(processing_fee * 100)
+    const newAppFeeCents =
+      currentAppFee !== null
+        ? currentAppFee - oldProcessingFeeCents + newProcessingFeeCents
+        : null
+
     // DB first: if this fails, Stripe is untouched and the call is safely retryable.
     const { error: updateError } = await supabase
       .from('bookings')
@@ -70,6 +82,7 @@ export async function PATCH(
     try {
       await stripe.paymentIntents.update(booking.stripe_payment_intent_id, {
         amount: Math.round(grand_total * 100),
+        ...(newAppFeeCents !== null && { application_fee_amount: newAppFeeCents }),
       })
     } catch (stripeErr) {
       // Roll back the DB update so the booking stays consistent with Stripe.

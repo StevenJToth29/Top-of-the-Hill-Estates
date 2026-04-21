@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { ModalShell } from './calendar/ModalShell'
 import type { Room, CalendarTask } from '@/types'
 
@@ -17,6 +17,7 @@ interface TaskModalProps {
   rooms: Room[]
   task?: CalendarTask
   initialRoomId?: string | null
+  initialPropertyId?: string | null
   initialDate?: string
   onClose: () => void
   onSuccess: (task: CalendarTask) => void
@@ -24,9 +25,21 @@ interface TaskModalProps {
 }
 
 export function TaskModal({
-  rooms, task, initialRoomId = null, initialDate, onClose, onSuccess, onDelete,
+  rooms, task, initialRoomId = null, initialPropertyId = null, initialDate, onClose, onSuccess, onDelete,
 }: TaskModalProps) {
   const isEdit = !!task
+
+  const properties = useMemo(() => {
+    const seen = new Set<string>()
+    const list: { id: string; name: string }[] = []
+    for (const r of rooms) {
+      if (r.property && !seen.has(r.property.id)) {
+        seen.add(r.property.id)
+        list.push({ id: r.property.id, name: r.property.name })
+      }
+    }
+    return list
+  }, [rooms])
 
   const [title, setTitle] = useState(task?.title ?? '')
   const [description, setDescription] = useState(task?.description ?? '')
@@ -34,6 +47,9 @@ export function TaskModal({
     (task?.room_id ?? initialRoomId) ? 'room' : 'property',
   )
   const [roomId, setRoomId] = useState(task?.room_id ?? initialRoomId ?? '')
+  const [propertyId, setPropertyId] = useState(
+    task?.property_id ?? initialPropertyId ?? properties[0]?.id ?? '',
+  )
   const [date, setDate] = useState(task?.due_date ?? initialDate ?? '')
   const [recurrencePreset, setRecurrencePreset] = useState(() => {
     if (!task?.recurrence_rule) return ''
@@ -64,6 +80,7 @@ export function TaskModal({
       description: description.trim() || null,
       due_date: date,
       room_id: scope === 'room' && roomId ? roomId : null,
+      property_id: scope === 'property' && propertyId ? propertyId : null,
       recurrence_rule: effectiveRRule || null,
       recurrence_end_date: recurrenceEnd || null,
       status,
@@ -125,7 +142,7 @@ export function TaskModal({
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-2">Scope</label>
           <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
-            {[{ v: 'property', label: 'Property-wide' }, { v: 'room', label: 'Room-specific' }].map(({ v, label }) => (
+            {[{ v: 'property', label: 'Property-level' }, { v: 'room', label: 'Room-specific' }].map(({ v, label }) => (
               <button key={v} type="button" onClick={() => setScope(v as 'property' | 'room')}
                 className={`flex-1 py-2 font-medium transition-colors ${
                   scope === v ? 'text-white' : 'text-slate-500 hover:bg-slate-50'
@@ -135,12 +152,23 @@ export function TaskModal({
               </button>
             ))}
           </div>
+
+          {scope === 'property' && (
+            <select value={propertyId} onChange={(e) => setPropertyId(e.target.value)}
+              className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+              <option value="">Select a property…</option>
+              {properties.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          )}
+
           {scope === 'room' && (
             <select value={roomId} onChange={(e) => setRoomId(e.target.value)}
               className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
               <option value="">Select a room…</option>
               {rooms.map((r) => (
-                <option key={r.id} value={r.id}>{r.name}</option>
+                <option key={r.id} value={r.id}>{r.property?.name ? `${r.property.name} — ${r.name}` : r.name}</option>
               ))}
             </select>
           )}

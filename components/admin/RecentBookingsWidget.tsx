@@ -12,6 +12,7 @@ export type BookingWithRoom = Booking & {
 
 interface RecentBookingsWidgetProps {
   bookings: BookingWithRoom[]
+  today?: string
 }
 
 type SortKey = 'guest' | 'room' | 'check_in' | 'check_out' | 'booking_type' | 'total_amount' | 'status'
@@ -54,13 +55,13 @@ const COLUMNS: { label: string; key: SortKey }[] = [
   { label: 'Status', key: 'status' },
 ]
 
-export function RecentBookingsWidget({ bookings }: RecentBookingsWidgetProps) {
+export function RecentBookingsWidget({ bookings, today }: RecentBookingsWidgetProps) {
   const [sortKey, setSortKey] = useState<SortKey>('check_in')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
   function handleSort(key: SortKey) {
     if (key === sortKey) {
-      setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'))
+      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
     } else {
       setSortKey(key)
       setSortDir('asc')
@@ -70,20 +71,29 @@ export function RecentBookingsWidget({ bookings }: RecentBookingsWidgetProps) {
   const sorted = sortBookings(bookings, sortKey, sortDir)
 
   return (
-    <div className="bg-surface-container rounded-2xl overflow-hidden shadow-[0_8px_40px_rgba(45,212,191,0.06)]">
-      <div className="px-6 py-5">
-        <h2 className="font-display text-lg font-semibold text-on-surface">
+    <div
+      className="overflow-hidden rounded-xl border bg-white shadow-sm"
+      style={{ borderColor: '#E2E8F0' }}
+    >
+      <div
+        className="flex items-center justify-between px-5 py-4"
+        style={{ borderBottom: '1px solid #F1F5F9' }}
+      >
+        <h2 className="font-display text-[15px] font-[800]" style={{ color: '#0F172A' }}>
           Recent Bookings
         </h2>
+        <span className="text-xs" style={{ color: '#94A3B8' }}>
+          {bookings.length} total
+        </span>
       </div>
 
       {bookings.length === 0 ? (
-        <div className="px-6 pb-6 text-on-surface-variant text-sm">
+        <div className="px-5 py-5 text-sm" style={{ color: '#94A3B8' }}>
           No bookings yet.
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
             <thead>
               <tr>
                 {COLUMNS.map(({ label, key }) => {
@@ -92,60 +102,147 @@ export function RecentBookingsWidget({ bookings }: RecentBookingsWidgetProps) {
                     <th
                       key={key}
                       onClick={() => handleSort(key)}
-                      className="px-6 py-3 text-left uppercase tracking-widest text-xs font-medium whitespace-nowrap cursor-pointer select-none group"
+                      className="cursor-pointer select-none whitespace-nowrap px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-[0.05em]"
+                      style={{
+                        color: active ? '#1FB2A0' : '#94A3B8',
+                        borderBottom: '1px solid #F1F5F9',
+                        background: '#F8FAFC',
+                      }}
                     >
-                      <span className={active ? 'text-secondary' : 'text-on-surface-variant group-hover:text-on-surface transition-colors'}>
-                        {label}
+                      {label}
+                      {active && (
                         <span className="ml-1 inline-block w-3 text-center">
-                          {active ? (sortDir === 'asc' ? '▲' : '▼') : ''}
+                          {sortDir === 'asc' ? '▲' : '▼'}
                         </span>
-                      </span>
+                      )}
                     </th>
                   )
                 })}
+                <th
+                  className="whitespace-nowrap px-4 py-2.5 text-right text-[11px] font-bold uppercase tracking-[0.05em]"
+                  style={{
+                    color: '#94A3B8',
+                    borderBottom: '1px solid #F1F5F9',
+                    background: '#F8FAFC',
+                  }}
+                >
+                  Outstanding
+                </th>
               </tr>
             </thead>
             <tbody>
-              {sorted.map((booking) => (
-                <tr
-                  key={booking.id}
-                  className="hover:bg-surface-high/40 transition-colors"
-                >
-                  <td className="px-6 py-4 text-on-surface whitespace-nowrap">
-                    <a
-                      href={`/admin/bookings?id=${booking.id}`}
-                      className="hover:text-secondary transition-colors"
+              {sorted.map(booking => {
+                const isCheckinToday = today && booking.check_in === today
+                const isCheckoutToday = today && booking.check_out === today
+                const outstanding = Math.max(
+                  0,
+                  (booking.total_amount ?? 0) - (booking.amount_paid ?? 0),
+                )
+                return (
+                  <tr
+                    key={booking.id}
+                    className="transition-colors"
+                    style={{ borderBottom: '1px solid #F8FAFC' }}
+                    onMouseEnter={e => ((e.currentTarget as HTMLTableRowElement).style.background = '#F8FAFC')}
+                    onMouseLeave={e => ((e.currentTarget as HTMLTableRowElement).style.background = '')}
+                  >
+                    <td className="px-4 py-3 text-[13px] font-semibold" style={{ color: '#0F172A' }}>
+                      <a
+                        href={`/admin/bookings?id=${booking.id}`}
+                        className="flex items-center gap-2 hover:opacity-75 transition-opacity"
+                      >
+                        <div
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[11px] font-[800]"
+                          style={{
+                            background: 'rgba(45,212,191,0.1)',
+                            color: '#1FB2A0',
+                            fontFamily: 'Manrope, sans-serif',
+                          }}
+                        >
+                          {booking.guest_first_name.charAt(0)}{booking.guest_last_name.charAt(0)}
+                        </div>
+                        <div>
+                          <div>{booking.guest_first_name} {booking.guest_last_name}</div>
+                          <div className="text-[11px] font-normal" style={{ color: '#94A3B8' }}>
+                            {booking.guest_email}
+                          </div>
+                        </div>
+                      </a>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="block text-[13px] font-semibold" style={{ color: '#1FB2A0' }}>
+                        {booking.room?.name ?? '—'}
+                      </span>
+                      <span className="text-[11px]" style={{ color: '#94A3B8' }}>
+                        {booking.room?.property?.name ?? ''}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className="rounded-md px-1.5 py-0.5 text-[13px]"
+                        style={
+                          isCheckinToday
+                            ? {
+                                background: 'rgba(45,212,191,0.08)',
+                                color: '#1FB2A0',
+                                fontWeight: 700,
+                              }
+                            : { color: '#64748B' }
+                        }
+                      >
+                        {formatDate(booking.check_in)}
+                        {isCheckinToday && ' · Today'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className="rounded-md px-1.5 py-0.5 text-[13px]"
+                        style={
+                          isCheckoutToday
+                            ? {
+                                background: 'rgba(217,119,6,0.08)',
+                                color: '#D97706',
+                                fontWeight: 700,
+                              }
+                            : { color: '#64748B' }
+                        }
+                      >
+                        {formatDate(booking.check_out)}
+                        {isCheckoutToday && ' · Today'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[12px]"
+                        style={{ background: '#F1F5F9', color: '#64748B' }}
+                      >
+                        {booking.booking_type === 'short_term' ? 'Short' : 'Long'}
+                      </span>
+                    </td>
+                    <td
+                      className="px-4 py-3 whitespace-nowrap text-right text-[13px] font-semibold"
+                      style={{ color: '#0F172A' }}
                     >
-                      {booking.guest_first_name} {booking.guest_last_name}
-                    </a>
-                  </td>
-                  <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
-                    <span className="block">{booking.room?.name ?? '—'}</span>
-                    <span className="text-xs text-on-surface-variant/70">
-                      {booking.room?.property?.name ?? ''}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
-                    {formatDate(booking.check_in)}
-                  </td>
-                  <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
-                    {formatDate(booking.check_out)}
-                  </td>
-                  <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap capitalize">
-                    {booking.booking_type.replace('_', ' ')}
-                  </td>
-                  <td className="px-6 py-4 text-on-surface whitespace-nowrap">
-                    ${booking.total_amount.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_BADGE[booking.status]}`}
+                      ${(booking.total_amount ?? 0).toLocaleString()}
+                    </td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold ${STATUS_BADGE[booking.status]}`}
+                      >
+                        {booking.status}
+                      </span>
+                    </td>
+                    <td
+                      className="px-4 py-3 whitespace-nowrap text-right text-[13px] font-semibold"
+                      style={{ color: outstanding > 0 ? '#DC2626' : '#059669' }}
                     >
-                      {booking.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+                      {outstanding > 0
+                        ? `$${outstanding.toLocaleString('en-US', { maximumFractionDigits: 0 })}`
+                        : '–'}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

@@ -133,7 +133,7 @@ export async function evaluateAndQueueEmails(
 
     if (!automations?.length) return
 
-    let booking: (Booking & { room?: Room & { property?: Property } }) | null = null
+    let booking: Booking | null = null
     if (context.type === 'booking') {
       const { data } = await supabase
         .from('bookings')
@@ -144,7 +144,7 @@ export async function evaluateAndQueueEmails(
         console.error(`evaluateAndQueueEmails: booking ${context.bookingId} not found`)
         return
       }
-      booking = data as typeof booking
+      booking = data as Booking
     }
 
     const [{ data: emailSettings }, { data: siteSettings }] = await Promise.all([

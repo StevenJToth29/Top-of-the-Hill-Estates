@@ -108,7 +108,8 @@ describe('POST /api/bookings — short-term pricing', () => {
     expect((stripe.paymentIntents.create as jest.Mock)).toHaveBeenCalledWith(
       expect.objectContaining({
         payment_method_types: ['card'],
-      })
+      }),
+      expect.objectContaining({ idempotencyKey: expect.any(String) }),
     )
   })
 

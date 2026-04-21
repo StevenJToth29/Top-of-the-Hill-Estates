@@ -1,10 +1,11 @@
 // components/admin/CalendarGrid.tsx
 'use client'
 
-import React, { useRef, useCallback } from 'react'
+import React, { useRef, useCallback, useMemo } from 'react'
 import { format, isToday, getDay } from 'date-fns'
 import { clsx } from 'clsx'
-import type { Room, Booking, ICalBlock, DateOverride, CalendarTask } from '@/types'
+import { HomeIcon } from '@heroicons/react/16/solid'
+import type { Room, Booking, ICalBlock, CalendarTask } from '@/types'
 import { CalendarTaskRow } from './CalendarTaskRow'
 import type { OverrideMap } from '@/hooks/useDateOverrides'
 
@@ -13,6 +14,9 @@ export interface DragSelection {
   startDate: string
   endDate: string
 }
+
+export const DAY_COL_WIDTH = 36
+export const LABEL_COL_WIDTH = 200
 
 interface CalendarGridProps {
   rooms: Room[]
@@ -24,13 +28,11 @@ interface CalendarGridProps {
   selection: DragSelection | null
   onSelectionChange: (sel: DragSelection | null) => void
   onCellClick: (roomId: string, date: string) => void
-  onRoomNameClick: (room: Room) => void
+  onBookingClick: (booking: Booking) => void
   onTaskClick: (task: CalendarTask) => void
   onAddTask: (roomId: string | null, date: string) => void
+  onAddPropertyTask: (propertyId: string, date: string) => void
 }
-
-const LABEL_COL_WIDTH = 180
-const CELL_WIDTH = 38
 
 type CellStatus = 'available' | 'booked-first' | 'booked-cont' | 'blocked' | 'ical' | 'selected'
 
@@ -116,10 +118,9 @@ function CellContent({
       (b) => b.room_id === roomId && b.check_in === dateStr,
     )
     if (!booking) return null
-    const initials = `${booking.guest_first_name[0] ?? ''}${booking.guest_last_name[0] ?? ''}`.toUpperCase()
     return (
-      <span className="text-[10px] font-bold" style={{ color: '#0F766E' }}>
-        {initials}
+      <span className="text-[10px] font-semibold max-w-full truncate" style={{ color: '#0F766E' }}>
+        {booking.guest_first_name} {booking.guest_last_name}
       </span>
     )
   }
@@ -155,9 +156,10 @@ export function CalendarGrid({
   selection,
   onSelectionChange,
   onCellClick,
-  onRoomNameClick,
+  onBookingClick,
   onTaskClick,
   onAddTask,
+  onAddPropertyTask,
 }: CalendarGridProps) {
   const dragging = useRef(false)
   const dragStartDate = useRef<string | null>(null)
@@ -206,186 +208,280 @@ export function CalendarGrid({
     }
   }, [onSelectionChange])
 
-  const propertyTasks = tasks.filter((t) => t.room_id === null)
-
-  const occupancyByDate: Record<string, number> = {}
-  for (const day of days) {
-    const ds = format(day, 'yyyy-MM-dd')
-    let count = 0
+  const propertiesWithRooms = useMemo(() => {
+    const map = new Map<string, { id: string; name: string; rooms: Room[] }>()
     for (const room of rooms) {
-      const status = getCellStatus(room.id, ds, bookings, icalBlocks, overrideMap, null)
-      if (status === 'booked-first' || status === 'booked-cont') count++
+      const pid = room.property?.id ?? '__none__'
+      const pname = room.property?.name ?? 'Property'
+      if (!map.has(pid)) map.set(pid, { id: pid, name: pname, rooms: [] })
+      map.get(pid)!.rooms.push(room)
     }
-    occupancyByDate[ds] = count
-  }
+    return Array.from(map.values())
+  }, [rooms])
+
+  const occupancyByDate = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const day of days) {
+      const ds = format(day, 'yyyy-MM-dd')
+      let count = 0
+      for (const room of rooms) {
+        const status = getCellStatus(room.id, ds, bookings, icalBlocks, overrideMap, null)
+        if (status === 'booked-first' || status === 'booked-cont') count++
+      }
+      map[ds] = count
+    }
+    return map
+  }, [days, rooms, bookings, icalBlocks, overrideMap])
+
+  const monthGroups = useMemo(() => {
+    const groups: { yearMonth: string; count: number }[] = []
+    for (const day of days) {
+      const ym = format(day, 'yyyy-MM')
+      const last = groups[groups.length - 1]
+      if (last?.yearMonth === ym) {
+        last.count++
+      } else {
+        groups.push({ yearMonth: ym, count: 1 })
+      }
+    }
+    return groups
+  }, [days])
+
+  const tableWidth = LABEL_COL_WIDTH + days.length * DAY_COL_WIDTH
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
-      {/* Occupancy heatbar */}
-      <div className="flex sticky top-0 z-20 bg-white border-b border-slate-100" style={{ minWidth: LABEL_COL_WIDTH + days.length * CELL_WIDTH }}>
-        <div style={{ width: LABEL_COL_WIDTH, minWidth: LABEL_COL_WIDTH }} />
-        {days.map((day) => {
-          const ds = format(day, 'yyyy-MM-dd')
-          const occ = rooms.length > 0 ? (occupancyByDate[ds] ?? 0) / rooms.length : 0
-          let bg = 'rgba(45,212,191,0.25)'
-          if (occ >= 0.8) bg = '#EF4444'
-          else if (occ >= 0.5) bg = '#F59E0B'
-          return (
-            <div
-              key={ds}
-              title={`${Math.round(occ * 100)}% occupied`}
-              style={{ width: CELL_WIDTH, minWidth: CELL_WIDTH, height: 5, background: bg }}
-            />
-          )
-        })}
-      </div>
+    <table
+      className="border-collapse select-none"
+      style={{ tableLayout: 'fixed', width: tableWidth, minWidth: tableWidth }}
+      onMouseLeave={handleMouseLeaveTable}
+    >
+      <colgroup>
+        <col style={{ width: LABEL_COL_WIDTH }} />
+        {days.map((_, i) => <col key={i} style={{ width: DAY_COL_WIDTH }} />)}
+      </colgroup>
 
-      <table
-        className="border-collapse select-none"
-        style={{ minWidth: LABEL_COL_WIDTH + days.length * CELL_WIDTH }}
-        onMouseLeave={handleMouseLeaveTable}
-      >
-        {/* Header row */}
-        <thead className="sticky top-5 z-20 bg-white">
-          <tr>
-            <th
-              className="sticky left-0 z-30 bg-white border-b border-r border-slate-200 text-left px-3 py-2 text-xs font-semibold text-slate-500"
-              style={{ width: LABEL_COL_WIDTH, minWidth: LABEL_COL_WIDTH }}
-            >
-              Room
-            </th>
-            {days.map((day) => {
-              const ds = format(day, 'yyyy-MM-dd')
-              const isSun = getDay(day) === 0
-              const isFriSat = getDay(day) === 5 || getDay(day) === 6
-              const todayDay = isToday(day)
-              return (
-                <th
-                  key={ds}
-                  className={clsx(
-                    'border-b border-slate-100 text-center',
-                    isSun && 'border-l border-slate-200',
-                    isFriSat && 'bg-amber-50',
-                  )}
-                  style={{ width: CELL_WIDTH, minWidth: CELL_WIDTH, padding: '4px 0' }}
-                >
-                  <div className="flex flex-col items-center gap-0.5">
-                    <span className="text-[9px] text-slate-400 uppercase">
-                      {format(day, 'EEE').slice(0, 2)}
-                    </span>
-                    <span
-                      className={clsx(
-                        'text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full',
-                        todayDay ? 'text-white' : 'text-slate-700',
-                      )}
-                      style={todayDay ? { background: '#2DD4BF' } : {}}
-                    >
-                      {format(day, 'd')}
-                    </span>
-                  </div>
-                </th>
-              )
-            })}
-          </tr>
-        </thead>
-
-        <tbody>
-          {/* Property tasks row */}
-          <CalendarTaskRow
-            label="📋 Property Tasks"
-            tasks={propertyTasks}
-            days={days}
-            cellWidth={CELL_WIDTH}
-            labelColWidth={LABEL_COL_WIDTH}
-            onTaskClick={onTaskClick}
-            onAddClick={() => onAddTask(null, format(days[0], 'yyyy-MM-dd'))}
+      <thead className="sticky top-0 z-20 bg-white">
+        {/* Month group header */}
+        <tr>
+          <th
+            className="sticky left-0 z-30 bg-white border-b border-r border-slate-200"
+            style={{ width: LABEL_COL_WIDTH, padding: 0 }}
           />
+          {monthGroups.map(({ yearMonth, count }) => (
+            <th
+              key={yearMonth}
+              colSpan={count}
+              className="border-b border-l-2 border-slate-300 bg-slate-50 text-left text-[11px] font-semibold text-slate-500 px-2 py-1 whitespace-nowrap overflow-hidden"
+              style={{ position: 'sticky', left: LABEL_COL_WIDTH, zIndex: 19 }}
+            >
+              {format(new Date(yearMonth + '-01T00:00:00'), 'MMMM yyyy')}
+            </th>
+          ))}
+        </tr>
 
-          {rooms.map((room) => {
-            const roomTasks = tasks.filter((t) => t.room_id === room.id)
-
+        {/* Occupancy heatbar */}
+        <tr>
+          <td style={{ width: LABEL_COL_WIDTH, height: 4, padding: 0 }} />
+          {days.map((day) => {
+            const ds = format(day, 'yyyy-MM-dd')
+            const occ = rooms.length > 0 ? (occupancyByDate[ds] ?? 0) / rooms.length : 0
+            let bg = 'rgba(45,212,191,0.25)'
+            if (occ >= 0.8) bg = '#EF4444'
+            else if (occ >= 0.5) bg = '#F59E0B'
             return (
-              <React.Fragment key={room.id}>
-                {/* Booking / availability row */}
-                <tr className="border-b border-slate-100 group">
-                  {/* Room label */}
-                  <td
-                    className="sticky left-0 z-10 bg-white border-r border-slate-200 px-2 py-1"
-                    style={{ width: LABEL_COL_WIDTH, minWidth: LABEL_COL_WIDTH }}
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onRoomNameClick(room)}
-                      className="text-xs font-semibold truncate block w-full text-left hover:underline"
-                      style={{ color: '#2DD4BF' }}
-                    >
-                      {room.name}
-                    </button>
-                    <span className="text-[10px] text-slate-400 block truncate">
-                      {room.property?.name ?? ''}
-                    </span>
-                    <span className="text-[10px] text-slate-400">
-                      ${room.nightly_rate}/night
-                    </span>
-                  </td>
-
-                  {/* Day cells */}
-                  {days.map((day) => {
-                    const ds = format(day, 'yyyy-MM-dd')
-                    const isFriSat = getDay(day) === 5 || getDay(day) === 6
-                    const isSun = getDay(day) === 0
-                    const status = getCellStatus(room.id, ds, bookings, icalBlocks, overrideMap, selection)
-                    const cellStyle = getCellStyle(status)
-
-                    return (
-                      <td
-                        key={ds}
-                        onMouseDown={() => handleMouseDown(room.id, ds, status)}
-                        onMouseEnter={() => handleMouseEnter(room.id, ds)}
-                        onMouseUp={() => handleMouseUp(room.id, ds)}
-                        className={clsx(
-                          'border-slate-100 text-center cursor-pointer transition-colors',
-                          isFriSat && status === 'available' && 'bg-amber-50/40',
-                          isSun && 'border-l border-slate-200',
-                        )}
-                        style={{
-                          width: CELL_WIDTH,
-                          minWidth: CELL_WIDTH,
-                          height: 36,
-                          verticalAlign: 'middle',
-                          ...cellStyle,
-                        }}
-                      >
-                        <div className="flex items-center justify-center h-full">
-                          <CellContent
-                            status={status}
-                            roomId={room.id}
-                            dateStr={ds}
-                            bookings={bookings}
-                            room={room}
-                            overrideMap={overrideMap}
-                          />
-                        </div>
-                      </td>
-                    )
-                  })}
-                </tr>
-
-                {/* Task sub-row */}
-                <CalendarTaskRow
-                  label={`↳ ${room.name} Tasks`}
-                  tasks={roomTasks}
-                  days={days}
-                  cellWidth={CELL_WIDTH}
-                  labelColWidth={LABEL_COL_WIDTH}
-                  onTaskClick={onTaskClick}
-                  onAddClick={() => onAddTask(room.id, format(days[0], 'yyyy-MM-dd'))}
-                />
-              </React.Fragment>
+              <td
+                key={ds}
+                title={`${Math.round(occ * 100)}% occupied`}
+                style={{ height: 4, padding: 0, background: bg }}
+              />
             )
           })}
-        </tbody>
-      </table>
-    </div>
+        </tr>
+
+        {/* Day header */}
+        <tr>
+          <th
+            className="sticky left-0 z-30 bg-white border-b border-r border-slate-200 text-left px-3 py-2 text-xs font-semibold text-slate-500"
+            style={{ width: LABEL_COL_WIDTH }}
+          >
+            Room
+          </th>
+          {days.map((day) => {
+            const ds = format(day, 'yyyy-MM-dd')
+            const isSun = getDay(day) === 0
+            const isFriSat = getDay(day) === 5 || getDay(day) === 6
+            const todayDay = isToday(day)
+            return (
+              <th
+                key={ds}
+                className={clsx(
+                  'border-b border-slate-200 text-center',
+                  isSun && 'border-l-2 border-slate-300',
+                  isFriSat && 'bg-amber-50',
+                  todayDay && 'bg-teal-50',
+                )}
+                style={{ padding: '3px 0', width: DAY_COL_WIDTH }}
+              >
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="text-[8px] text-slate-400 uppercase leading-none">
+                    {format(day, 'EEE').slice(0, 2)}
+                  </span>
+                  <span
+                    className={clsx(
+                      'text-[11px] font-semibold w-5 h-5 flex items-center justify-center rounded-full leading-none',
+                      todayDay ? 'text-white' : 'text-slate-700',
+                    )}
+                    style={todayDay ? { background: '#2DD4BF' } : {}}
+                  >
+                    {format(day, 'd')}
+                  </span>
+                </div>
+              </th>
+            )
+          })}
+        </tr>
+      </thead>
+
+      <tbody>
+        {propertiesWithRooms.map(({ id: propId, name: propName, rooms: propRooms }) => (
+          <React.Fragment key={propId}>
+            {/* Property-level task row */}
+            <CalendarTaskRow
+              label={`🏠 ${propName}`}
+              tasks={tasks.filter((t) => t.property_id === propId && !t.room_id)}
+              days={days}
+              onTaskClick={onTaskClick}
+              onAddClick={(date) => onAddPropertyTask(propId, date)}
+              isPropertyRow
+            />
+
+            {propRooms.map((room) => {
+              const roomTasks = tasks.filter((t) => t.room_id === room.id)
+
+              return (
+                <React.Fragment key={room.id}>
+                  <tr className="border-b border-slate-200 group">
+                    <td
+                      className="sticky left-0 z-10 bg-white border-r border-slate-200 px-2 py-1"
+                      style={{ width: LABEL_COL_WIDTH }}
+                    >
+                      <span
+                        className="flex items-center gap-1 text-xs font-semibold truncate w-full text-left"
+                        style={{ color: '#2DD4BF' }}
+                      >
+                        <HomeIcon className="shrink-0 w-3 h-3" />
+                        {room.name}
+                      </span>
+                      <span className="text-[10px] text-slate-400 block truncate">
+                        {room.property?.name ?? ''}
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        ${room.nightly_rate}/night
+                      </span>
+                    </td>
+
+                    {(() => {
+                      const cells: React.ReactNode[] = []
+                      let i = 0
+                      while (i < days.length) {
+                        const day = days[i]
+                        const ds = format(day, 'yyyy-MM-dd')
+                        const isFriSat = getDay(day) === 5 || getDay(day) === 6
+                        const isSun = getDay(day) === 0
+                        const todayCell = isToday(day)
+                        const status = getCellStatus(room.id, ds, bookings, icalBlocks, overrideMap, selection)
+
+                        if (status === 'booked-first') {
+                          const booking = bookings.find(
+                            (b) =>
+                              b.room_id === room.id &&
+                              b.check_in === ds &&
+                              (b.status === 'confirmed' || b.status === 'pending'),
+                          )
+                          if (booking) {
+                            let span = 0
+                            for (let j = i; j < days.length; j++) {
+                              if (format(days[j], 'yyyy-MM-dd') < booking.check_out) span++
+                              else break
+                            }
+                            cells.push(
+                              <td
+                                key={ds}
+                                colSpan={span}
+                                onClick={() => onBookingClick(booking)}
+                                className={clsx(
+                                  'cursor-pointer transition-colors overflow-hidden',
+                                  isSun && 'border-l-2 border-slate-300',
+                                )}
+                                style={{
+                                  height: 36,
+                                  verticalAlign: 'middle',
+                                  background: 'rgba(45,212,191,0.14)',
+                                  borderTop: '2px solid #2DD4BF',
+                                }}
+                              >
+                                <div className="flex items-center h-full px-1.5 overflow-hidden">
+                                  <span className="text-[10px] font-semibold truncate" style={{ color: '#0F766E' }}>
+                                    {booking.guest_first_name} {booking.guest_last_name}
+                                  </span>
+                                </div>
+                              </td>,
+                            )
+                            i += span
+                            continue
+                          }
+                        }
+
+                        const cellStyle = getCellStyle(status)
+                        cells.push(
+                          <td
+                            key={ds}
+                            onMouseDown={() => handleMouseDown(room.id, ds, status)}
+                            onMouseEnter={() => handleMouseEnter(room.id, ds)}
+                            onMouseUp={() => handleMouseUp(room.id, ds)}
+                            className={clsx(
+                              'border-slate-200 text-center cursor-pointer transition-colors',
+                              isFriSat && status === 'available' && 'bg-amber-50/40',
+                              isSun && 'border-l-2 border-slate-300',
+                              todayCell && status === 'available' && 'bg-teal-50/40',
+                            )}
+                            style={{
+                              height: 36,
+                              verticalAlign: 'middle',
+                              ...cellStyle,
+                            }}
+                          >
+                            <div className="flex items-center justify-center h-full">
+                              <CellContent
+                                status={status}
+                                roomId={room.id}
+                                dateStr={ds}
+                                bookings={bookings}
+                                room={room}
+                                overrideMap={overrideMap}
+                              />
+                            </div>
+                          </td>,
+                        )
+                        i++
+                      }
+                      return cells
+                    })()}
+                  </tr>
+
+                  <CalendarTaskRow
+                    label={`${room.name} Tasks`}
+                    tasks={roomTasks}
+                    days={days}
+                    onTaskClick={onTaskClick}
+                    onAddClick={(date) => onAddTask(room.id, date)}
+                  />
+                </React.Fragment>
+              )
+            })}
+          </React.Fragment>
+        ))}
+      </tbody>
+    </table>
   )
 }

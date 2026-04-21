@@ -1,105 +1,250 @@
-import { format } from 'date-fns/format'
-import { addDays } from 'date-fns/addDays'
-import { parseISO } from 'date-fns/parseISO'
+import {
+  format,
+  subMonths,
+  startOfMonth,
+  endOfMonth,
+  getDaysInMonth,
+  differenceInDays,
+  parseISO,
+} from 'date-fns'
 import { createServiceRoleClient } from '@/lib/supabase'
-import { DashboardStats } from '@/components/admin/DashboardStats'
+import NewManualBookingButton from '@/components/admin/NewManualBookingButton'
+import DashboardStats from '@/components/admin/DashboardStats'
+import DashboardCharts from '@/components/admin/DashboardCharts'
+import DashboardTodayPanel from '@/components/admin/DashboardTodayPanel'
+import DashboardRoomGrid from '@/components/admin/DashboardRoomGrid'
 import { RecentBookingsWidget } from '@/components/admin/RecentBookingsWidget'
 import type { BookingWithRoom } from '@/components/admin/RecentBookingsWidget'
 
 export const dynamic = 'force-dynamic'
 
+type RoomRow = { id: string; name: string; nightly_rate: number; property: { name: string } | null }
+type ConfirmedRow = {
+  id: string; room_id: string; check_in: string; check_out: string
+  amount_paid: number; total_amount: number; created_at: string
+}
+type PendingRow = { id: string; total_amount: number; amount_paid: number }
+type UpcomingRow = {
+  room_id: string; guest_first_name: string; guest_last_name: string
+  check_in: string; check_out: string; status: string
+}
+
 export default async function AdminDashboardPage() {
   const supabase = createServiceRoleClient()
   const now = new Date()
   const today = format(now, 'yyyy-MM-dd')
-  const nextWeek = format(addDays(now, 7), 'yyyy-MM-dd')
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
+  const thisMonthStart = startOfMonth(now)
+  const lastMonthStart = startOfMonth(subMonths(now, 1))
+  const sevenMonthsAgo = startOfMonth(subMonths(now, 6))
 
   const [
-    { count: totalBookings },
-    { count: confirmedCount },
-    { data: monthlyBookings },
-    { data: upcomingCheckins },
-    { data: recentBookings },
+    { data: roomsData },
+    { data: confirmedData },
+    { data: pendingData },
+    { data: arrivalsData },
+    { data: departuresData },
+    { data: recentData },
+    { data: upcomingData },
   ] = await Promise.all([
-    supabase.from('bookings').select('*', { count: 'exact', head: true }),
+    supabase
+      .from('rooms')
+      .select('id, name, nightly_rate, property:properties(name)')
+      .eq('is_active', true)
+      .order('name'),
+
     supabase
       .from('bookings')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'confirmed'),
-    supabase
-      .from('bookings')
-      .select('amount_paid')
+      .select('id, room_id, check_in, check_out, amount_paid, total_amount, created_at')
       .eq('status', 'confirmed')
-      .gte('created_at', monthStart),
+      .gte('check_out', format(sevenMonthsAgo, 'yyyy-MM-dd'))
+      .order('created_at', { ascending: false }),
+
+    supabase
+      .from('bookings')
+      .select('id, total_amount, amount_paid')
+      .eq('status', 'pending'),
+
     supabase
       .from('bookings')
       .select('*, room:rooms(name, property:properties(name))')
-      .eq('status', 'confirmed')
-      .gte('check_in', today)
-      .lte('check_in', nextWeek)
-      .order('check_in'),
+      .in('status', ['confirmed', 'pending'])
+      .eq('check_in', today)
+      .order('created_at'),
+
+    supabase
+      .from('bookings')
+      .select('*, room:rooms(name, property:properties(name))')
+      .in('status', ['confirmed', 'pending'])
+      .eq('check_out', today)
+      .order('created_at'),
+
     supabase
       .from('bookings')
       .select('*, room:rooms(name, property:properties(name))')
       .order('created_at', { ascending: false })
-      .limit(10),
+      .limit(20),
+
+    supabase
+      .from('bookings')
+      .select('room_id, guest_first_name, guest_last_name, check_in, check_out, status')
+      .in('status', ['confirmed', 'pending'])
+      .gte('check_out', today)
+      .order('check_in')
+      .limit(500),
   ])
 
-  const monthlyRevenue =
-    monthlyBookings?.reduce((sum, b) => sum + (b.amount_paid ?? 0), 0) ?? 0
-  const checkins = (upcomingCheckins ?? []) as BookingWithRoom[]
+  const rooms = (roomsData ?? []) as unknown as RoomRow[]
+  const confirmed = (confirmedData ?? []) as ConfirmedRow[]
+  const pending = (pendingData ?? []) as PendingRow[]
+  const arrivals = (arrivalsData ?? []) as BookingWithRoom[]
+  const departures = (departuresData ?? []) as BookingWithRoom[]
+  const recent = (recentData ?? []) as BookingWithRoom[]
+  const upcoming = (upcomingData ?? []) as UpcomingRow[]
+
+  const roomCount = rooms.length
+  const thisMonthKey = format(thisMonthStart, 'yyyy-MM')
+  const lastMonthKey = format(lastMonthStart, 'yyyy-MM')
+
+  function calcOccupancy(mStart: Date, mEnd: Date, days: number) {
+    if (roomCount === 0 || days === 0) return 0
+    const capacity = roomCount * days
+    let bookedNights = 0
+    const endPlusOne = new Date(mEnd.getTime() + 86400000)
+    for (const b of confirmed) {
+      const ci = parseISO(b.check_in)
+      const co = parseISO(b.check_out)
+      const oStart = ci > mStart ? ci : mStart
+      const oEnd = co < endPlusOne ? co : endPlusOne
+      if (oStart < oEnd) bookedNights += differenceInDays(oEnd, oStart)
+    }
+    return Math.min(100, Math.round((bookedNights / capacity) * 100))
+  }
+
+  const thisMonthRevenue = confirmed
+    .filter(b => b.created_at.startsWith(thisMonthKey))
+    .reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+
+  const lastMonthRevenue = confirmed
+    .filter(b => b.created_at.startsWith(lastMonthKey))
+    .reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+
+  const revenueDelta =
+    lastMonthRevenue > 0
+      ? Math.round(((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100)
+      : 0
+
+  const occupancyPercent = calcOccupancy(thisMonthStart, endOfMonth(now), getDaysInMonth(now))
+  const prevOccupancyPercent = calcOccupancy(
+    lastMonthStart,
+    endOfMonth(lastMonthStart),
+    getDaysInMonth(lastMonthStart),
+  )
+  const occupancyDelta = occupancyPercent - prevOccupancyPercent
+
+  const upcomingCheckinsCount = upcoming.filter(
+    b => b.check_in > today && b.status === 'confirmed',
+  ).length
+  const pendingCount = pending.length
+  const outstandingBalance = Math.round(
+    pending.reduce((s, b) => s + Math.max(0, (b.total_amount ?? 0) - (b.amount_paid ?? 0)), 0),
+  )
+  const avgNightlyRate =
+    roomCount > 0
+      ? Math.round(rooms.reduce((s, r) => s + r.nightly_rate, 0) / roomCount)
+      : 0
+
+  const monthlyData = Array.from({ length: 6 }, (_, i) => {
+    const d = subMonths(now, 5 - i)
+    const mStart = startOfMonth(d)
+    const mEnd = endOfMonth(d)
+    const mKey = format(mStart, 'yyyy-MM')
+    const revenue = confirmed
+      .filter(b => b.created_at.startsWith(mKey))
+      .reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+    const occ = calcOccupancy(mStart, mEnd, getDaysInMonth(d))
+    return { label: format(d, 'MMM'), revenue, occupancyPercent: occ, isCurrent: mKey === thisMonthKey }
+  })
+
+  const mEnd = endOfMonth(now)
+  const endPlusOne = new Date(mEnd.getTime() + 86400000)
+  const roomsWithStatus = rooms.map(room => {
+    const roomUpcoming = upcoming.filter(b => b.room_id === room.id)
+    const current = roomUpcoming.find(b => b.check_in <= today && b.check_out > today)
+    const next = roomUpcoming.find(b => b.check_in > today)
+
+    let roomNights = 0
+    for (const b of confirmed.filter(x => x.room_id === room.id)) {
+      const ci = parseISO(b.check_in)
+      const co = parseISO(b.check_out)
+      const oStart = ci > thisMonthStart ? ci : thisMonthStart
+      const oEnd = co < endPlusOne ? co : endPlusOne
+      if (oStart < oEnd) roomNights += differenceInDays(oEnd, oStart)
+    }
+    const roomOccPct = Math.min(
+      100,
+      getDaysInMonth(now) > 0 ? Math.round((roomNights / getDaysInMonth(now)) * 100) : 0,
+    )
+
+    return {
+      id: room.id,
+      name: room.name,
+      propertyName: (room.property as { name: string } | null)?.name ?? '',
+      isOccupied: !!current,
+      isCheckoutToday: roomUpcoming.some(b => b.check_out === today),
+      isCheckinToday: roomUpcoming.some(b => b.check_in === today),
+      currentGuest: current ? `${current.guest_first_name} ${current.guest_last_name}` : undefined,
+      currentCheckout: current?.check_out,
+      nextGuest: next ? `${next.guest_first_name} ${next.guest_last_name}` : undefined,
+      nextCheckin: next?.check_in,
+      monthOccupancyPercent: roomOccPct,
+    }
+  })
 
   return (
-    <main className="min-h-screen bg-background px-4 py-10 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="space-y-6">
+      <div className="flex items-start justify-between flex-wrap gap-3">
         <div>
-          <h1 className="font-display text-3xl font-bold text-on-surface">
-            Dashboard
-          </h1>
-          <p className="mt-1 text-sm text-on-surface-variant">
-            Overview of bookings and revenue
+          <h1 className="font-display text-2xl font-bold text-on-surface">Dashboard</h1>
+          <p className="text-sm text-on-surface-variant mt-0.5">
+            {format(now, 'EEEE, MMMM d, yyyy')}
           </p>
         </div>
-
-        <DashboardStats
-          totalBookings={totalBookings ?? 0}
-          monthlyRevenue={monthlyRevenue}
-          upcomingCheckins={checkins.length}
-          confirmedCount={confirmedCount ?? 0}
-        />
-
-        {checkins.length > 0 && (
-          <section>
-            <h2 className="font-display text-xl font-semibold text-on-surface mb-4">
-              Upcoming Check-ins (Next 7 Days)
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {checkins.map((booking) => (
-                <div
-                  key={booking.id}
-                  className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-4 shadow-[0_8px_40px_rgba(45,212,191,0.06)]"
-                >
-                  <p className="font-semibold text-on-surface text-sm">
-                    {booking.room?.name ?? '—'}
-                  </p>
-                  <p className="text-xs text-on-surface-variant mt-0.5">
-                    {booking.room?.property?.name ?? ''}
-                  </p>
-                  <p className="text-sm text-secondary mt-2">
-                    {booking.guest_first_name} {booking.guest_last_name}
-                  </p>
-                  <p className="text-xs text-on-surface-variant mt-1">
-                    Check-in: {format(parseISO(booking.check_in), 'MMM d, yyyy')}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
-        <RecentBookingsWidget bookings={(recentBookings ?? []) as BookingWithRoom[]} />
+        <div className="flex items-center gap-2 flex-wrap">
+          <a
+            href="/admin/bookings"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-outline-variant bg-white px-4 py-2 text-sm font-semibold text-on-surface-variant hover:bg-surface-highest/40 transition-colors"
+          >
+            Today&apos;s Arrivals ({arrivals.length})
+          </a>
+          <NewManualBookingButton />
+        </div>
       </div>
-    </main>
+
+      <DashboardStats
+        thisMonthRevenue={thisMonthRevenue}
+        revenueDelta={revenueDelta}
+        occupancyPercent={occupancyPercent}
+        occupancyDelta={occupancyDelta}
+        upcomingCheckinsCount={upcomingCheckinsCount}
+        pendingCount={pendingCount}
+        outstandingBalance={outstandingBalance}
+        avgNightlyRate={avgNightlyRate}
+      />
+
+      <DashboardCharts
+        monthlyData={monthlyData}
+        currentRevenue={thisMonthRevenue}
+        revenueDelta={revenueDelta}
+        currentOccupancy={occupancyPercent}
+        occupancyDelta={occupancyDelta}
+      />
+
+      <DashboardTodayPanel arrivals={arrivals} departures={departures} />
+
+      {rooms.length > 0 && <DashboardRoomGrid rooms={roomsWithStatus} />}
+
+      <RecentBookingsWidget bookings={recent} today={today} />
+    </div>
   )
 }

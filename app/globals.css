@@ -25,3 +25,10 @@ body {
   background-color: rgb(var(--color-background));
   color: rgb(var(--color-on-surface));
 }
+
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

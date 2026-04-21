@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import Link from 'next/link'
 import { createServiceRoleClient } from '@/lib/supabase'
 import EmailTemplatesList from '@/components/admin/email/EmailTemplatesList'
+import EmailSubNav from '@/components/admin/email/EmailSubNav'
 import type { EmailTemplate } from '@/types'
 
 export default async function EmailTemplatesPage() {
@@ -12,6 +13,7 @@ export default async function EmailTemplatesPage() {
   return (
     <div className="min-h-screen bg-background p-6 md:p-10">
       <div className="max-w-3xl mx-auto">
+        <EmailSubNav />
         <div className="flex items-center justify-between mb-8">
           <h1 className="font-display text-3xl text-primary">Email Templates</h1>
           <Link

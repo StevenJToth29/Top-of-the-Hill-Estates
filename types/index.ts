@@ -340,7 +340,8 @@ export interface DateOverride {
 
 export interface CalendarTask {
   id: string
-  room_id: string | null  // null = property-wide
+  room_id: string | null
+  property_id: string | null
   title: string
   description: string | null
   due_date: string        // ISO date "YYYY-MM-DD"

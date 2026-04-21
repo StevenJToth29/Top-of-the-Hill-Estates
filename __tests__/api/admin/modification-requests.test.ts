@@ -26,11 +26,16 @@ const pendingRequest = {
   requested_check_out: '2026-07-05',
   requested_total_nights: 4,
   requested_guest_count: 2,
+  price_delta: null,
 }
 
 function setupMocks(modRequest = pendingRequest, bookingUpdateError: unknown = null) {
   const authedUser = { id: 'admin-1' }
 
+  const bookingSelectChain = {
+    eq: jest.fn().mockReturnThis(),
+    single: jest.fn().mockResolvedValue({ data: { total_amount: 400 }, error: null }),
+  }
   const bookingUpdateChain = { eq: jest.fn().mockResolvedValue({ error: bookingUpdateError }) }
   const bookingUpdate = jest.fn().mockReturnValue(bookingUpdateChain)
 
@@ -52,7 +57,7 @@ function setupMocks(modRequest = pendingRequest, bookingUpdateError: unknown = n
         }
       }
       if (table === 'bookings') {
-        return { update: bookingUpdate }
+        return { select: jest.fn().mockReturnValue(bookingSelectChain), update: bookingUpdate }
       }
     }),
   })

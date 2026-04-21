@@ -1,4 +1,4 @@
-import { format, startOfMonth, endOfMonth } from 'date-fns'
+import { format, subDays, addDays } from 'date-fns'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
 import { CalendarClient } from '@/components/admin/CalendarClient'
@@ -11,8 +11,8 @@ export default async function AdminCalendarPage() {
 
   const supabase = createServiceRoleClient()
   const today = new Date()
-  const from = format(startOfMonth(today), 'yyyy-MM-dd')
-  const to = format(endOfMonth(today), 'yyyy-MM-dd')
+  const from = format(subDays(today, 60), 'yyyy-MM-dd')
+  const to = format(addDays(today, 120), 'yyyy-MM-dd')
 
   const [roomsRes, bookingsRes, icalRes, overridesRes, tasksRes] = await Promise.all([
     supabase
@@ -54,20 +54,10 @@ export default async function AdminCalendarPage() {
     tasks: tasksRes.data ?? [],
   }
 
-  const initialMonth = format(startOfMonth(today), 'yyyy-MM-dd')
-
   return (
-    <div className="p-6 space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800" style={{ fontFamily: 'Manrope, sans-serif' }}>
-            Calendar
-          </h1>
-          <p className="text-sm text-slate-500 mt-0.5">Manage bookings, pricing, and tasks</p>
-        </div>
-      </div>
-
-      <CalendarClient initialData={initialData} initialMonth={initialMonth} />
+    // -m-8 negates the layout's p-8 so the calendar fills wall-to-wall
+    <div className="-m-8 h-[calc(100vh)] flex flex-col overflow-hidden">
+      <CalendarClient initialData={initialData} today={format(today, 'yyyy-MM-dd')} />
     </div>
   )
 }

@@ -16,7 +16,6 @@ import {
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import Image from 'next/image'
-import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -27,8 +26,8 @@ export const NAV_ITEMS = [
   { label: 'Bookings', href: '/admin/bookings', icon: CalendarIcon },
   { label: 'Calendar', href: '/admin/calendar', icon: CalendarDaysIcon },
   { label: 'iCal Sync', href: '/admin/ical', icon: ArrowPathIcon },
-  { label: 'Payout Accounts', href: '/admin/payout-accounts', icon: BanknotesIcon },
-  { label: 'Email', href: '/admin/email', icon: EnvelopeIcon },
+  { label: 'Payout', href: '/admin/payout-accounts', icon: BanknotesIcon },
+  { label: 'Email', href: '/admin/email/settings', icon: EnvelopeIcon },
   { label: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
 ]
 
@@ -43,6 +42,7 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
   const pathname = usePathname()
   const router = useRouter()
   const [open, setOpen] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -53,7 +53,34 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
     return href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
   }
 
-  const sidebarContent = (
+  function navButton(
+    { label, href, icon: Icon }: (typeof NAV_ITEMS)[number],
+    opts: { iconOnly: boolean; onNavigate?: () => void },
+  ) {
+    return (
+      <button
+        key={href}
+        title={opts.iconOnly ? label : undefined}
+        onClick={() => {
+          opts.onNavigate?.()
+          router.push(href)
+          router.refresh()
+        }}
+        className={[
+          'flex w-full items-center rounded-xl px-3 py-2.5 font-body text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          opts.iconOnly ? 'justify-center' : 'gap-3',
+          isActive(href)
+            ? 'bg-surface-highest text-on-surface'
+            : 'text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
+        ].join(' ')}
+      >
+        <Icon className="h-5 w-5 shrink-0" />
+        {!opts.iconOnly && label}
+      </button>
+    )
+  }
+
+  const mobileSidebarContent = (
     <div className="flex h-full flex-col">
       <div className="px-6 py-5 flex items-center gap-3">
         <Image
@@ -71,26 +98,11 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
       </div>
 
       <div className="mx-4 mb-3 h-px bg-surface-high" />
+
       <nav className="flex-1 space-y-1 px-3">
-        {NAV_ITEMS.map(({ label, href, icon: Icon }) => (
-          <button
-            key={href}
-            onClick={() => {
-              setOpen(false)
-              router.push(href)
-              router.refresh()
-            }}
-            className={[
-              'flex w-full items-center gap-3 rounded-xl px-3 py-2.5 font-body text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-              isActive(href)
-                ? 'bg-surface-highest text-on-surface'
-                : 'text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
-            ].join(' ')}
-          >
-            <Icon className="h-5 w-5 shrink-0" />
-            {label}
-          </button>
-        ))}
+        {NAV_ITEMS.map((item) =>
+          navButton(item, { iconOnly: false, onNavigate: () => setOpen(false) }),
+        )}
       </nav>
 
       <div className="px-3 pb-6">
@@ -107,10 +119,59 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
 
   return (
     <>
-      <aside className="hidden w-64 shrink-0 bg-surface-container md:flex md:flex-col min-h-screen">
-        {sidebarContent}
+      {/* Desktop sidebar */}
+      <aside
+        className={[
+          'hidden md:flex md:flex-col min-h-screen shrink-0 bg-surface-container transition-all duration-200',
+          collapsed ? 'w-16' : 'w-52',
+        ].join(' ')}
+      >
+        <div className="flex h-full flex-col">
+          {/* Header: logo (centered) + collapse toggle */}
+          <div className="py-5 px-3 flex flex-col items-center gap-3">
+            <Image
+              src={logoUrl ?? '/logo.png'}
+              alt="Top of the Hill Rooms"
+              width={collapsed ? 32 : logoSize}
+              height={collapsed ? 32 : logoSize}
+              style={{ width: collapsed ? 32 : logoSize, height: collapsed ? 32 : logoSize }}
+              className="rounded-lg shrink-0"
+              unoptimized={!!logoUrl}
+            />
+            <button
+              onClick={() => setCollapsed((c) => !c)}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              className="rounded-xl p-1.5 text-on-surface-variant hover:bg-surface-high hover:text-on-surface transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary shrink-0"
+              aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            >
+              <Bars3Icon className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="mx-4 mb-3 h-px bg-surface-high" />
+
+          <nav className="flex-1 space-y-1 px-2">
+            {NAV_ITEMS.map((item) => navButton(item, { iconOnly: collapsed }))}
+          </nav>
+
+          {/* Sign out */}
+          <div className="px-2 pb-6">
+            <button
+              onClick={handleSignOut}
+              title={collapsed ? 'Sign Out' : undefined}
+              className={[
+                'flex w-full items-center rounded-xl px-3 py-2.5 font-body text-sm font-medium text-on-surface-variant transition-colors duration-150 hover:bg-surface-high hover:text-on-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                collapsed ? 'justify-center' : 'gap-3',
+              ].join(' ')}
+            >
+              <ArrowRightOnRectangleIcon className="h-5 w-5 shrink-0" />
+              {!collapsed && 'Sign Out'}
+            </button>
+          </div>
+        </div>
       </aside>
 
+      {/* Mobile hamburger + drawer */}
       <div className="md:hidden">
         <button
           onClick={() => setOpen(true)}
@@ -129,7 +190,7 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
 
         <aside
           className={[
-            'fixed inset-y-0 left-0 z-50 w-64 bg-surface-container transition-transform duration-300',
+            'fixed inset-y-0 left-0 z-50 w-52 bg-surface-container transition-transform duration-300',
             open ? 'translate-x-0' : '-translate-x-full',
           ].join(' ')}
         >
@@ -140,7 +201,7 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
           >
             <XMarkIcon className="h-5 w-5" />
           </button>
-          {sidebarContent}
+          {mobileSidebarContent}
         </aside>
       </div>
     </>

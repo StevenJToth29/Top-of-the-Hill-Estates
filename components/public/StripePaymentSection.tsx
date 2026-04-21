@@ -76,9 +76,27 @@ export default function StripePaymentSection({
     if (error) {
       onError(error.message ?? 'Payment failed. Please try again.')
       setIsSubmitting(false)
-    } else {
-      onSuccess(bookingId)
+      return
     }
+
+    // Confirm server-side: verify the PaymentIntent status directly with Stripe
+    // and flip the booking to confirmed. This is the primary confirmation path;
+    // the webhook is a backup for async payment methods (ACH, etc.).
+    try {
+      const confirmRes = await fetch(`/api/bookings/${bookingId}/confirm`, { method: 'POST' })
+      if (!confirmRes.ok) {
+        const data = await confirmRes.json()
+        onError(data.error ?? 'Payment succeeded but booking confirmation failed. Please contact support.')
+        setIsSubmitting(false)
+        return
+      }
+    } catch {
+      onError('Payment succeeded but confirmation failed. Please contact support.')
+      setIsSubmitting(false)
+      return
+    }
+
+    onSuccess(bookingId)
   }
 
   return (

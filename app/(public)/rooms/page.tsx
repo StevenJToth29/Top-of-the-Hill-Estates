@@ -1,5 +1,5 @@
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { isRoomAvailable } from '@/lib/availability'
+import { getAvailableRoomIds } from '@/lib/availability'
 import RoomsFilter from '@/components/public/RoomsFilter'
 import RoomsGrid, { type RoomWithProperty } from '@/components/public/RoomsGrid'
 
@@ -56,14 +56,14 @@ export default async function RoomsPage({
     return true
   })
 
-  // Filter by date availability when both dates are provided
+  // Filter by date availability — single batch query instead of one per room
   if (searchParams.checkin && searchParams.checkout) {
-    const availabilityResults = await Promise.all(
-      filtered.map((room) =>
-        isRoomAvailable(room.id, searchParams.checkin!, searchParams.checkout!),
-      ),
+    const availableIds = await getAvailableRoomIds(
+      filtered.map((r) => r.id),
+      searchParams.checkin,
+      searchParams.checkout,
     )
-    filtered = filtered.filter((_, i) => availabilityResults[i])
+    filtered = filtered.filter((r) => availableIds.has(r.id))
   }
 
   return (

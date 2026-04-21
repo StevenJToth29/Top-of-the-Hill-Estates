@@ -1,7 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServiceRoleClient } from '@/lib/supabase'
+import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
+
+async function requireAuth() {
+  const server = await createServerSupabaseClient()
+  const { data: { user }, error } = await server.auth.getUser()
+  return error || !user ? null : user
+}
 
 export async function POST(request: NextRequest) {
+  if (!(await requireAuth())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   try {
     const body = await request.json()
     const supabase = createServiceRoleClient()
@@ -39,6 +48,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
+  if (!(await requireAuth())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   try {
     const body = await request.json()
     const { id, ...fields } = body
@@ -80,6 +92,9 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  if (!(await requireAuth())) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
   try {
     const { id } = await request.json()
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })

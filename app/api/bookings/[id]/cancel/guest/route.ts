@@ -3,12 +3,16 @@ import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { calculateRefund, resolvePolicy } from '@/lib/cancellation'
 import { evaluateAndQueueEmails, cancelBookingEmails } from '@/lib/email-queue'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import type { Booking } from '@/types'
 
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } },
 ) {
+  if (!checkRateLimit(getClientIp(request), 'guest-cancel', 3)) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
   try {
     const body = (await request.json()) as { guest_email?: string }
     const { guest_email } = body
@@ -89,7 +93,18 @@ export async function POST(
         try {
           await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id)
         } catch (stripeErr: unknown) {
-          console.warn('Stripe PaymentIntent cancel skipped:', (stripeErr as Error).message)
+          const errCode = (stripeErr as { code?: string }).code
+          if (errCode === 'payment_intent_unexpected_state') {
+            const pi = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id)
+            if (pi.status === 'succeeded' && pi.amount_received > 0) {
+              await stripe.refunds.create({
+                payment_intent: booking.stripe_payment_intent_id,
+                amount: pi.amount_received,
+              })
+            }
+          } else {
+            console.warn('Stripe PaymentIntent cancel skipped:', (stripeErr as Error).message)
+          }
         }
       }
     }

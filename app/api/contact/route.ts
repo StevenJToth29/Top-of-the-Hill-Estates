@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { syncContactInquiryToGHL } from '@/lib/ghl'
 import { evaluateAndQueueEmails } from '@/lib/email-queue'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 
 interface ContactBody {
   name: string
@@ -12,6 +13,9 @@ interface ContactBody {
 }
 
 export async function POST(request: NextRequest) {
+  if (!checkRateLimit(getClientIp(request), 'contact', 5)) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
   try {
     const body = (await request.json()) as ContactBody
 

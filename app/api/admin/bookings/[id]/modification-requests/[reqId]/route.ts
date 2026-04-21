@@ -37,23 +37,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Modification request is no longer pending' }, { status: 400 })
     }
 
-    if (action === 'approve') {
-      const { error: bookingUpdateError } = await supabase
-        .from('bookings')
-        .update({
-          check_in: modRequest.requested_check_in,
-          check_out: modRequest.requested_check_out,
-          total_nights: modRequest.requested_total_nights,
-          guest_count: modRequest.requested_guest_count,
-        })
-        .eq('id', params.id)
-
-      if (bookingUpdateError) {
-        console.error('Failed to update booking on approve:', bookingUpdateError)
-        return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 })
-      }
-    }
-
+    // Update request status first — easier to roll back than a booking change
     const { error: reqUpdateError } = await supabase
       .from('booking_modification_requests')
       .update({ status: action === 'approve' ? 'approved' : 'rejected', admin_note: admin_note ?? null })
@@ -62,6 +46,37 @@ export async function PATCH(
     if (reqUpdateError) {
       console.error('Failed to update modification request:', reqUpdateError)
       return NextResponse.json({ error: 'Failed to update modification request' }, { status: 500 })
+    }
+
+    if (action === 'approve') {
+      const { data: currentBooking } = await supabase
+        .from('bookings')
+        .select('total_amount')
+        .eq('id', params.id)
+        .single()
+
+      const { error: bookingUpdateError } = await supabase
+        .from('bookings')
+        .update({
+          check_in: modRequest.requested_check_in,
+          check_out: modRequest.requested_check_out,
+          total_nights: modRequest.requested_total_nights,
+          guest_count: modRequest.requested_guest_count,
+          ...(modRequest.price_delta != null && currentBooking
+            ? { total_amount: Math.round((currentBooking.total_amount + modRequest.price_delta) * 100) / 100 }
+            : {}),
+        })
+        .eq('id', params.id)
+
+      if (bookingUpdateError) {
+        console.error('Failed to update booking on approve:', bookingUpdateError)
+        // Roll back the request status so admin can retry
+        await supabase
+          .from('booking_modification_requests')
+          .update({ status: 'pending', admin_note: null })
+          .eq('id', params.reqId)
+        return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 })
+      }
     }
 
     return NextResponse.json({ success: true })

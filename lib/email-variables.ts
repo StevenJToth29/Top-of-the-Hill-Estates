@@ -85,6 +85,18 @@ export const SAMPLE_VARIABLES: Record<string, string> = {
   contact_message: "I'm interested in booking for a family visit next month.",
 }
 
+export function resolveVariables(
+  text: string,
+  variables: Record<string, string>,
+): string {
+  return text.replace(/\{\{(\w+)\}\}/g, (_match, key: string) => {
+    if (!(key in variables)) {
+      console.warn(`[email-variables] Unknown variable: {{${key}}}`)
+    }
+    return variables[key] ?? ''
+  })
+}
+
 export const TRIGGER_EVENT_LABELS: Record<string, string> = {
   booking_confirmed: 'Booking Confirmed',
   booking_pending: 'Booking Pending',

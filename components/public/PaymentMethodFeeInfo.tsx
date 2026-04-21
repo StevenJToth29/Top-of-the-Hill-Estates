@@ -30,7 +30,7 @@ export default function PaymentMethodFeeInfo({ methods }: PaymentMethodFeeInfoPr
         ))}
       </ul>
       <p className="text-on-surface-variant/60 text-xs italic">
-        Processing fee is applied when you confirm your payment method.
+        Processing fee is applied when you confirm your payment method and is non-refundable.
       </p>
     </div>
   )

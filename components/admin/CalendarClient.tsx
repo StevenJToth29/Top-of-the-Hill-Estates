@@ -1,10 +1,10 @@
 // components/admin/CalendarClient.tsx
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
-import { format, addMonths, startOfMonth, endOfMonth, eachDayOfInterval } from 'date-fns'
+import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { format, addDays, subDays, eachDayOfInterval } from 'date-fns'
 import { useRouter } from 'next/navigation'
-import { CalendarGrid, type DragSelection } from './CalendarGrid'
+import { CalendarGrid, DAY_COL_WIDTH, LABEL_COL_WIDTH, type DragSelection } from './CalendarGrid'
 import { CalendarLegend } from './CalendarLegend'
 import { SelectionBar } from './SelectionBar'
 import { NightDetailModal, type NightStatus } from './NightDetailModal'
@@ -13,82 +13,163 @@ import { BlockDatesModal } from './calendar/BlockDatesModal'
 import { SetPriceModal } from './calendar/SetPriceModal'
 import { AddBookingModal } from './calendar/AddBookingModal'
 import { BookingDetailModal } from './calendar/BookingDetailModal'
-import { SmartPricingModal } from './calendar/SmartPricingModal'
 import { useDateOverrides } from '@/hooks/useDateOverrides'
 import type {
-  Room,
   Booking,
-  ICalBlock,
-  DateOverride,
   CalendarTask,
   CalendarData,
 } from '@/types'
 
+const DAYS_BEFORE = 60
+const DAYS_AFTER = 120
+const LOAD_CHUNK = 60
+const LOAD_TRIGGER_PX = 500
+
+function computeInitialDays(todayStr: string): Date[] {
+  const today = new Date(todayStr + 'T00:00:00')
+  return eachDayOfInterval({ start: subDays(today, DAYS_BEFORE), end: addDays(today, DAYS_AFTER) })
+}
+
+function mergeCalendarData(existing: CalendarData, incoming: CalendarData): CalendarData {
+  function mergeById<T extends { id: string }>(a: T[], b: T[]): T[] {
+    const map = new Map(a.map((x) => [x.id, x]))
+    for (const x of b) map.set(x.id, x)
+    return Array.from(map.values())
+  }
+  function mergeTasks(a: CalendarTask[], b: CalendarTask[]): CalendarTask[] {
+    const map = new Map(a.map((t) => [`${t.id}|${t.due_date}`, t]))
+    for (const t of b) map.set(`${t.id}|${t.due_date}`, t)
+    return Array.from(map.values())
+  }
+  return {
+    rooms: existing.rooms,
+    bookings: mergeById(existing.bookings, incoming.bookings),
+    icalBlocks: mergeById(existing.icalBlocks, incoming.icalBlocks),
+    dateOverrides: mergeById(existing.dateOverrides, incoming.dateOverrides),
+    tasks: mergeTasks(existing.tasks, incoming.tasks),
+  }
+}
+
 type ModalState =
   | { type: 'none' }
   | { type: 'night'; roomId: string; date: string }
-  | { type: 'task'; task?: CalendarTask; roomId?: string | null; date?: string }
+  | { type: 'task'; task?: CalendarTask; roomId?: string | null; propertyId?: string | null; date?: string }
   | { type: 'block'; roomId: string; from: string; to: string }
   | { type: 'setPrice'; roomId: string; from: string; to: string }
   | { type: 'addBooking'; roomId: string; checkIn: string; checkOut: string }
   | { type: 'bookingDetail'; booking: Booking }
-  | { type: 'smartPricing'; room: Room }
 
 interface CalendarClientProps {
   initialData: CalendarData
-  initialMonth: string  // 'YYYY-MM-DD' first of month
+  today: string
 }
 
-export function CalendarClient({ initialData, initialMonth }: CalendarClientProps) {
+export function CalendarClient({ initialData, today }: CalendarClientProps) {
   const router = useRouter()
-  const [currentMonth, setCurrentMonth] = useState(() => new Date(initialMonth + 'T00:00:00'))
+  const [days, setDays] = useState<Date[]>(() => computeInitialDays(today))
   const [data, setData] = useState<CalendarData>(initialData)
-  const [loading, setLoading] = useState(false)
-  const [fetchError, setFetchError] = useState<string | null>(null)
+  const [loadingPast, setLoadingPast] = useState(false)
+  const [loadingFuture, setLoadingFuture] = useState(false)
   const [selection, setSelection] = useState<DragSelection | null>(null)
   const [modal, setModal] = useState<ModalState>({ type: 'none' })
 
-  const { overrideMap, getOverride, applyOverrides, removeBlock, resetOverrides } = useDateOverrides(
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const daysRef = useRef(days)
+  const loadingPastRef = useRef(false)
+  const loadingFutureRef = useRef(false)
+  const pendingScrollAdjust = useRef(0)
+
+  useEffect(() => { daysRef.current = days }, [days])
+
+  const { overrideMap, getOverride, applyOverrides, removeBlock } = useDateOverrides(
     data.dateOverrides,
   )
 
-  const days = useMemo(() => {
-    const start = startOfMonth(currentMonth)
-    const end = endOfMonth(currentMonth)
-    return eachDayOfInterval({ start, end })
-  }, [currentMonth])
+  // Scroll to today (5 days of past visible) after mount
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
+    const todayIdx = days.findIndex((d) => format(d, 'yyyy-MM-dd') === todayStr)
+    if (todayIdx < 0) return
+    container.scrollLeft = Math.max(0, (todayIdx - 5) * DAY_COL_WIDTH)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []) // only on mount
 
-  async function fetchMonth(month: Date) {
-    setLoading(true)
-    setFetchError(null)
-    const from = format(startOfMonth(month), 'yyyy-MM-dd')
-    const to = format(endOfMonth(month), 'yyyy-MM-dd')
-    try {
-      const res = await fetch(`/api/admin/calendar?from=${from}&to=${to}`)
-      if (res.ok) {
-        const json: CalendarData = await res.json()
-        setData(json)
-        resetOverrides(json.dateOverrides)
-      } else {
-        setFetchError('Failed to load calendar data')
-      }
-    } catch {
-      setFetchError('Failed to load calendar data')
-    } finally {
-      setLoading(false)
+  // Adjust scroll after prepending days to prevent content jump
+  useLayoutEffect(() => {
+    if (pendingScrollAdjust.current !== 0 && scrollContainerRef.current) {
+      scrollContainerRef.current.scrollLeft += pendingScrollAdjust.current
+      pendingScrollAdjust.current = 0
     }
-  }
+  })
 
-  async function goToPrevMonth() {
-    const prev = addMonths(currentMonth, -1)
-    setCurrentMonth(prev)
-    await fetchMonth(prev)
-  }
+  const loadMorePast = useCallback(async () => {
+    if (loadingPastRef.current) return
+    loadingPastRef.current = true
+    setLoadingPast(true)
+    const currentStart = daysRef.current[0]
+    const newEnd = subDays(currentStart, 1)
+    const newStart = subDays(currentStart, LOAD_CHUNK)
+    try {
+      const from = format(newStart, 'yyyy-MM-dd')
+      const to = format(newEnd, 'yyyy-MM-dd')
+      const res = await fetch(`/api/admin/calendar?from=${from}&to=${to}`)
+      if (!res.ok) return
+      const newCalData: CalendarData = await res.json()
+      const newDays = eachDayOfInterval({ start: newStart, end: newEnd })
+      pendingScrollAdjust.current = newDays.length * DAY_COL_WIDTH
+      setDays((prev) => [...newDays, ...prev])
+      setData((prev) => mergeCalendarData(prev, newCalData))
+      applyOverrides(newCalData.dateOverrides)
+    } catch {
+      // silently ignore network errors
+    } finally {
+      setLoadingPast(false)
+      loadingPastRef.current = false
+    }
+  }, [applyOverrides])
 
-  async function goToNextMonth() {
-    const next = addMonths(currentMonth, 1)
-    setCurrentMonth(next)
-    await fetchMonth(next)
+  const loadMoreFuture = useCallback(async () => {
+    if (loadingFutureRef.current) return
+    loadingFutureRef.current = true
+    setLoadingFuture(true)
+    const currentEnd = daysRef.current[daysRef.current.length - 1]
+    const newStart = addDays(currentEnd, 1)
+    const newEnd = addDays(currentEnd, LOAD_CHUNK)
+    try {
+      const from = format(newStart, 'yyyy-MM-dd')
+      const to = format(newEnd, 'yyyy-MM-dd')
+      const res = await fetch(`/api/admin/calendar?from=${from}&to=${to}`)
+      if (!res.ok) return
+      const newCalData: CalendarData = await res.json()
+      const newDays = eachDayOfInterval({ start: newStart, end: newEnd })
+      setDays((prev) => [...prev, ...newDays])
+      setData((prev) => mergeCalendarData(prev, newCalData))
+      applyOverrides(newCalData.dateOverrides)
+    } catch {
+      // silently ignore network errors
+    } finally {
+      setLoadingFuture(false)
+      loadingFutureRef.current = false
+    }
+  }, [applyOverrides])
+
+  const handleScroll = useCallback(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+    if (container.scrollLeft < LOAD_TRIGGER_PX) loadMorePast()
+    const distToEnd = container.scrollWidth - container.clientWidth - container.scrollLeft
+    if (distToEnd < LOAD_TRIGGER_PX) loadMoreFuture()
+  }, [loadMorePast, loadMoreFuture])
+
+  function scrollToToday() {
+    const container = scrollContainerRef.current
+    if (!container) return
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
+    const todayIdx = daysRef.current.findIndex((d) => format(d, 'yyyy-MM-dd') === todayStr)
+    if (todayIdx < 0) return
+    container.scrollTo({ left: Math.max(0, (todayIdx - 5) * DAY_COL_WIDTH), behavior: 'smooth' })
   }
 
   function closeModal() {
@@ -101,10 +182,6 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
     },
     [],
   )
-
-  const handleRoomNameClick = useCallback((room: Room) => {
-    setModal({ type: 'smartPricing', room })
-  }, [])
 
   function handleBook() {
     if (!selection) return
@@ -185,66 +262,51 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
     : undefined
 
   return (
-    <div className="space-y-4">
-      {/* Month nav */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={goToPrevMonth}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
-          >
-            ←
-          </button>
-          <h2 className="text-lg font-semibold text-slate-800">
-            {format(currentMonth, 'MMMM yyyy')}
-          </h2>
-          <button
-            type="button"
-            onClick={goToNextMonth}
-            className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
-          >
-            →
-          </button>
-          {loading && (
-            <span className="text-xs text-slate-400 animate-pulse">Loading…</span>
-          )}
-          {fetchError && (
-            <span className="text-xs text-red-500">{fetchError}</span>
-          )}
-        </div>
-
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Toolbar */}
+      <div className="flex items-center gap-4 shrink-0 px-4 py-2 border-b border-slate-200 bg-white">
+        <span className="text-sm font-semibold text-slate-700">Calendar</span>
         <button
           type="button"
-          onClick={() => {
-            const room = data.rooms[0]
-            if (room) setModal({ type: 'smartPricing', room })
-          }}
-          className="text-xs text-teal-600 hover:text-teal-800 font-medium border border-teal-200 rounded-lg px-3 py-1.5 hover:bg-teal-50 transition-colors"
+          onClick={scrollToToday}
+          className="text-xs font-medium rounded-lg border border-slate-200 px-3 py-1.5 text-slate-600 hover:bg-slate-50 transition-colors"
         >
-          ⚡ Smart Pricing
+          Today
         </button>
+        {(loadingPast || loadingFuture) && (
+          <span className="text-xs text-slate-400 animate-pulse">Loading…</span>
+        )}
       </div>
 
-      {/* Grid */}
-      <CalendarGrid
-        rooms={data.rooms}
-        days={days}
-        bookings={data.bookings}
-        icalBlocks={data.icalBlocks}
-        overrideMap={overrideMap}
-        tasks={data.tasks}
-        selection={selection}
-        onSelectionChange={setSelection}
-        onCellClick={handleCellClick}
-        onRoomNameClick={handleRoomNameClick}
-        onTaskClick={(task) => setModal({ type: 'task', task })}
-        onAddTask={(roomId, date) => setModal({ type: 'task', roomId, date })}
-      />
+      {/* Scrollable grid container — no scrollbars */}
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 min-h-0 overflow-auto scrollbar-none mr-4"
+        onScroll={handleScroll}
+      >
+        <CalendarGrid
+          rooms={data.rooms}
+          days={days}
+          bookings={data.bookings}
+          icalBlocks={data.icalBlocks}
+          overrideMap={overrideMap}
+          tasks={data.tasks}
+          selection={selection}
+          onSelectionChange={setSelection}
+          onCellClick={handleCellClick}
+          onBookingClick={(booking) => setModal({ type: 'bookingDetail', booking })}
+          onTaskClick={(task) => setModal({ type: 'task', task })}
+          onAddTask={(roomId, date) => setModal({ type: 'task', roomId, date })}
+          onAddPropertyTask={(propertyId, date) => setModal({ type: 'task', propertyId, date })}
+        />
+      </div>
 
-      <CalendarLegend />
+      {/* Legend footer */}
+      <div className="shrink-0 border-t border-slate-200 bg-white px-4">
+        <CalendarLegend />
+      </div>
 
-      {/* Selection action bar */}
+      {/* Selection action bar — floats over the bottom of the grid */}
       <SelectionBar
         selectedCount={
           selection
@@ -295,7 +357,6 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
                 body: JSON.stringify({ room_id: roomId, dates: [date], is_blocked: false }),
               })
               if (!res.ok) {
-                // Rollback: re-block the date
                 applyOverrides([{
                   id: `${roomId}-${date}`,
                   room_id: roomId,
@@ -308,7 +369,6 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
                 }])
               }
             } catch {
-              // Rollback on network error
               applyOverrides([{
                 id: `${roomId}-${date}`,
                 room_id: roomId,
@@ -352,14 +412,10 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
                 body: JSON.stringify({ room_id: roomId, dates: [date], price_override: price, note }),
               })
               if (!res.ok) {
-                throw new Error('Failed to save rate')
+                applyOverrides([{ ...optimisticRow, price_override: null }])
               }
             } catch {
-              // Rollback to previous price (revert by re-fetching would be ideal; for now revert override)
-              applyOverrides([{
-                ...optimisticRow,
-                price_override: null,
-              }])
+              applyOverrides([{ ...optimisticRow, price_override: null }])
             }
           }}
         />
@@ -371,6 +427,7 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
           rooms={data.rooms}
           task={modal.task}
           initialRoomId={modal.roomId}
+          initialPropertyId={modal.propertyId}
           initialDate={modal.date}
           onClose={closeModal}
           onSuccess={(task) => {
@@ -449,7 +506,18 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
           initialCheckIn={modal.checkIn}
           initialCheckOut={modal.checkOut}
           onClose={closeModal}
-          onSuccess={() => fetchMonth(currentMonth)}
+          onSuccess={async () => {
+            const from = format(daysRef.current[0], 'yyyy-MM-dd')
+            const to = format(daysRef.current[daysRef.current.length - 1], 'yyyy-MM-dd')
+            try {
+              const res = await fetch(`/api/admin/calendar?from=${from}&to=${to}`)
+              if (res.ok) {
+                const refreshed: CalendarData = await res.json()
+                setData(refreshed)
+                applyOverrides(refreshed.dateOverrides)
+              }
+            } catch { /* silent */ }
+          }}
         />
       )}
 
@@ -469,21 +537,6 @@ export function CalendarClient({ initialData, initialMonth }: CalendarClientProp
         />
       )}
 
-      {/* Smart pricing modal */}
-      {modal.type === 'smartPricing' && (
-        <SmartPricingModal
-          room={modal.room}
-          onClose={closeModal}
-          onSuccess={(roomId, priceMin, priceMax) => {
-            setData((prev) => ({
-              ...prev,
-              rooms: prev.rooms.map((r) =>
-                r.id === roomId ? { ...r, price_min: priceMin, price_max: priceMax } : r,
-              ),
-            }))
-          }}
-        />
-      )}
     </div>
   )
 }

@@ -1,7 +1,7 @@
 /**
  * @jest-environment node
  */
-import { resolveVariables } from '@/lib/email'
+import { resolveVariables } from '@/lib/email-variables'
 
 // sendEmail is tested implicitly via process-queue tests (mocked Resend)
 

@@ -47,20 +47,28 @@ export default function PrePlannedAutomationsTab({ automations, templates }: Pro
       delay: decodeDelay(a.delay_minutes),
     })),
   )
+  const [error, setError] = useState<string | null>(null)
 
   async function patchAutomation(id: string, patch: Partial<EmailAutomation>) {
-    setRows((prev) =>
-      prev.map((r) =>
+    const prev = rows
+    setError(null)
+    setRows((current) =>
+      current.map((r) =>
         r.automation.id === id
           ? { ...r, automation: { ...r.automation, ...patch } }
           : r,
       ),
     )
-    await fetch(`/api/admin/email/automations/${id}`, {
+    const res = await fetch(`/api/admin/email/automations/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch),
     })
+    if (!res.ok) {
+      setRows(prev)
+      const json = await res.json().catch(() => ({}))
+      setError((json as { error?: string }).error ?? 'Failed to save — please try again')
+    }
   }
 
   async function saveDelay(id: string, delayState: DelayState) {
@@ -72,6 +80,9 @@ export default function PrePlannedAutomationsTab({ automations, templates }: Pro
 
   return (
     <div className="space-y-2">
+      {error && (
+        <p className="text-sm text-red-400 px-1">{error}</p>
+      )}
       {rows.map(({ automation: a, delay }) => (
         <div
           key={a.id}

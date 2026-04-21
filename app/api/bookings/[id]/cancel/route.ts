@@ -107,8 +107,19 @@ export async function POST(
         try {
           await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id)
         } catch (stripeErr: unknown) {
-          // PaymentIntent may already be cancelled or succeeded — log but don't fail
-          console.warn('Stripe PaymentIntent cancel skipped:', (stripeErr as Error).message)
+          const errCode = (stripeErr as { code?: string }).code
+          if (errCode === 'payment_intent_unexpected_state') {
+            // PI already succeeded (payment came in before booking status updated) — refund in full
+            const pi = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id)
+            if (pi.status === 'succeeded' && pi.amount_received > 0) {
+              await stripe.refunds.create({
+                payment_intent: booking.stripe_payment_intent_id,
+                amount: pi.amount_received,
+              })
+            }
+          } else {
+            console.warn('Stripe PaymentIntent cancel skipped:', (stripeErr as Error).message)
+          }
         }
       }
     }

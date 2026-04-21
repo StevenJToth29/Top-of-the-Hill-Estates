@@ -136,16 +136,24 @@ export async function POST(request: Request) {
     const connectedAccountId = roomWithProperty?.property?.stripe_account?.stripe_account_id
     const platformFeePercent = Number(roomWithProperty?.property?.platform_fee_percent ?? 0)
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(total_amount * 100),
-      currency: 'usd',
-      payment_method_types: enabledMethods.map((m) => m.method_key),
-      metadata: { room_id, booking_type, guest_email },
-      ...(connectedAccountId && {
-        transfer_data: { destination: connectedAccountId },
-        application_fee_amount: Math.round(total_amount * (platformFeePercent / 100) * 100),
-      }),
-    })
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: Math.round(total_amount * 100),
+        currency: 'usd',
+        payment_method_types: enabledMethods.map((m) => m.method_key),
+        metadata: { room_id, booking_type, guest_email },
+        payment_method_options: {
+          us_bank_account: {
+            verification_method: 'instant',
+          },
+        },
+        ...(connectedAccountId && {
+          transfer_data: { destination: connectedAccountId },
+          application_fee_amount: Math.round(total_amount * (platformFeePercent / 100) * 100),
+        }),
+      },
+      { idempotencyKey: `booking-${room_id}-${guest_email}-${check_in}-${check_out}` },
+    )
 
     const { data: booking, error } = await supabase
       .from('bookings')

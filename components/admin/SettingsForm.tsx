@@ -211,7 +211,21 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
         favicon_large_url: urls.favicon_large_url,
         favicon_apple_url: urls.favicon_apple_url,
       }))
-      setSaved(false)
+
+      const res = await fetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: form.id,
+          favicon_url: urls.favicon_url,
+          favicon_large_url: urls.favicon_large_url,
+          favicon_apple_url: urls.favicon_apple_url,
+        }),
+      })
+      if (!res.ok) {
+        const json = await res.json()
+        throw new Error(json.error ?? 'Failed to save favicon')
+      }
     } catch (err) {
       setFaviconError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
@@ -506,7 +520,7 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
         </div>
         {form.favicon_url && form.favicon_url !== settings.favicon_url && (
           <p className="text-xs text-secondary">
-            Favicon uploaded — click Save Settings below to apply it site-wide.
+            Favicon saved — refresh the page to see it in the browser tab.
           </p>
         )}
       </section>

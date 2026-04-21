@@ -27,17 +27,18 @@ function createDbMocks() {
   }
   const roomsInsert = jest.fn().mockReturnValue(insertChain)
   const roomsUpdate = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) })
+  const roomFeesSelect = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ data: [], error: null }) })
   const roomFeesDelete = jest.fn().mockReturnValue({ eq: jest.fn().mockResolvedValue({ error: null }) })
   const roomFeesInsert = jest.fn().mockResolvedValue({ error: null })
 
   ;(createServiceRoleClient as jest.Mock).mockReturnValue({
     from: jest.fn((table: string) => {
       if (table === 'rooms') return { insert: roomsInsert, update: roomsUpdate }
-      if (table === 'room_fees') return { delete: roomFeesDelete, insert: roomFeesInsert }
+      if (table === 'room_fees') return { select: roomFeesSelect, delete: roomFeesDelete, insert: roomFeesInsert }
     }),
   })
 
-  return { roomsInsert, roomsUpdate, roomFeesDelete, roomFeesInsert }
+  return { roomsInsert, roomsUpdate, roomFeesSelect, roomFeesDelete, roomFeesInsert }
 }
 
 describe('POST /api/admin/rooms', () => {

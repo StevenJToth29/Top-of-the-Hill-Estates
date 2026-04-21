@@ -133,9 +133,15 @@ export default function PayoutAccountsTable({ accounts: initial }: PayoutAccount
               type="button"
               onClick={handleSave}
               disabled={isPending || !label.trim()}
-              className="bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-xl px-6 py-2 text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-xl px-6 py-2 text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
             >
-              {isPending ? (editingId ? 'Saving…' : 'Creating…') : editingId ? 'Save' : 'Create & Set Up'}
+              {isPending && (
+                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              )}
+              {isPending ? (editingId ? 'Saving…' : 'Creating account…') : editingId ? 'Save' : 'Create & Set Up'}
             </button>
           </div>
         </div>

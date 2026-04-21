@@ -173,7 +173,7 @@ export default function CheckoutSummary({ params, roomName, propertyName, checki
           </p>
         ) : (
           <p className="text-on-surface-variant/60 text-xs mt-2 text-right italic">
-            Processing fee varies by payment method.
+            Processing fee varies by payment method and is non-refundable.
           </p>
         )}
       </div>

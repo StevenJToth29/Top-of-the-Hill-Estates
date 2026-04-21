@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { title, due_date, description, room_id, recurrence_rule, recurrence_end_date, status, color } = body
+  const { title, due_date, description, room_id, property_id, recurrence_rule, recurrence_end_date, status, color } = body
 
   if (!title || typeof title !== 'string') {
     return NextResponse.json({ error: 'Missing title' }, { status: 400 })
@@ -32,6 +32,7 @@ export async function POST(request: NextRequest) {
       due_date,
       description: description ?? null,
       room_id: room_id ?? null,
+      property_id: property_id ?? null,
       recurrence_rule: recurrence_rule ?? null,
       recurrence_end_date: recurrence_end_date ?? null,
       status: status ?? 'pending',

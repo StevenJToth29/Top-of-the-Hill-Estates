@@ -26,20 +26,22 @@ export async function POST(request: NextRequest) {
     switch (event.type) {
       case 'payment_intent.succeeded': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent
+        console.log('payment_intent.succeeded for PI:', paymentIntent.id, 'amount_received:', paymentIntent.amount_received)
 
         const { data: booking, error } = await supabase
           .from('bookings')
           .update({
             status: 'confirmed',
-            amount_paid: paymentIntent.amount_received / 100,
+            amount_paid: (paymentIntent.amount_received ?? paymentIntent.amount) / 100,
           })
           .eq('stripe_payment_intent_id', paymentIntent.id)
+          .eq('status', 'pending')
           .select()
           .single()
 
         if (error || !booking) {
           console.error('Failed to confirm booking on payment_intent.succeeded:', error)
-          break
+          return new Response('DB update failed', { status: 500 })
         }
 
         notifyGHLBookingConfirmed(booking as Booking).catch((err) => {
@@ -72,15 +74,18 @@ export async function POST(request: NextRequest) {
             cancellation_reason: 'payment_failed',
           })
           .eq('stripe_payment_intent_id', paymentIntent.id)
+          .eq('status', 'pending')
 
         if (error) {
           console.error('Failed to cancel booking on payment_intent.payment_failed:', error)
+          return new Response('DB update failed', { status: 500 })
         }
         break
       }
 
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
+        if (!session.payment_intent) break
         const isPaid = session.payment_status === 'paid'
 
         const updatePayload: Record<string, unknown> = { stripe_session_id: session.id }
@@ -91,10 +96,11 @@ export async function POST(request: NextRequest) {
           }
         }
 
-        const { error } = await supabase
+        const query = supabase
           .from('bookings')
           .update(updatePayload)
           .eq('stripe_payment_intent_id', session.payment_intent as string)
+        const { error } = isPaid ? await query.eq('status', 'pending') : await query
 
         if (error) {
           console.error('Failed to update booking on checkout.session.completed:', error)
