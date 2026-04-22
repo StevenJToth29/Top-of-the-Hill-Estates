@@ -86,6 +86,7 @@ describe('PATCH /api/admin/properties — partial update', () => {
     expect(updateArg.name).toBe('Hill House')
     expect(updateArg.amenities).toEqual(['Pool'])
     expect(updateArg.bedrooms).toBe(4)
+    expect(updateArg).not.toHaveProperty('id')
   })
 
   it('preserves falsy values — false, 0, null — when explicitly sent', async () => {
@@ -109,6 +110,7 @@ describe('PATCH /api/admin/properties — partial update', () => {
     expect(updateArg.platform_fee_percent).toBe(0)
     expect(updateArg.use_global_house_rules).toBe(false)
     expect(updateArg.stripe_account_id).toBeNull()
+    expect(Object.keys(updateArg)).toHaveLength(3)
   })
 
   it('returns 401 when not authenticated', async () => {
@@ -134,6 +136,20 @@ describe('PATCH /api/admin/properties — partial update', () => {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ amenities: ['Pool'] }),
+    })
+
+    const res = await PATCH(req)
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 when no fields are sent beyond id', async () => {
+    mockAuthed()
+    mockDb()
+
+    const req = new Request('http://localhost/api/admin/properties', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'prop-1' }),
     })
 
     const res = await PATCH(req)
