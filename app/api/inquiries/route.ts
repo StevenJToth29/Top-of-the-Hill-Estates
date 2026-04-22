@@ -29,7 +29,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Valid phone number is required.' }, { status: 400 })
   if (!String(move_in ?? '').trim())
     return NextResponse.json({ error: 'Move-in date is required.' }, { status: 400 })
-  if (!occupants || Number(occupants) < 1)
+  const parsedOccupants = Number(occupants)
+  if (!occupants || !Number.isFinite(parsedOccupants) || parsedOccupants < 1)
     return NextResponse.json({ error: 'Number of occupants is required.' }, { status: 400 })
 
   try {
@@ -37,9 +38,9 @@ export async function POST(req: Request) {
       firstName: String(first_name).trim(),
       lastName: String(last_name).trim(),
       email: String(email).trim(),
-      phone: String(phone ?? ''),
-      moveIn: String(move_in),
-      occupants: Number(occupants),
+      phone: String(phone ?? '').trim(),
+      moveIn: String(move_in).trim(),
+      occupants: parsedOccupants,
       roomSlug: String(room_slug ?? ''),
       roomName: String(room_name ?? ''),
       propertyName: String(property_name ?? ''),

@@ -74,6 +74,13 @@ describe('POST /api/inquiries', () => {
     expect(json.error).toBe('Number of occupants is required.')
   })
 
+  it('returns 400 when occupants is not a number', async () => {
+    const res = await POST(makeRequest({ ...validBody, occupants: 'abc' }))
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error).toBe('Number of occupants is required.')
+  })
+
   it('calls syncLongTermInquiryToGHL with correct shape and returns success', async () => {
     const res = await POST(makeRequest(validBody))
     expect(res.status).toBe(200)
