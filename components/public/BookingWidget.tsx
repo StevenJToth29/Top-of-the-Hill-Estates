@@ -151,6 +151,18 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
   const handleBook = useCallback(() => {
     if (!validate()) return
 
+    if (bookingType === 'long_term') {
+      const params = new URLSearchParams({
+        room: room.slug,
+        room_name: room.name,
+        property_name: room.property?.name ?? '',
+        move_in: moveIn,
+        occupants: String(guests),
+      })
+      router.push(`/apply?${params.toString()}`)
+      return
+    }
+
     const params = new URLSearchParams({
       room_id: room.id,
       room: room.slug,
@@ -163,28 +175,18 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
       security_deposit: String(securityDeposit),
       extra_guest_fee: String(extraGuestFee),
       fees: JSON.stringify(roomFees),
+      checkin: checkIn,
+      checkout: checkOut,
+      total_nights: String(nights),
+      total_amount: String(stTotal),
+      amount_to_pay: String(stTotal),
+      amount_due: '0',
     })
-
-    if (bookingType === 'short_term') {
-      params.set('checkin', checkIn)
-      params.set('checkout', checkOut)
-      params.set('total_nights', String(nights))
-      params.set('total_amount', String(stTotal))
-      params.set('amount_to_pay', String(stTotal))
-      params.set('amount_due', '0')
-    } else {
-      params.set('checkin', moveIn)
-      params.set('checkout', '')
-      params.set('total_nights', '30')
-      params.set('total_amount', String(ltTotal))
-      params.set('amount_to_pay', String(ltTotal))
-      params.set('amount_due', '0')
-    }
 
     router.push(`/checkout?${params.toString()}`)
   }, [
     validate, room, bookingType, guests, checkIn, checkOut, moveIn, nights,
-    cleaningFee, securityDeposit, extraGuestFee, roomFees, stTotal, ltTotal, router,
+    cleaningFee, securityDeposit, extraGuestFee, roomFees, stTotal, router,
   ])
 
   const guestOptions = Array.from({ length: Math.max(room.guest_capacity ?? 1, 1) }, (_, i) => i + 1)
@@ -393,7 +395,7 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
         onClick={handleBook}
         className="w-full bg-gradient-to-r from-primary to-secondary text-background font-display font-semibold py-3 rounded-2xl shadow-[0_0_10px_rgba(45,212,191,0.30)] hover:opacity-90 transition-opacity duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
-        Book Now
+        {bookingType === 'long_term' ? 'Apply Now' : 'Book Now'}
       </button>
     </div>
   )
