@@ -6,7 +6,7 @@ import { format, addMonths } from 'date-fns'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import { getBlockedDatesForRoom } from '@/lib/availability'
 import { resolvePolicy } from '@/lib/cancellation'
-import type { Room } from '@/types'
+import type { Room, PropertyImage } from '@/types'
 import dynamicImport from 'next/dynamic'
 import { hospitableBookingFlag } from '@/flags'
 
@@ -52,14 +52,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
   }
 }
+
 import ImageGallery from '@/components/public/ImageGallery'
 import BookingWidget from '@/components/public/BookingWidget'
-import BookingToggle from '@/components/public/BookingToggle'
 import RoomBackButton from '@/components/public/RoomBackButton'
 import AvailabilityCalendar from '@/components/public/AvailabilityCalendar'
 import AmenitiesGrid from '@/components/public/AmenitiesGrid'
 import PricingSection from '@/components/public/PricingSection'
 import CancellationPolicyDisplay from '@/components/public/CancellationPolicyDisplay'
+import RoomDescription from '@/components/public/RoomDescription'
+import QuickInfoCard from '@/components/public/QuickInfoCard'
+import MobileBookingBar from '@/components/public/MobileBookingBar'
 
 const LocationMap = dynamicImport(() => import('@/components/public/LocationMap'), { ssr: false })
 
@@ -82,6 +85,13 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
   ])
 
   if (!rawRoom) notFound()
+
+  // Build URL → description lookup from property image library
+  const propertyImages = (rawRoom.property?.images ?? []) as PropertyImage[]
+  const imageDescriptions: Record<string, string> = {}
+  for (const img of propertyImages) {
+    if (img.description) imageDescriptions[img.url] = img.description
+  }
 
   const settings = siteSettings ?? null
   const resolvedPolicy = resolvePolicy(rawRoom, rawRoom.property ?? {}, settings)
@@ -128,21 +138,90 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
         .join(', ')
     : null
 
-  return (
-    <main className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
-        <RoomBackButton />
-        <ImageGallery images={room.images ?? []} roomName={room.name} />
+  const allAmenities = Array.from(
+    new Set([...(room.property?.amenities ?? []), ...(room.amenities ?? [])]),
+  )
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-          <div className="lg:col-span-2 space-y-8">
-            <div className="space-y-2">
+  const useGlobal = room.property?.use_global_house_rules ?? true
+  const houseRules = useGlobal
+    ? (siteSettings?.global_house_rules ?? null)
+    : (room.property?.house_rules ?? null)
+
+  const stripeFeePercent = siteSettings?.stripe_fee_percent != null ? Number(siteSettings.stripe_fee_percent) : 2.9
+  const stripeFeeFlat = siteSettings?.stripe_fee_flat != null ? Number(siteSettings.stripe_fee_flat) : 0.30
+
+  const divider = <div className="h-px bg-outline-variant/15 my-7" />
+
+  return (
+    <main className="min-h-screen bg-background pb-20 lg:pb-10">
+      {/* ── Gallery (full-width within max container) ── */}
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <RoomBackButton />
+        <div className="mt-4">
+          <ImageGallery images={room.images ?? []} roomName={room.name} descriptions={imageDescriptions} />
+        </div>
+      </div>
+
+      {/* ── Main 2-column grid ── */}
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8 lg:gap-12 items-start">
+
+          {/* ── RIGHT COLUMN (first in DOM → shows above content on mobile) ── */}
+          <div
+            id="booking-widget-anchor"
+            className="order-first lg:order-last lg:sticky lg:top-24 space-y-3"
+          >
+            {showHospitableWidget && room.iframe_booking_url ? (
+              /* Iframe widget — no card wrapper, full natural height */
+              <iframe
+                id="booking-iframe"
+                sandbox="allow-top-navigation allow-scripts allow-same-origin"
+                style={{ width: '100%', height: '900px', display: 'block' }}
+                frameBorder={0}
+                src={room.iframe_booking_url}
+              />
+            ) : (
+              /* Native booking widget — card wrapper, auto-expands with content */
+              <div className="rounded-2xl border border-outline-variant/20 bg-surface-highest/40 backdrop-blur-sm shadow-xl">
+                <div className="p-4">
+                  <BookingWidget
+                    room={room}
+                    blockedDates={blockedDates}
+                    dateOverrides={dateOverrides}
+                    initialCheckin={searchParams.checkin}
+                    initialCheckout={searchParams.checkout}
+                    initialGuests={searchParams.guests ? parseInt(searchParams.guests, 10) : undefined}
+                    stripeFeePercent={stripeFeePercent}
+                    stripeFeeFlat={stripeFeeFlat}
+                    cancellationPolicy={resolvedPolicy}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Quick info — hidden when iframe (widget already shows this detail) */}
+            {!showHospitableWidget && (
+              <QuickInfoCard
+                guestCapacity={room.guest_capacity}
+                minNights={room.minimum_nights_short_term}
+                cleaningFee={room.cleaning_fee ?? undefined}
+                securityDeposit={room.security_deposit ?? undefined}
+              />
+            )}
+          </div>
+
+          {/* ── LEFT COLUMN ── */}
+          <div className="order-last lg:order-first min-w-0">
+
+            {/* Room header */}
+            <div className="space-y-2 mb-7">
               {room.property && (
                 <p className="text-xs uppercase tracking-widest text-secondary font-body">
                   {room.property.name}
+                  {room.property.city ? ` · ${room.property.city}, ${room.property.state}` : ''}
                 </p>
               )}
-              <h1 className="font-display text-3xl sm:text-4xl font-bold text-primary">
+              <h1 className="font-display text-3xl sm:text-4xl font-bold text-on-surface">
                 {room.name}
               </h1>
               <div className="flex flex-wrap gap-4 text-sm text-on-surface-variant">
@@ -156,103 +235,70 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
               </div>
             </div>
 
-            {room.description && (
-              <div className="space-y-3">
-                <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
-                  About this room
-                </p>
-                <p className="text-on-surface-variant leading-relaxed">{room.description}</p>
-              </div>
-            )}
-
-            <PricingSection
-              nightlyRate={room.nightly_rate}
-              monthlyRate={room.monthly_rate}
-              minNightsShortTerm={room.minimum_nights_short_term}
-              minNightsLongTerm={room.minimum_nights_long_term}
-              showNightlyRate={room.show_nightly_rate ?? true}
-              showMonthlyRate={room.show_monthly_rate ?? true}
-            />
-
-            {(() => {
-              const allAmenities = Array.from(
-                new Set([
-                  ...(room.property?.amenities ?? []),
-                  ...(room.amenities ?? []),
-                ]),
-              )
-              return allAmenities.length > 0 ? (
-                <AmenitiesGrid amenities={allAmenities} />
-              ) : null
-            })()}
-
-            <AvailabilityCalendar blockedDates={blockedDates} roomName={room.name} />
-
-            {(() => {
-              const useGlobal = room.property?.use_global_house_rules ?? true
-              const rules = useGlobal
-                ? (siteSettings?.global_house_rules ?? '')
-                : (room.property?.house_rules ?? '')
-              return rules ? (
-                <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(45,212,191,0.06)] rounded-2xl p-5 space-y-3">
-                  <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
-                    House Rules
-                  </p>
-                  <p className="text-on-surface-variant text-sm leading-relaxed whitespace-pre-line">
-                    {rules}
-                  </p>
-                </div>
-              ) : null
-            })()}
-
-            <CancellationPolicyDisplay variant="short_term" policy={resolvedPolicy} />
-
+            {/* Map — elevated near top */}
             {mapAddress && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
-              <div className="space-y-3">
-                <div className="flex items-baseline justify-between">
+              <>
+                <div className="space-y-3">
                   <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
                     Location
                   </p>
-                  <p className="text-xs text-on-surface-variant/50">
-                    Exact address provided after booking
-                  </p>
+                  <LocationMap address={mapAddress} />
                 </div>
-                <LocationMap address={mapAddress} />
-              </div>
+                {divider}
+              </>
             )}
+
+            {/* Description + house rules read-more */}
+            {(room.description || houseRules) && (
+              <>
+                <RoomDescription description={room.description ?? null} houseRules={houseRules} />
+                {divider}
+              </>
+            )}
+
+            {/* Pricing */}
+            {(room.show_nightly_rate !== false || room.show_monthly_rate !== false) && (
+              <>
+                <PricingSection
+                  nightlyRate={room.nightly_rate}
+                  monthlyRate={room.monthly_rate}
+                  minNightsShortTerm={room.minimum_nights_short_term}
+                  minNightsLongTerm={room.minimum_nights_long_term}
+                  cleaningFee={room.cleaning_fee ?? undefined}
+                  showNightlyRate={room.show_nightly_rate ?? true}
+                  showMonthlyRate={room.show_monthly_rate ?? true}
+                />
+                {divider}
+              </>
+            )}
+
+            {/* Amenities */}
+            {allAmenities.length > 0 && (
+              <>
+                <AmenitiesGrid amenities={allAmenities} />
+                {divider}
+              </>
+            )}
+
+            {/* Availability calendar */}
+            <>
+              <AvailabilityCalendar blockedDates={blockedDates} roomName={room.name} />
+              {divider}
+            </>
+
+            {/* Cancellation policy */}
+            <CancellationPolicyDisplay variant="short_term" policy={resolvedPolicy} />
           </div>
 
-          <div className="lg:col-span-1">
-            {showHospitableWidget ? (
-              <BookingToggle
-                room={room}
-                blockedDates={blockedDates}
-                dateOverrides={dateOverrides}
-                initialCheckin={searchParams.checkin}
-                initialCheckout={searchParams.checkout}
-                initialGuests={searchParams.guests ? parseInt(searchParams.guests, 10) : undefined}
-                stripeFeePercent={siteSettings?.stripe_fee_percent != null ? Number(siteSettings.stripe_fee_percent) : 2.9}
-                stripeFeeFlat={siteSettings?.stripe_fee_flat != null ? Number(siteSettings.stripe_fee_flat) : 0.30}
-                cancellationPolicy={resolvedPolicy}
-                hospitableWidgetSrc="https://booking.hospitable.com/widget/a1999599-baa9-453f-b197-2b94e2f8ef8d/2023906"
-                initialMode={searchParams.source === 'happ' ? 'hospitable' : 'direct'}
-              />
-            ) : (
-              <BookingWidget
-                room={room}
-                blockedDates={blockedDates}
-                dateOverrides={dateOverrides}
-                initialCheckin={searchParams.checkin}
-                initialCheckout={searchParams.checkout}
-                initialGuests={searchParams.guests ? parseInt(searchParams.guests, 10) : undefined}
-                stripeFeePercent={siteSettings?.stripe_fee_percent != null ? Number(siteSettings.stripe_fee_percent) : 2.9}
-                stripeFeeFlat={siteSettings?.stripe_fee_flat != null ? Number(siteSettings.stripe_fee_flat) : 0.30}
-                cancellationPolicy={resolvedPolicy}
-              />
-            )}
-          </div>
         </div>
       </div>
+
+      {/* ── Mobile sticky bottom bar ── */}
+      <MobileBookingBar
+        nightlyRate={room.nightly_rate}
+        monthlyRate={room.monthly_rate}
+        showNightly={room.show_nightly_rate ?? true}
+      />
     </main>
   )
 }
