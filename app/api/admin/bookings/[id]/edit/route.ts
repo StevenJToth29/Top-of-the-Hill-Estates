@@ -83,6 +83,9 @@ export async function PATCH(
     }
 
     // Availability check (excluding this booking's own dates)
+    // Note: open-ended bookings skip this check because isRoomAvailableExcluding cannot
+    // handle '9999-12-31' as the end date. A check-in date change on an open-ended
+    // booking is not validated against conflicts as a result.
     if (checkOut !== OPEN_ENDED_DATE) {
       const available = await isRoomAvailableExcluding(b.room_id, checkIn, checkOut, b.id)
       if (!available) {
@@ -205,7 +208,11 @@ export async function PATCH(
             success_url: `${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}/booking-confirmed`,
             cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}`,
           })
-          const paymentLink = session.url!
+          if (!session.url) {
+            console.error('Stripe checkout session missing URL', session.id)
+            return
+          }
+          const paymentLink = session.url
           evaluateAndQueueEmails('booking_payment_request', {
             type: 'booking_payment_request',
             bookingId: b.id,

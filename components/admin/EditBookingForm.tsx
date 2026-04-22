@@ -292,7 +292,7 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
                     <p className="text-xs text-slate-500 pt-1 leading-relaxed">
                       {totalDiff > 0
                         ? hasStripe
-                          ? `A payment request for ${formatCurrency(delta)} will be emailed to ${email} automatically on save.`
+                          ? `A payment request for ${formatCurrency(Math.abs(delta))} will be emailed to ${email} automatically on save.`
                           : `Balance updated on record. No Stripe payment to process (manual booking).`
                         : hasStripe
                         ? `A Stripe refund of ${formatCurrency(Math.abs(delta))} will be issued automatically on save.`
