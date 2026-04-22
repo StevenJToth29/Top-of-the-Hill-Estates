@@ -200,7 +200,7 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
             </span>
             {/* Type badge */}
             <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#F1F5F9', color: '#64748B' }}>
-              {booking.booking_type === 'short_term' ? 'Short-term' : 'Long-term'}
+              {b.booking_type === 'short_term' ? 'Short-term' : 'Long-term'}
             </span>
           </div>
         </div>
@@ -407,7 +407,7 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
         {showCancelModal && (
           <CancelBookingModal
             contained
-            booking={booking}
+            booking={b}
             cancellationPolicy={cancellationPolicy ?? DEFAULT_POLICY}
             onCancel={handleCancelled}
             onClose={() => setShowCancelModal(false)}
