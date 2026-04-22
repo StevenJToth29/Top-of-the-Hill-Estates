@@ -4,6 +4,7 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import { TrashIcon, PhotoIcon, Bars2Icon, ArrowsPointingOutIcon, XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import { createClient } from '@/lib/supabase-browser'
 import NextImage from 'next/image'
+import type { PropertyImage } from '@/types'
 
 async function compressImage(file: File, maxWidth = 1200): Promise<Blob> {
   return new Promise((resolve) => {
@@ -24,10 +25,10 @@ async function compressImage(file: File, maxWidth = 1200): Promise<Blob> {
 }
 
 interface ImageUploaderProps {
-  images: string[]
+  images: PropertyImage[]
   bucket: string
   uploadFolder: string
-  onChange: (images: string[]) => void
+  onChange: (images: PropertyImage[]) => void
 }
 
 export default function ImageUploader({ images, bucket, uploadFolder, onChange }: ImageUploaderProps) {
@@ -59,7 +60,7 @@ export default function ImageUploader({ images, bucket, uploadFolder, onChange }
     setError(null)
     setUploading(true)
 
-    const newUrls: string[] = []
+    const newImages: PropertyImage[] = []
     for (const file of Array.from(files)) {
       if (!file.type.startsWith('image/')) continue
       try {
@@ -74,13 +75,13 @@ export default function ImageUploader({ images, bucket, uploadFolder, onChange }
         const {
           data: { publicUrl },
         } = supabase.storage.from(bucket).getPublicUrl(data.path)
-        newUrls.push(publicUrl)
+        newImages.push({ url: publicUrl })
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Upload failed')
       }
     }
 
-    onChange([...images, ...newUrls])
+    onChange([...images, ...newImages])
     setUploading(false)
   }
 
@@ -92,7 +93,7 @@ export default function ImageUploader({ images, bucket, uploadFolder, onChange }
       const path = url.slice(idx + bucketMarker.length)
       await supabase.storage.from(bucket).remove([path])
     }
-    onChange(images.filter((img) => img !== url))
+    onChange(images.filter((img) => img.url !== url))
   }
 
   function handleFileDrop(e: React.DragEvent) {
@@ -185,51 +186,68 @@ export default function ImageUploader({ images, bucket, uploadFolder, onChange }
         <>
           <p className="text-xs text-on-surface-variant/50 -mb-1">Drag to reorder · first image is the cover</p>
           <div className="grid grid-cols-4 sm:grid-cols-5 lg:grid-cols-6 gap-2">
-            {images.map((url, i) => (
-              <div
-                key={url}
-                draggable
-                onDragStart={(e) => handleImageDragStart(e, i)}
-                onDragOver={(e) => handleImageDragOver(e, i)}
-                onDrop={(e) => handleImageDrop(e, i)}
-                onDragEnd={handleImageDragEnd}
-                className={`relative group rounded-xl overflow-hidden bg-surface-container aspect-video cursor-grab active:cursor-grabbing transition-all duration-150 ${
-                  dragIndex === i
-                    ? 'opacity-40 scale-95'
-                    : dragOverIndex === i && dragIndex !== null
-                    ? 'ring-2 ring-secondary ring-offset-2 ring-offset-background scale-[1.02]'
-                    : ''
-                }`}
-              >
-                <NextImage src={url} alt={`Image ${i + 1}`} fill className="object-cover pointer-events-none" />
+            {images.map((img, i) => (
+              <div key={img.url} className="flex flex-col gap-1">
+                {/* Image tile */}
+                <div
+                  draggable
+                  onDragStart={(e) => handleImageDragStart(e, i)}
+                  onDragOver={(e) => handleImageDragOver(e, i)}
+                  onDrop={(e) => handleImageDrop(e, i)}
+                  onDragEnd={handleImageDragEnd}
+                  className={`relative group rounded-xl overflow-hidden bg-surface-container aspect-video cursor-grab active:cursor-grabbing transition-all duration-150 ${
+                    dragIndex === i
+                      ? 'opacity-40 scale-95'
+                      : dragOverIndex === i && dragIndex !== null
+                      ? 'ring-2 ring-secondary ring-offset-2 ring-offset-background scale-[1.02]'
+                      : ''
+                  }`}
+                >
+                  <NextImage src={img.url} alt={`Image ${i + 1}`} fill className="object-cover pointer-events-none" />
 
-                {/* Overlay on hover */}
-                <div className="absolute inset-0 bg-background/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <div className="flex items-center gap-1 p-1 rounded-xl bg-surface-container/80 backdrop-blur-sm">
-                    <Bars2Icon className="w-3.5 h-3.5 text-on-surface-variant/60 mx-0.5" title="Drag to reorder" />
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); setLightboxIndex(i) }}
-                      className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-high transition-colors"
-                      aria-label="Expand image"
-                    >
-                      <ArrowsPointingOutIcon className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); deleteImage(url) }}
-                      className="p-1 rounded-lg bg-error-container/80 text-error hover:bg-error hover:text-on-error transition-colors"
-                      aria-label="Delete image"
-                    >
-                      <TrashIcon className="w-3.5 h-3.5" />
-                    </button>
+                  {/* Overlay on hover */}
+                  <div className="absolute inset-0 bg-background/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <div className="flex items-center gap-1 p-1 rounded-xl bg-surface-container/80 backdrop-blur-sm">
+                      <Bars2Icon className="w-3.5 h-3.5 text-on-surface-variant/60 mx-0.5" title="Drag to reorder" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); setLightboxIndex(i) }}
+                        className="p-1 rounded-lg text-on-surface-variant hover:bg-surface-high transition-colors"
+                        aria-label="Expand image"
+                      >
+                        <ArrowsPointingOutIcon className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); deleteImage(img.url) }}
+                        className="p-1 rounded-lg bg-error-container/80 text-error hover:bg-error hover:text-on-error transition-colors"
+                        aria-label="Delete image"
+                      >
+                        <TrashIcon className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Position badge */}
+                  <span className="absolute top-1.5 left-1.5 text-xs bg-background/70 text-on-surface-variant rounded-lg px-1.5 py-0.5 pointer-events-none">
+                    {i === 0 ? 'Cover' : i + 1}
+                  </span>
                 </div>
 
-                {/* Position badge */}
-                <span className="absolute top-1.5 left-1.5 text-xs bg-background/70 text-on-surface-variant rounded-lg px-1.5 py-0.5 pointer-events-none">
-                  {i === 0 ? 'Cover' : i + 1}
-                </span>
+                {/* Description input */}
+                <input
+                  type="text"
+                  value={img.description ?? ''}
+                  onChange={(e) => {
+                    const next = images.map((item, idx) =>
+                      idx === i ? { ...item, description: e.target.value } : item
+                    )
+                    onChange(next)
+                  }}
+                  placeholder="Caption…"
+                  maxLength={120}
+                  className="w-full text-xs px-2 py-1 rounded-lg bg-surface-highest/40 border border-outline-variant/20 text-on-surface placeholder-on-surface-variant/40 focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                />
               </div>
             ))}
           </div>
@@ -270,13 +288,20 @@ export default function ImageUploader({ images, bucket, uploadFolder, onChange }
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={images[lightboxIndex]}
+              src={images[lightboxIndex].url}
               alt={`Image ${lightboxIndex + 1}`}
               className="w-full h-full object-contain max-h-[85vh] rounded-xl"
             />
-            <span className="absolute bottom-3 left-1/2 -translate-x-1/2 text-xs text-white/60 bg-black/40 px-2.5 py-1 rounded-full">
-              {lightboxIndex + 1} / {images.length}
-            </span>
+            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5">
+              {images[lightboxIndex]?.description && (
+                <p className="text-sm text-white/90 bg-black/60 px-3 py-1.5 rounded-full text-center max-w-sm">
+                  {images[lightboxIndex].description}
+                </p>
+              )}
+              <span className="text-xs text-white/60 bg-black/40 px-2.5 py-1 rounded-full">
+                {lightboxIndex + 1} / {images.length}
+              </span>
+            </div>
           </div>
 
           {/* Next */}
