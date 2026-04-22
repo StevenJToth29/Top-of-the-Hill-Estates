@@ -6,6 +6,7 @@ import type { Booking, Room, Property, BookingModificationRequest, CancellationP
 import { calculateRefund, DEFAULT_POLICY } from '@/lib/cancellation'
 import { formatCurrency, formatDate, formatDateTime, OPEN_ENDED_DATE } from '@/lib/format'
 import CancelBookingModal from './CancelBookingModal'
+import EditBookingForm from './EditBookingForm'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 
 const todayStr = new Date().toISOString().split('T')[0]
@@ -59,9 +60,13 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 export default function BookingDetailPanel({ booking, modificationRequests = [], cancellationPolicy }: Props) {
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [confirming, setConfirming] = useState(false)
+  const [showEditForm, setShowEditForm] = useState(false)
+  const [editedBooking, setEditedBooking] = useState(booking)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+
+  const b = editedBooking
 
   function handleClose() {
     const next = new URLSearchParams(searchParams.toString())
@@ -69,13 +74,13 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
     router.push(`${pathname}?${next.toString()}`)
   }
 
-  const isOpenEnded = booking.check_out === OPEN_ENDED_DATE
+  const isOpenEnded = b.check_out === OPEN_ENDED_DATE
   const nights = isOpenEnded
     ? null
-    : (booking.total_nights || differenceInCalendarDays(parseISO(booking.check_out), parseISO(booking.check_in)))
+    : (b.total_nights || differenceInCalendarDays(parseISO(b.check_out), parseISO(b.check_in)))
 
-  const canCancel = booking.status === 'confirmed' || booking.status === 'pending'
-  const refund = canCancel ? calculateRefund(booking, new Date(), cancellationPolicy ?? DEFAULT_POLICY) : null
+  const canCancel = b.status === 'confirmed' || b.status === 'pending'
+  const refund = canCancel ? calculateRefund(b, new Date(), cancellationPolicy ?? DEFAULT_POLICY) : null
 
   function handleCancelled() {
     setShowCancelModal(false)
@@ -97,16 +102,16 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
     }
   }
 
-  const room = booking.room
+  const room = b.room
   const property = room?.property
 
-  const statusCfg = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.other
-  const sourceCfg = SOURCE_CONFIG[booking.source ?? 'direct'] ?? SOURCE_CONFIG.other
+  const statusCfg = STATUS_CONFIG[b.status] ?? STATUS_CONFIG.other
+  const sourceCfg = SOURCE_CONFIG[b.source ?? 'direct'] ?? SOURCE_CONFIG.other
 
-  const guestInitials = [booking.guest_first_name?.[0], booking.guest_last_name?.[0]].filter(Boolean).join('').toUpperCase()
+  const guestInitials = [b.guest_first_name?.[0], b.guest_last_name?.[0]].filter(Boolean).join('').toUpperCase()
 
-  const totalPaid = booking.amount_paid ?? 0
-  const totalAmount = booking.total_amount ?? 0
+  const totalPaid = b.amount_paid ?? 0
+  const totalAmount = b.total_amount ?? 0
   const due = totalAmount - totalPaid
   const paidPct = totalAmount > 0 ? Math.min(100, Math.round((totalPaid / totalAmount) * 100)) : 0
   const fullyPaid = due <= 0
@@ -156,10 +161,10 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
             <div>
               <div style={{ fontSize: 11, fontFamily: 'Manrope, sans-serif', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: '#94A3B8', marginBottom: 4 }}>
-                #{booking.id.slice(0, 8)}
+                #{b.id.slice(0, 8)}
               </div>
               <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 20, fontWeight: 800, color: '#0F172A', lineHeight: 1.2 }}>
-                {booking.guest_first_name} {booking.guest_last_name}
+                {b.guest_first_name} {b.guest_last_name}
               </div>
             </div>
             <button
@@ -210,13 +215,13 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
             </div>
             <div>
               <div style={{ fontFamily: 'Manrope, sans-serif', fontSize: 15, fontWeight: 700, color: '#0F172A' }}>
-                {booking.guest_first_name} {booking.guest_last_name}
+                {b.guest_first_name} {b.guest_last_name}
               </div>
-              {booking.guest_email && (
-                <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>{booking.guest_email}</div>
+              {b.guest_email && (
+                <div style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>{b.guest_email}</div>
               )}
-              {booking.guest_phone && (
-                <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }}>{booking.guest_phone}</div>
+              {b.guest_phone && (
+                <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }}>{b.guest_phone}</div>
               )}
             </div>
           </div>
@@ -228,9 +233,9 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
           <Row
             label="Check-in"
             val={
-              booking.check_in === todayStr
-                ? <span><span style={{ color: '#1FB2A0' }}>{formatDate(booking.check_in)}</span> <span style={{ color: '#1FB2A0', fontSize: 11 }}>· Today</span></span>
-                : formatDate(booking.check_in)
+              b.check_in === todayStr
+                ? <span><span style={{ color: '#1FB2A0' }}>{formatDate(b.check_in)}</span> <span style={{ color: '#1FB2A0', fontSize: 11 }}>· Today</span></span>
+                : formatDate(b.check_in)
             }
           />
           <Row
@@ -238,9 +243,9 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
             val={
               isOpenEnded
                 ? 'Open-ended'
-                : booking.check_out === todayStr
-                  ? <span style={{ color: '#D97706' }}>{formatDate(booking.check_out)}</span>
-                  : formatDate(booking.check_out)
+                : b.check_out === todayStr
+                  ? <span style={{ color: '#D97706' }}>{formatDate(b.check_out)}</span>
+                  : formatDate(b.check_out)
             }
           />
           <Row
@@ -253,7 +258,7 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
                   : '—'
             }
           />
-          <Row label="Guests" val={String(booking.guest_count ?? '—')} />
+          <Row label="Guests" val={String(b.guest_count ?? '—')} />
 
           {/* Payment */}
           <SectionLabel>Payment</SectionLabel>
@@ -277,50 +282,50 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
             <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>{paidPct}% of total collected</div>
           </div>
 
-          <Row label="Due at Check-in" val={formatCurrency(booking.amount_due_at_checkin)} />
-          {booking.stripe_payment_intent_id && (
+          <Row label="Due at Check-in" val={formatCurrency(b.amount_due_at_checkin)} />
+          {b.stripe_payment_intent_id && (
             <Row
               label="Stripe"
               val={
                 <a
-                  href={`https://dashboard.stripe.com/payments/${booking.stripe_payment_intent_id}`}
+                  href={`https://dashboard.stripe.com/payments/${b.stripe_payment_intent_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   style={{ color: '#2DD4BF', textDecoration: 'none', fontSize: 12, wordBreak: 'break-all' }}
                 >
-                  {booking.stripe_payment_intent_id}
+                  {b.stripe_payment_intent_id}
                 </a>
               }
             />
           )}
 
           {/* Notes */}
-          {booking.notes && (
+          {b.notes && (
             <div style={{ background: '#F8FAFC', border: '1px solid #F1F5F9', borderRadius: 10, padding: 12, margin: '16px 0' }}>
               <SectionLabel>Notes</SectionLabel>
-              <div style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6, marginTop: 6 }}>{booking.notes}</div>
+              <div style={{ fontSize: 13, color: '#64748B', lineHeight: 1.6, marginTop: 6 }}>{b.notes}</div>
             </div>
           )}
 
           {/* Booking Info */}
           <SectionLabel>Booking Info</SectionLabel>
-          <Row label="Booking ID" val={<span style={{ fontFamily: 'monospace', fontSize: 12 }}>{booking.id}</span>} />
+          <Row label="Booking ID" val={<span style={{ fontFamily: 'monospace', fontSize: 12 }}>{b.id}</span>} />
           <Row
             label="Source"
             val={<span style={{ color: sourceCfg.color }}>{sourceCfg.label}</span>}
           />
-          <Row label="Created" val={formatDateTime(booking.created_at)} />
-          {booking.ghl_contact_id && (
-            <Row label="GHL Contact" val={<span style={{ fontFamily: 'monospace', fontSize: 12 }}>{booking.ghl_contact_id}</span>} />
+          <Row label="Created" val={formatDateTime(b.created_at)} />
+          {b.ghl_contact_id && (
+            <Row label="GHL Contact" val={<span style={{ fontFamily: 'monospace', fontSize: 12 }}>{b.ghl_contact_id}</span>} />
           )}
-          {booking.cancelled_at && (
-            <Row label="Cancelled At" val={formatDateTime(booking.cancelled_at)} />
+          {b.cancelled_at && (
+            <Row label="Cancelled At" val={formatDateTime(b.cancelled_at)} />
           )}
-          {booking.cancellation_reason && (
-            <Row label="Cancel Reason" val={booking.cancellation_reason} />
+          {b.cancellation_reason && (
+            <Row label="Cancel Reason" val={b.cancellation_reason} />
           )}
-          {booking.refund_amount != null && (
-            <Row label="Refund Amount" val={formatCurrency(booking.refund_amount)} />
+          {b.refund_amount != null && (
+            <Row label="Refund Amount" val={formatCurrency(b.refund_amount)} />
           )}
 
           {/* Cancellation policy section */}
@@ -348,7 +353,7 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
               <SectionLabel>Modification Requests</SectionLabel>
               <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {modificationRequests.map((req) => (
-                  <ModificationRequestRow key={req.id} req={req} bookingId={booking.id} />
+                  <ModificationRequestRow key={req.id} req={req} bookingId={b.id} />
                 ))}
               </div>
             </div>
@@ -371,7 +376,7 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
             flexWrap: 'wrap',
           }}
         >
-          {booking.status === 'pending' && (
+          {b.status === 'pending' && (
             <button
               onClick={handleConfirm}
               disabled={confirming}
@@ -380,7 +385,7 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
               {confirming ? 'Confirming…' : '✓ Confirm Booking'}
             </button>
           )}
-          {booking.status !== 'cancelled' && (
+          {b.status !== 'cancelled' && (
             <button
               onClick={() => setShowCancelModal(true)}
               style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.18)', color: '#DC2626', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
@@ -388,12 +393,14 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
               Cancel Booking
             </button>
           )}
-          <button
-            disabled
-            style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', color: '#94A3B8', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'not-allowed' }}
-          >
-            ✏ Edit
-          </button>
+          {b.status !== 'cancelled' && b.status !== 'completed' && (
+            <button
+              onClick={() => setShowEditForm(true)}
+              style={{ background: '#F8FAFC', border: '1px solid #CBD5E1', color: '#475569', borderRadius: 9, padding: '9px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+            >
+              ✏ Edit
+            </button>
+          )}
         </div>
         </div>{/* end inner scroll container */}
 
@@ -404,6 +411,16 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
             cancellationPolicy={cancellationPolicy ?? DEFAULT_POLICY}
             onCancel={handleCancelled}
             onClose={() => setShowCancelModal(false)}
+          />
+        )}
+        {showEditForm && (
+          <EditBookingForm
+            booking={b as Booking & { room: Room & { property: Property } }}
+            onClose={() => setShowEditForm(false)}
+            onSaved={(updated) => {
+              setEditedBooking({ ...updated, room: b.room } as typeof b)
+              setShowEditForm(false)
+            }}
           />
         )}
       </div>
