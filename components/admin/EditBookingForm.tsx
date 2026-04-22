@@ -124,7 +124,7 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
           <div>
             <h3 className="font-display text-base font-bold text-slate-900">Edit Booking</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              #{booking.id.slice(0, 8).toUpperCase()} · {booking.guest_first_name} {booking.guest_last_name}
+              #{booking.id.slice(0, 8).toUpperCase()} · {firstName} {lastName}
             </p>
           </div>
           <button
@@ -178,7 +178,6 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
                     className="w-4 h-4 rounded border-slate-300 text-slate-600 focus:ring-teal-400"
                   />
                   <span className="text-xs text-slate-600">No end date (open-ended tenancy)</span>
-                  <span className="ml-auto text-[10px] text-slate-400">Long Term only</span>
                 </label>
               )}
             </div>

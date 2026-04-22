@@ -2,9 +2,12 @@
 -- This automation fires when an edit increases the booking total and a Stripe
 -- payment request link is generated for the guest.
 
+-- Add the new trigger event value to the ENUM (safe to re-run)
+ALTER TYPE email_trigger_event ADD VALUE IF NOT EXISTS 'booking_payment_request';
+
 -- First, create a placeholder email template for the payment request
 INSERT INTO email_templates (id, name, subject, body, design, is_active, created_at, updated_at)
-VALUES (
+SELECT
   gen_random_uuid(),
   'Payment Request — Additional Amount Due',
   'Payment Request — Additional Amount Due for Your Booking',
@@ -16,8 +19,9 @@ VALUES (
   true,
   now(),
   now()
-)
-ON CONFLICT DO NOTHING;
+WHERE NOT EXISTS (
+  SELECT 1 FROM email_templates WHERE name = 'Payment Request — Additional Amount Due'
+);
 
 -- Create the automation that uses this template
 INSERT INTO email_automations (
