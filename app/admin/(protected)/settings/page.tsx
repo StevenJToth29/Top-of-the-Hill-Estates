@@ -24,6 +24,7 @@ export default async function SettingsAdminPage() {
     contact_email: '',
     contact_address: '',
     updated_at: '',
+    ai_prompts: null,
   }
 
   return (
