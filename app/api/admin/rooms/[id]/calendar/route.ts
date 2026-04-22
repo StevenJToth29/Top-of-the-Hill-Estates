@@ -16,7 +16,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   const [{ data: bookings }, { data: icalBlocks }] = await Promise.all([
     supabase
       .from('bookings')
-      .select('id, room_id, check_in, check_out, guest_first_name, guest_last_name, status')
+      .select('id, room_id, check_in, check_out, guest_first_name, guest_last_name, status, booking_type')
       .eq('room_id', params.id)
       .in('status', ['confirmed', 'pending'])
       .lte('check_in', to)
