@@ -71,7 +71,9 @@ export async function PATCH(
     const guestLastName = (body.guest_last_name as string | undefined) ?? b.guest_last_name
     const guestEmail = (body.guest_email as string | undefined) ?? b.guest_email
     const guestPhone = (body.guest_phone as string | undefined) ?? b.guest_phone
-    const guestCount = typeof body.guest_count === 'number' ? body.guest_count : b.guest_count
+    const guestCount = typeof body.guest_count === 'number'
+      ? Math.max(1, Math.floor(body.guest_count))
+      : b.guest_count
     const notes = Object.prototype.hasOwnProperty.call(body, 'notes')
       ? (body.notes as string | null)
       : b.notes ?? null
@@ -80,8 +82,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'check_in must be before check_out' }, { status: 400 })
     }
 
-    if (checkOut !== OPEN_ENDED_DATE) {
-      const available = await isRoomAvailableExcluding(b.room_id, checkIn, checkOut, b.id)
+    {
+      const checkOutForAvailability = checkOut === OPEN_ENDED_DATE ? OPEN_ENDED_DATE : checkOut
+      const available = await isRoomAvailableExcluding(b.room_id, checkIn, checkOutForAvailability, b.id)
       if (!available) {
         return NextResponse.json(
           { error: 'Room is not available for the new dates' },
@@ -99,6 +102,16 @@ export async function PATCH(
     if (roomError || !room) {
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
+
+    const { data: bookingFees } = await supabase
+      .from('booking_fees')
+      .select('amount')
+      .eq('booking_id', b.id)
+
+    const additionalFees = (bookingFees ?? []).reduce(
+      (sum: number, f: { amount: number }) => sum + f.amount,
+      0,
+    )
 
     const extraGuests = Math.max(0, guestCount - 1)
     const extraGuestFee = room.extra_guest_fee ?? 0
@@ -127,10 +140,10 @@ export async function PATCH(
         (Date.UTC(coY, coM - 1, coD) - Date.UTC(ciY, ciM - 1, ciD)) / 86400000,
       )
       const cleaningFee = room.cleaning_fee ?? 0
-      newTotal = nightlySubtotal + cleaningFee + extraGuestFee * extraGuests * newTotalNights
+      newTotal = nightlySubtotal + cleaningFee + extraGuestFee * extraGuests * newTotalNights + additionalFees
     } else {
       const securityDeposit = room.security_deposit ?? 0
-      newTotal = room.monthly_rate + securityDeposit + extraGuestFee * extraGuests
+      newTotal = room.monthly_rate + securityDeposit + extraGuestFee * extraGuests + additionalFees
       newTotalNights = checkOut === OPEN_ENDED_DATE ? 0 : b.total_nights
     }
 
@@ -194,13 +207,17 @@ export async function PATCH(
             success_url: `${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}/booking-confirmed`,
             cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}`,
           })
-          const paymentLink = session.url!
-          evaluateAndQueueEmails('booking_payment_request', {
-            type: 'booking_payment_request',
-            bookingId: b.id,
-            paymentAmount: `$${delta.toFixed(2)}`,
-            paymentLink,
-          }).catch((err) => console.error('email queue error on payment_request:', err))
+          const paymentLink = session.url
+          if (paymentLink) {
+            evaluateAndQueueEmails('booking_payment_request', {
+              type: 'booking_payment_request',
+              bookingId: b.id,
+              paymentAmount: `$${delta.toFixed(2)}`,
+              paymentLink,
+            }).catch((err) => console.error('email queue error on payment_request:', err))
+          } else {
+            console.error('Stripe session.url was null — payment request email not sent')
+          }
         } catch (stripeErr) {
           console.error('Stripe payment intent error on booking edit:', stripeErr)
         }
