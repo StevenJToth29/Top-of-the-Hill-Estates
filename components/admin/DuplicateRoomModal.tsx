@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import { slugify } from '@/lib/slugify'
@@ -65,12 +66,12 @@ export default function DuplicateRoomModal({ isOpen, onClose, roomId, roomName }
 
   if (!isOpen) return null
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/40" onClick={() => !loading && onClose()} />
       <div className="relative bg-background rounded-2xl shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-on-surface">Duplicate Room</h2>
+          <h2 className="text-lg font-semibold text-on-surface">Duplicate Unit</h2>
           <button
             type="button"
             onClick={() => !loading && onClose()}
@@ -88,7 +89,7 @@ export default function DuplicateRoomModal({ isOpen, onClose, roomId, roomName }
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="duplicate-room-name" className="block text-sm font-medium text-on-surface mb-1.5">
-              New Room Name
+              New Unit Name
             </label>
             <input
               id="duplicate-room-name"
@@ -132,6 +133,7 @@ export default function DuplicateRoomModal({ isOpen, onClose, roomId, roomName }
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

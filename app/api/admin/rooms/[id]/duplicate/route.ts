@@ -78,6 +78,14 @@ export async function POST(request: NextRequest, { params }: Params) {
     .single()
 
   if (insertError || !newRoom) {
+    const isSlugConflict =
+      insertError?.code === '23505' || insertError?.message?.includes('rooms_slug_key')
+    if (isSlugConflict) {
+      return NextResponse.json(
+        { error: 'A room with this name already exists. Please choose a different name.' },
+        { status: 409 }
+      )
+    }
     return NextResponse.json({ error: insertError?.message ?? 'Insert failed' }, { status: 500 })
   }
 
@@ -93,6 +101,7 @@ export async function POST(request: NextRequest, { params }: Params) {
         }))
       )
     if (feesError) {
+      await supabase.from('rooms').delete().eq('id', newRoom.id)
       return NextResponse.json({ error: feesError.message }, { status: 500 })
     }
   }

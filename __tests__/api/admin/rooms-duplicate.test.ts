@@ -5,6 +5,7 @@ jest.mock('@/lib/supabase', () => ({
   createServiceRoleClient: jest.fn(),
 }))
 
+import type { NextRequest } from 'next/server'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import { POST } from '@/app/api/admin/rooms/[id]/duplicate/route'
 
@@ -57,6 +58,8 @@ const sourceRoom = {
   use_property_cancellation_policy: true,
   price_min: null,
   price_max: null,
+  house_rules: 'No smoking',
+  iframe_booking_url: null,
   ical_export_token: 'old-token-uuid',
 }
 
@@ -65,9 +68,10 @@ const sourceFees = [
 ]
 
 function createDbMocks({
-  roomFetchError = null,
-  insertError = null,
-  feesInsertError = null,
+  roomFetchError = null as string | null,
+  insertError = null as string | null,
+  feesInsertError = null as string | null,
+  slugConflict = false,
 } = {}) {
   const roomSelectChain = {
     eq: jest.fn().mockReturnThis(),
@@ -83,7 +87,9 @@ function createDbMocks({
   const insertChain = {
     select: jest.fn().mockReturnThis(),
     single: jest.fn().mockResolvedValue(
-      insertError
+      slugConflict
+        ? { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "rooms_slug_key"' } }
+        : insertError
         ? { data: null, error: { message: insertError } }
         : { data: { id: 'room-new' }, error: null }
     ),
@@ -92,10 +98,13 @@ function createDbMocks({
   const feesInsert = jest.fn().mockResolvedValue(
     feesInsertError ? { error: { message: feesInsertError } } : { error: null }
   )
+  const roomsDelete = {
+    eq: jest.fn().mockResolvedValue({ error: null }),
+  }
 
   ;(createServiceRoleClient as jest.Mock).mockReturnValue({
     from: jest.fn((table: string) => {
-      if (table === 'rooms') return { select: jest.fn().mockReturnValue(roomSelectChain), insert: roomsInsert }
+      if (table === 'rooms') return { select: jest.fn().mockReturnValue(roomSelectChain), insert: roomsInsert, delete: jest.fn().mockReturnValue(roomsDelete) }
       if (table === 'room_fees') return { select: jest.fn().mockReturnValue(feesSelectChain), insert: feesInsert }
     }),
   })
@@ -117,28 +126,28 @@ describe('POST /api/admin/rooms/[id]/duplicate', () => {
   it('returns 401 when unauthenticated', async () => {
     mockUnauthed()
     createDbMocks()
-    const res = await POST(makeRequest('room-src', { name: 'Copy' }), { params: Promise.resolve({ id: 'room-src' }) })
+    const res = await POST(makeRequest('room-src', { name: 'Copy' }) as unknown as NextRequest, { params: Promise.resolve({ id: 'room-src' }) })
     expect(res.status).toBe(401)
   })
 
   it('returns 404 when source room does not exist', async () => {
     mockAuthed()
     createDbMocks({ roomFetchError: 'Not found' })
-    const res = await POST(makeRequest('bad-id', { name: 'Copy' }), { params: Promise.resolve({ id: 'bad-id' }) })
+    const res = await POST(makeRequest('bad-id', { name: 'Copy' }) as unknown as NextRequest, { params: Promise.resolve({ id: 'bad-id' }) })
     expect(res.status).toBe(404)
   })
 
   it('returns 400 when name is missing or empty', async () => {
     mockAuthed()
     createDbMocks()
-    const res = await POST(makeRequest('room-src', { name: '  ' }), { params: Promise.resolve({ id: 'room-src' }) })
+    const res = await POST(makeRequest('room-src', { name: '  ' }) as unknown as NextRequest, { params: Promise.resolve({ id: 'room-src' }) })
     expect(res.status).toBe(400)
   })
 
   it('inserts new room with correct fields and a derived slug', async () => {
     mockAuthed()
     const { roomsInsert } = createDbMocks()
-    const res = await POST(makeRequest('room-src', { name: 'Garden Cottage' }), { params: Promise.resolve({ id: 'room-src' }) })
+    const res = await POST(makeRequest('room-src', { name: 'Garden Cottage' }) as unknown as NextRequest, { params: Promise.resolve({ id: 'room-src' }) })
 
     expect(res.status).toBe(200)
     const inserted = roomsInsert.mock.calls[0][0]
@@ -147,12 +156,14 @@ describe('POST /api/admin/rooms/[id]/duplicate', () => {
     expect(inserted.property_id).toBe('prop-1')
     expect(inserted.nightly_rate).toBe(150)
     expect(inserted.amenities).toEqual(['WiFi', 'Parking'])
+    expect(inserted.house_rules).toBe('No smoking')
+    expect(inserted.iframe_booking_url).toBeNull()
   })
 
   it('does NOT copy id, ical_export_token, created_at, or updated_at from source', async () => {
     mockAuthed()
     const { roomsInsert } = createDbMocks()
-    await POST(makeRequest('room-src', { name: 'New Room' }), { params: Promise.resolve({ id: 'room-src' }) })
+    await POST(makeRequest('room-src', { name: 'New Room' }) as unknown as NextRequest, { params: Promise.resolve({ id: 'room-src' }) })
 
     const inserted = roomsInsert.mock.calls[0][0]
     expect(inserted.id).toBeUndefined()
@@ -167,7 +178,7 @@ describe('POST /api/admin/rooms/[id]/duplicate', () => {
   it('copies room_fees to the new room', async () => {
     mockAuthed()
     const { feesInsert } = createDbMocks()
-    await POST(makeRequest('room-src', { name: 'New Room' }), { params: Promise.resolve({ id: 'room-src' }) })
+    await POST(makeRequest('room-src', { name: 'New Room' }) as unknown as NextRequest, { params: Promise.resolve({ id: 'room-src' }) })
 
     expect(feesInsert).toHaveBeenCalledWith(
       expect.arrayContaining([
@@ -181,7 +192,7 @@ describe('POST /api/admin/rooms/[id]/duplicate', () => {
   it('returns the new room id on success', async () => {
     mockAuthed()
     createDbMocks()
-    const res = await POST(makeRequest('room-src', { name: 'New Room' }), { params: Promise.resolve({ id: 'room-src' }) })
+    const res = await POST(makeRequest('room-src', { name: 'New Room' }) as unknown as NextRequest, { params: Promise.resolve({ id: 'room-src' }) })
     const body = await res.json()
     expect(body.id).toBe('room-new')
   })
@@ -189,14 +200,23 @@ describe('POST /api/admin/rooms/[id]/duplicate', () => {
   it('returns 500 when room insert fails', async () => {
     mockAuthed()
     createDbMocks({ insertError: 'DB error' })
-    const res = await POST(makeRequest('room-src', { name: 'New Room' }), { params: Promise.resolve({ id: 'room-src' }) })
+    const res = await POST(makeRequest('room-src', { name: 'New Room' }) as unknown as NextRequest, { params: Promise.resolve({ id: 'room-src' }) })
     expect(res.status).toBe(500)
   })
 
   it('returns 500 when fee insert fails', async () => {
     mockAuthed()
     createDbMocks({ feesInsertError: 'DB error' })
-    const res = await POST(makeRequest('room-src', { name: 'New Room' }), { params: Promise.resolve({ id: 'room-src' }) })
+    const res = await POST(makeRequest('room-src', { name: 'New Room' }) as unknown as NextRequest, { params: Promise.resolve({ id: 'room-src' }) })
     expect(res.status).toBe(500)
+  })
+
+  it('returns 409 when slug already exists', async () => {
+    mockAuthed()
+    createDbMocks({ slugConflict: true })
+    const res = await POST(makeRequest('room-src', { name: 'New Room' }) as unknown as NextRequest, { params: Promise.resolve({ id: 'room-src' }) })
+    expect(res.status).toBe(409)
+    const body = await res.json()
+    expect(body.error).toContain('already exists')
   })
 })
