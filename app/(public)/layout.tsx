@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 
+import Script from 'next/script'
 import { createServiceRoleClient } from '@/lib/supabase'
 import Navbar from '@/components/public/Navbar'
 import Footer from '@/components/public/Footer'
@@ -26,6 +27,12 @@ export default async function PublicLayout({ children }: { children: React.React
         phone={settings?.contact_phone ?? undefined}
         email={settings?.contact_email ?? undefined}
         address={settings?.contact_address ?? undefined}
+      />
+      <Script
+        src="https://widgets.leadconnectorhq.com/loader.js"
+        data-resources-url="https://widgets.leadconnectorhq.com/chat-widget/loader.js"
+        data-widget-id="69c47f3613ad148094a417bf"
+        strategy="lazyOnload"
       />
     </div>
   )
