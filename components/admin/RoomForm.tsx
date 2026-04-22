@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline'
 import type { Room, Property, ICalSource, CancellationPolicy } from '@/types'
 import { DEFAULT_POLICY } from '@/lib/cancellation'
@@ -90,6 +92,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
 }
 
 export default function RoomForm({ room, properties, icalSources, roomId }: RoomFormProps) {
+  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [tab, setTab] = useState<RoomTab>('info')
   const [name, setName] = useState(room?.name ?? '')
@@ -137,11 +140,43 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
   const [iframeBookingUrl, setIframeBookingUrl] = useState(room?.iframe_booking_url ?? '')
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
 
   const isNew = !room
   const selectedProperty = properties.find((p) => p.id === propertyId)
   const propertyImages = selectedProperty?.images ?? []
-  const propertyAmenities = selectedProperty?.amenities ?? []
+  const [propertyAmenities, setPropertyAmenities] = useState<string[]>(
+    selectedProperty?.amenities ?? []
+  )
+  const [propertyAmenitiesBaseline] = useState<string[]>(
+    selectedProperty?.amenities ?? []
+  )
+  const [propertyAmenitiesSaving, setPropertyAmenitiesSaving] = useState(false)
+  const [propertyAmenitiesSaved, setPropertyAmenitiesSaved] = useState(false)
+  const [propertyAmenitiesError, setPropertyAmenitiesError] = useState<string | null>(null)
+
+  const propertyAmenitiesDirty =
+    JSON.stringify(propertyAmenities) !== JSON.stringify(propertyAmenitiesBaseline)
+
+  async function handleSavePropertyAmenities() {
+    setPropertyAmenitiesSaving(true)
+    setPropertyAmenitiesError(null)
+    try {
+      const res = await fetch('/api/admin/properties', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: propertyId, amenities: propertyAmenities }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Save failed')
+      setPropertyAmenitiesSaved(true)
+      setTimeout(() => setPropertyAmenitiesSaved(false), 3000)
+    } catch (err) {
+      setPropertyAmenitiesError(err instanceof Error ? err.message : 'Save failed')
+    } finally {
+      setPropertyAmenitiesSaving(false)
+    }
+  }
 
   const icalExportUrl = room?.ical_export_token
     ? `https://tothrooms.com/api/ical/${room.ical_export_token}`
@@ -184,9 +219,11 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
     if (bathrooms) parts.push(`Bathrooms: ${bathrooms}`)
     if (guestCapacity) parts.push(`Guest capacity: ${guestCapacity}`)
     const allAmenities = Array.from(new Set([...propertyAmenities, ...amenities]))
-    if (allAmenities.length) parts.push(`Amenities: ${allAmenities.join(', ')}`)
-    if (showNightlyRate && nightlyRate) parts.push(`Nightly rate: $${nightlyRate}`)
-    if (showMonthlyRate && monthlyRate) parts.push(`Monthly rate: $${monthlyRate}`)
+    parts.push(`Amenities: ${allAmenities.length ? allAmenities.join(', ') : 'None listed'}`)
+    const bookingTypes: string[] = []
+    if (nightlyRate > 0) bookingTypes.push(`short-term (min ${minNightsShort} night${minNightsShort !== 1 ? 's' : ''})`)
+    if (monthlyRate > 0) bookingTypes.push(`long-term (min ${minNightsLong} nights)`)
+    if (bookingTypes.length) parts.push(`Available for: ${bookingTypes.join(' and ')}`)
     return parts.join('\n')
   }
 
@@ -260,7 +297,13 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
         })
         const data = await res.json()
         if (!res.ok) throw new Error(data.error ?? 'Save failed')
-        window.location.href = '/admin/rooms'
+        if (isNew) {
+          window.location.href = `/admin/rooms/${data.id}/edit`
+        } else {
+          router.refresh()
+          setSaved(true)
+          setTimeout(() => setSaved(false), 3000)
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Save failed')
       }
@@ -269,12 +312,11 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
 
   const SaveButtons = (
     <div className="flex items-center gap-3">
-      <a
-        href="/admin/rooms"
-        className="text-sm text-on-surface-variant hover:text-on-surface transition-colors px-4 py-2.5 rounded-xl hover:bg-surface-container"
-      >
-        Cancel
-      </a>
+      {saved && (
+        <span className="flex items-center gap-1.5 text-sm text-secondary font-semibold">
+          <CheckIcon className="w-4 h-4" /> Saved
+        </span>
+      )}
       <button
         type="submit"
         disabled={isPending}
@@ -290,12 +332,12 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
       {/* ── Sticky header ── */}
       <div className="bg-background border-b border-outline-variant/30 px-6 sm:px-10 py-4 flex items-center justify-between gap-4 shrink-0">
         <div className="flex items-center gap-4 min-w-0">
-          <a
+          <Link
             href="/admin/rooms"
             className="flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-on-surface transition-colors shrink-0"
           >
             ← Units
-          </a>
+          </Link>
           <div className="flex items-center gap-3 min-w-0">
             <h1 className="font-display text-xl font-bold text-on-surface truncate">
               {isNew ? 'Add New Room' : name || 'Edit Room'}
@@ -416,6 +458,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
                   <AIWriteButton
                     fieldType="short_description"
                     context={buildAIContext()}
+                    imageUrl={images[0] ?? null}
                     onAccept={setShortDescription}
                   />
                 </div>
@@ -431,7 +474,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
                   className={inputClass}
                 />
                 <div className="mt-2">
-                  <AIWriteButton fieldType="room_description" context={buildAIContext()} onAccept={setDescription} />
+                  <AIWriteButton fieldType="room_description" context={buildAIContext()} imageUrl={images[0] ?? null} onAccept={setDescription} />
                 </div>
               </div>
 
@@ -891,26 +934,30 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
         {/* ── Tab: Amenities ── */}
         {tab === 'amenities' && (
           <div className="space-y-5">
-            {propertyAmenities.length > 0 && (
-              <SCard
-                title="Inherited from Property"
-                subtitle={`These come from ${selectedProperty?.name ?? 'the property'} and appear on this unit automatically`}
-              >
-                <div className="flex flex-wrap gap-2">
-                  {propertyAmenities.map((a) => (
-                    <span
-                      key={a}
-                      className="flex items-center gap-1.5 bg-surface-container rounded-full px-3 py-1.5 text-on-surface-variant text-sm border border-outline-variant/30"
-                    >
-                      🏠 {a}
-                    </span>
-                  ))}
-                </div>
-                <p className="text-xs text-on-surface-variant/60">
-                  To change these, edit the property&apos;s amenities.
-                </p>
-              </SCard>
-            )}
+            <SCard
+              title="Property Amenities"
+              subtitle={`Changes here affect ${selectedProperty?.name ?? 'the property'} and all its units`}
+            >
+              <AmenitiesTagInput value={propertyAmenities} onChange={setPropertyAmenities} context="property" />
+              <div className="flex items-center gap-3 pt-2 border-t border-outline-variant/20">
+                <button
+                  type="button"
+                  onClick={handleSavePropertyAmenities}
+                  disabled={!propertyAmenitiesDirty || propertyAmenitiesSaving}
+                  className="bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-xl px-5 py-2 text-sm hover:opacity-90 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {propertyAmenitiesSaving ? 'Saving…' : 'Save Property Amenities'}
+                </button>
+                {propertyAmenitiesSaved && (
+                  <span className="flex items-center gap-1.5 text-sm text-secondary font-semibold">
+                    <CheckIcon className="w-4 h-4" /> Saved
+                  </span>
+                )}
+                {propertyAmenitiesError && (
+                  <span className="text-sm text-error">{propertyAmenitiesError}</span>
+                )}
+              </div>
+            </SCard>
 
             <SCard
               title="Unit-Specific Amenities"
