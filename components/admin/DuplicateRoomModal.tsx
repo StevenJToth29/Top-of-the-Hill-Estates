@@ -25,6 +25,15 @@ export default function DuplicateRoomModal({ isOpen, onClose, roomId, roomName }
     }
   }, [isOpen, roomName])
 
+  useEffect(() => {
+    if (!isOpen) return
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !loading) onClose()
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isOpen, loading, onClose])
+
   const slug = slugify(name)
 
   async function handleSubmit(e: React.FormEvent) {
@@ -58,13 +67,14 @@ export default function DuplicateRoomModal({ isOpen, onClose, roomId, roomName }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/40" onClick={() => !loading && onClose()} />
       <div className="relative bg-background rounded-2xl shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-on-surface">Duplicate Room</h2>
           <button
             type="button"
             onClick={onClose}
+            aria-label="Close"
             className="text-on-surface-variant hover:text-on-surface transition-colors"
           >
             <XMarkIcon className="w-5 h-5" />
@@ -77,10 +87,11 @@ export default function DuplicateRoomModal({ isOpen, onClose, roomId, roomName }
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-on-surface mb-1.5">
+            <label htmlFor="duplicate-room-name" className="block text-sm font-medium text-on-surface mb-1.5">
               New Room Name
             </label>
             <input
+              id="duplicate-room-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
