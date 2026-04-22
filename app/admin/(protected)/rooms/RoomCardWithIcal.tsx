@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { PencilSquareIcon, ArrowPathIcon, ChevronDownIcon } from '@heroicons/react/24/outline'
+import { PencilSquareIcon, ArrowPathIcon, ChevronDownIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline'
 import RoomStatusToggle from './RoomStatusToggle'
 import ICalSyncPanel from '@/components/admin/ICalSyncPanel'
+import DuplicateRoomModal from '@/components/admin/DuplicateRoomModal'
 import type { Room, Property, ICalSource } from '@/types'
 
 type RoomWithIcal = Room & { property: Property; ical_sources: ICalSource[] }
@@ -16,6 +17,7 @@ interface Props {
 
 export default function RoomCardWithIcal({ room, siteUrl }: Props) {
   const [icalOpen, setIcalOpen] = useState(false)
+  const [duplicateOpen, setDuplicateOpen] = useState(false)
 
   return (
     <div>
@@ -51,6 +53,15 @@ export default function RoomCardWithIcal({ room, siteUrl }: Props) {
 
           <button
             type="button"
+            onClick={() => setDuplicateOpen(true)}
+            className="flex items-center gap-1.5 text-sm bg-surface-container rounded-xl px-3 py-1.5 text-on-surface-variant hover:bg-surface-high transition-colors"
+          >
+            <DocumentDuplicateIcon className="w-4 h-4" />
+            Duplicate
+          </button>
+
+          <button
+            type="button"
             onClick={() => setIcalOpen((o) => !o)}
             className={`flex items-center gap-1.5 text-sm rounded-xl px-3 py-1.5 transition-colors ${
               icalOpen
@@ -72,6 +83,13 @@ export default function RoomCardWithIcal({ room, siteUrl }: Props) {
           <ICalSyncPanel room={room} siteUrl={siteUrl} />
         </div>
       )}
+
+      <DuplicateRoomModal
+        isOpen={duplicateOpen}
+        onClose={() => setDuplicateOpen(false)}
+        roomId={room.id}
+        roomName={room.name}
+      />
     </div>
   )
 }
