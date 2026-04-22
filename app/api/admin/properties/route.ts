@@ -56,9 +56,7 @@ export async function PATCH(request: NextRequest) {
     const { id, ...fields } = body
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
-    const update = Object.fromEntries(
-      Object.entries(fields).filter(([key]) => key in fields)
-    )
+    const update = { ...fields }
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
