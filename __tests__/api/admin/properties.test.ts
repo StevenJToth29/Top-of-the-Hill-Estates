@@ -25,10 +25,9 @@ function mockDb(updateResult = { data: { id: 'prop-1' }, error: null }) {
     single: jest.fn().mockResolvedValue(updateResult),
   }
   const propertiesUpdate = jest.fn().mockReturnValue({ eq: jest.fn().mockReturnValue(eqChain) })
-  ;(createServiceRoleClient as jest.Mock).mockReturnValue({
-    from: jest.fn(() => ({ update: propertiesUpdate })),
-  })
-  return { propertiesUpdate }
+  const from = jest.fn(() => ({ update: propertiesUpdate }))
+  ;(createServiceRoleClient as jest.Mock).mockReturnValue({ from })
+  return { propertiesUpdate, from }
 }
 
 describe('PATCH /api/admin/properties — partial update', () => {
@@ -36,7 +35,7 @@ describe('PATCH /api/admin/properties — partial update', () => {
 
   it('only writes amenities when that is the only field sent', async () => {
     mockAuthed()
-    const { propertiesUpdate } = mockDb()
+    const { propertiesUpdate, from } = mockDb()
 
     const req = new Request('http://localhost/api/admin/properties', {
       method: 'PATCH',
@@ -50,6 +49,7 @@ describe('PATCH /api/admin/properties — partial update', () => {
     expect(updateArg).toEqual({ amenities: ['Pool', 'WiFi Included'] })
     expect(updateArg).not.toHaveProperty('name')
     expect(updateArg).not.toHaveProperty('address')
+    expect(from).toHaveBeenCalledWith('properties')
   })
 
   it('writes all fields when a full payload is sent', async () => {
@@ -87,6 +87,8 @@ describe('PATCH /api/admin/properties — partial update', () => {
     expect(updateArg.amenities).toEqual(['Pool'])
     expect(updateArg.bedrooms).toBe(4)
     expect(updateArg).not.toHaveProperty('id')
+    // 16 payload fields — id is excluded from the update object
+    expect(Object.keys(updateArg)).toHaveLength(16)
   })
 
   it('preserves falsy values — false, 0, null — when explicitly sent', async () => {
