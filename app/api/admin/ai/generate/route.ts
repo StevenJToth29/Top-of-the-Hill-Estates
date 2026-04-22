@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-import { createServiceRoleClient } from '@/lib/supabase'
+import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import { resolvePrompts, applyTemplate } from '@/lib/ai-prompts'
 import type { AiPrompts } from '@/types'
 
@@ -11,6 +11,15 @@ export async function POST(request: NextRequest) {
   if (!apiKey) {
     return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY is not configured.' }), {
       status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
+  const serverClient = await createServerSupabaseClient()
+  const { data: { user }, error: authError } = await serverClient.auth.getUser()
+  if (authError || !user) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
       headers: { 'Content-Type': 'application/json' },
     })
   }
