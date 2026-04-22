@@ -192,4 +192,11 @@ describe('POST /api/admin/rooms/[id]/duplicate', () => {
     const res = await POST(makeRequest('room-src', { name: 'New Room' }), { params: Promise.resolve({ id: 'room-src' }) })
     expect(res.status).toBe(500)
   })
+
+  it('returns 500 when fee insert fails', async () => {
+    mockAuthed()
+    createDbMocks({ feesInsertError: 'DB error' })
+    const res = await POST(makeRequest('room-src', { name: 'New Room' }), { params: Promise.resolve({ id: 'room-src' }) })
+    expect(res.status).toBe(500)
+  })
 })

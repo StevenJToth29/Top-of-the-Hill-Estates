@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import { slugify } from '@/lib/slugify'
 import { randomUUID } from 'crypto'
+import type { RoomFee } from '@/types'
 
 type Params = { params: Promise<{ id: string }> }
 
@@ -13,8 +14,13 @@ export async function POST(request: NextRequest, { params }: Params) {
   }
 
   const { id } = await params
-  const body = await request.json()
-  const name: string = (body.name ?? '').trim()
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
+  }
+  const name: string = ((body.name as string) ?? '').trim()
   if (!name) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 })
   }
@@ -64,6 +70,8 @@ export async function POST(request: NextRequest, { params }: Params) {
       use_property_cancellation_policy: source.use_property_cancellation_policy,
       price_min: source.price_min,
       price_max: source.price_max,
+      house_rules: source.house_rules,
+      iframe_booking_url: source.iframe_booking_url ?? null,
       ical_export_token: randomUUID(),
     })
     .select('id')
@@ -77,7 +85,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const { error: feesError } = await supabase
       .from('room_fees')
       .insert(
-        sourceFees.map((f: { label: string; amount: number; booking_type: string }) => ({
+        sourceFees.map((f: RoomFee) => ({
           room_id: newRoom.id,
           label: f.label,
           amount: f.amount,
