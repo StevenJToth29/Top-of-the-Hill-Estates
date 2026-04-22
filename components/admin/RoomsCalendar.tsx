@@ -11,6 +11,7 @@ import {
   parseISO,
   isToday,
   isBefore,
+  isSameDay,
   isSunday,
 } from 'date-fns'
 import clsx from 'clsx'
@@ -25,12 +26,13 @@ interface RoomsCalendarProps {
   icalBlocks: ICalBlock[]
 }
 
-type DayStatus = 'available' | 'booking' | 'ical'
+type DayStatus = 'available' | 'booking' | 'long_term' | 'ical'
 
 interface DayInfo {
   status: DayStatus
   tooltip: string
   initial?: string
+  isOpenEndedTail?: boolean
 }
 
 function getDayInfo(
@@ -47,10 +49,13 @@ function getDayInfo(
       const start = parseISO(booking.check_in)
       const end = parseISO(booking.check_out)
       if (!isBefore(date, start) && isBefore(date, end)) {
+        const isLongTerm = booking.booking_type === 'long_term'
+        const isOpenEnded = booking.check_out === OPEN_ENDED_DATE
         return {
-          status: 'booking',
-          tooltip: `${booking.guest_first_name} ${booking.guest_last_name} (${booking.check_in} – ${booking.check_out === OPEN_ENDED_DATE ? 'open-ended' : booking.check_out}) [${booking.status}]`,
+          status: isLongTerm ? 'long_term' : 'booking',
+          tooltip: `${booking.guest_first_name} ${booking.guest_last_name} (${booking.check_in} – ${isOpenEnded ? 'open-ended' : booking.check_out}) [${booking.status}]`,
           initial: (booking.guest_last_name[0] ?? '').toUpperCase(),
+          isOpenEndedTail: isLongTerm && isOpenEnded && isSameDay(date, endOfMonth(date)),
         }
       }
     } catch {
@@ -180,7 +185,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                   {/* Day cells */}
                   {days.map((day) => {
                     const dateStr = format(day, 'yyyy-MM-dd')
-                    const { status, tooltip, initial } = getDayInfo(dateStr, room.id, bookings, icalBlocks)
+                    const { status, tooltip, initial, isOpenEndedTail } = getDayInfo(dateStr, room.id, bookings, icalBlocks)
                     const todayDay = isToday(day)
                     const isFirst = day.getDate() === 1
                     const isSun = isSundayFn(day)
@@ -189,16 +194,25 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                       <td
                         key={dateStr}
                         title={tooltip}
+                        style={
+                          status === 'long_term'
+                            ? {
+                                background:
+                                  'repeating-linear-gradient(45deg, rgba(100,116,139,0.18) 0, rgba(100,116,139,0.18) 2px, transparent 2px, transparent 7px)',
+                                ...(isOpenEndedTail
+                                  ? { borderRight: '2px dashed rgba(100,116,139,0.45)' }
+                                  : {}),
+                              }
+                            : undefined
+                        }
                         className={clsx(
                           'h-8 p-0 text-center cursor-default transition-colors',
                           isFirst && 'border-l-2 border-l-primary/25',
                           isSun && !isFirst && 'border-l border-l-outline-variant/40',
-                          status === 'booking' &&
-                            'bg-secondary/25 hover:bg-secondary/35',
-                          status === 'ical' &&
-                            'bg-primary/15 hover:bg-primary/25',
-                          status === 'available' &&
-                            'hover:bg-surface-high',
+                          status === 'booking' && 'bg-secondary/25 hover:bg-secondary/35',
+                          status === 'long_term' && 'hover:brightness-95',
+                          status === 'ical' && 'bg-primary/15 hover:bg-primary/25',
+                          status === 'available' && 'hover:bg-surface-high',
                           todayDay && status === 'available' && 'ring-1 ring-inset ring-primary/40',
                         )}
                       >
@@ -206,6 +220,14 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                           <span className="text-secondary text-[9px] font-bold leading-none select-none">
                             {initial}
                           </span>
+                        )}
+                        {status === 'long_term' && !isOpenEndedTail && initial && (
+                          <span className="text-slate-500 text-[9px] font-bold leading-none select-none">
+                            {initial}
+                          </span>
+                        )}
+                        {status === 'long_term' && isOpenEndedTail && (
+                          <span className="text-slate-400 text-[10px] font-semibold leading-none select-none">→</span>
                         )}
                         {status === 'ical' && (
                           <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/60" />
@@ -245,6 +267,17 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
         <div className="flex items-center gap-2 bg-secondary/15 rounded-full px-3 py-1">
           <div className="w-2 h-2 rounded-full bg-secondary" />
           <span className="text-xs text-on-surface-variant">Booking</span>
+        </div>
+
+        <div className="flex items-center gap-2 bg-surface-container rounded-full px-3 py-1 border border-outline-variant/60">
+          <div
+            className="w-3.5 h-3.5 rounded-sm flex-shrink-0"
+            style={{
+              background:
+                'repeating-linear-gradient(45deg, rgba(100,116,139,0.5) 0, rgba(100,116,139,0.5) 2px, transparent 2px, transparent 5px)',
+            }}
+          />
+          <span className="text-xs text-on-surface-variant">Long Term</span>
         </div>
 
         <div className="flex items-center gap-2 bg-primary/10 rounded-full px-3 py-1">
