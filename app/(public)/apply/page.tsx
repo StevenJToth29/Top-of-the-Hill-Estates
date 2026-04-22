@@ -15,7 +15,7 @@ export default async function ApplyPage({ searchParams }: Props) {
   const supabase = await createServerSupabaseClient()
   const { data: rawRoom } = await supabase
     .from('rooms')
-    .select('id, name, slug, property:properties(name)')
+    .select('name, slug, property:properties(name)')
     .eq('slug', slug)
     .eq('is_active', true)
     .single()
@@ -23,7 +23,6 @@ export default async function ApplyPage({ searchParams }: Props) {
   if (!rawRoom) redirect('/')
 
   const room = rawRoom as unknown as {
-    id: string
     name: string
     slug: string
     property: { name: string } | null
@@ -31,7 +30,8 @@ export default async function ApplyPage({ searchParams }: Props) {
 
   const propertyName = room.property?.name ?? ''
   const moveIn = searchParams.move_in ?? ''
-  const occupants = searchParams.occupants ? parseInt(searchParams.occupants, 10) : 1
+  const parsedOccupants = parseInt(searchParams.occupants ?? '', 10)
+  const occupants = Number.isFinite(parsedOccupants) && parsedOccupants >= 1 ? parsedOccupants : 1
 
   return (
     <main className="min-h-screen bg-background">

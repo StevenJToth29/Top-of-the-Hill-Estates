@@ -1,9 +1,13 @@
 import { NextResponse } from 'next/server'
 import { syncLongTermInquiryToGHL } from '@/lib/ghl'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 export async function POST(req: Request) {
+  if (!checkRateLimit(getClientIp(req), 'inquiry', 5)) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
   const body = await req.json()
   const {
     first_name,
@@ -32,6 +36,10 @@ export async function POST(req: Request) {
   const parsedOccupants = Number(occupants)
   if (!occupants || !Number.isFinite(parsedOccupants) || parsedOccupants < 1)
     return NextResponse.json({ error: 'Number of occupants is required.' }, { status: 400 })
+
+  if (!sms_consent) {
+    return NextResponse.json({ error: 'SMS consent is required.' }, { status: 400 })
+  }
 
   try {
     await syncLongTermInquiryToGHL({
