@@ -188,6 +188,14 @@ export interface DayHours {
 
 export type BusinessHours = Record<string, DayHours>
 
+export interface AiPrompts {
+  system_prompt?: string
+  property_description?: string
+  room_description?: string
+  short_description?: string
+  about_us?: string
+}
+
 export interface SiteSettings {
   id: string
   about_text: string
@@ -207,6 +215,7 @@ export interface SiteSettings {
   stripe_fee_percent?: number
   stripe_fee_flat?: number
   cancellation_policy?: string | null  // JSON-encoded CancellationPolicy
+  ai_prompts?: string | null  // JSON-encoded AiPrompts
   updated_at: string
 }
 
