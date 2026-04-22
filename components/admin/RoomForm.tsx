@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline'
@@ -148,15 +148,16 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
   const [propertyAmenities, setPropertyAmenities] = useState<string[]>(
     selectedProperty?.amenities ?? []
   )
-  const [propertyAmenitiesBaseline] = useState<string[]>(
+  const propertyAmenitiesBaselineRef = useRef<string[]>(
     selectedProperty?.amenities ?? []
   )
+  const propertyAmenitiesSavedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [propertyAmenitiesSaving, setPropertyAmenitiesSaving] = useState(false)
   const [propertyAmenitiesSaved, setPropertyAmenitiesSaved] = useState(false)
   const [propertyAmenitiesError, setPropertyAmenitiesError] = useState<string | null>(null)
 
   const propertyAmenitiesDirty =
-    JSON.stringify(propertyAmenities) !== JSON.stringify(propertyAmenitiesBaseline)
+    JSON.stringify(propertyAmenities) !== JSON.stringify(propertyAmenitiesBaselineRef.current)
 
   async function handleSavePropertyAmenities() {
     setPropertyAmenitiesSaving(true)
@@ -169,8 +170,10 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Save failed')
+      propertyAmenitiesBaselineRef.current = [...propertyAmenities]
       setPropertyAmenitiesSaved(true)
-      setTimeout(() => setPropertyAmenitiesSaved(false), 3000)
+      if (propertyAmenitiesSavedTimerRef.current) clearTimeout(propertyAmenitiesSavedTimerRef.current)
+      propertyAmenitiesSavedTimerRef.current = setTimeout(() => setPropertyAmenitiesSaved(false), 3000)
     } catch (err) {
       setPropertyAmenitiesError(err instanceof Error ? err.message : 'Save failed')
     } finally {
@@ -459,6 +462,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
                     fieldType="short_description"
                     context={buildAIContext()}
                     imageUrl={images[0] ?? null}
+                    amenitiesCount={Array.from(new Set([...propertyAmenities, ...amenities])).length}
                     onAccept={setShortDescription}
                   />
                 </div>
@@ -474,7 +478,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
                   className={inputClass}
                 />
                 <div className="mt-2">
-                  <AIWriteButton fieldType="room_description" context={buildAIContext()} imageUrl={images[0] ?? null} onAccept={setDescription} />
+                  <AIWriteButton fieldType="room_description" context={buildAIContext()} imageUrl={images[0] ?? null} amenitiesCount={Array.from(new Set([...propertyAmenities, ...amenities])).length} onAccept={setDescription} />
                 </div>
               </div>
 
