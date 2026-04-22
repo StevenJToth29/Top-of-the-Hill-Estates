@@ -56,27 +56,18 @@ export async function PATCH(request: NextRequest) {
     const { id, ...fields } = body
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
+    const update = Object.fromEntries(
+      Object.entries(fields).filter(([key]) => key in fields)
+    )
+
+    if (Object.keys(update).length === 0) {
+      return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
+    }
+
     const supabase = createServiceRoleClient()
     const { data, error } = await supabase
       .from('properties')
-      .update({
-        name: fields.name,
-        address: fields.address,
-        city: fields.city,
-        state: fields.state,
-        zip: fields.zip ?? '',
-        description: fields.description ?? '',
-        bedrooms: Number(fields.bedrooms ?? 0),
-        bathrooms: Number(fields.bathrooms ?? 0),
-        amenities: fields.amenities ?? [],
-        house_rules: fields.house_rules ?? '',
-        use_global_house_rules: fields.use_global_house_rules ?? true,
-        images: fields.images ?? [],
-        stripe_account_id: fields.stripe_account_id ?? null,
-        platform_fee_percent: Number(fields.platform_fee_percent ?? 0),
-        cancellation_policy: fields.cancellation_policy ?? null,
-        use_global_cancellation_policy: fields.use_global_cancellation_policy ?? true,
-      })
+      .update(update)
       .eq('id', id)
       .select()
       .single()
