@@ -20,27 +20,59 @@ export default function RoomCardWithIcal({ room, siteUrl }: Props) {
   const [duplicateOpen, setDuplicateOpen] = useState(false)
 
   return (
-    <div>
-      <div className="flex items-center gap-4 px-6 py-4">
+    <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl border border-outline-variant/30 overflow-hidden hover:shadow-md transition-shadow">
+      <div className="flex items-center gap-4 px-5 py-4">
+        {/* Thumbnail */}
+        <div className="w-20 h-16 rounded-xl overflow-hidden shrink-0 bg-surface-container">
+          {room.images?.[0] ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={room.images[0]} alt={room.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-2xl text-on-surface-variant/30">
+              🛏
+            </div>
+          )}
+        </div>
+
+        {/* Info */}
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-on-surface truncate">{room.name}</p>
-          <p className="text-sm text-on-surface-variant/60 mt-0.5">
-            ${room.nightly_rate}/night · ${room.monthly_rate}/mo ·{' '}
-            {room.bedrooms}bd / {room.bathrooms}ba
+          <div className="flex items-center gap-2 mb-0.5">
+            <p className="font-semibold text-on-surface truncate">{room.name}</p>
+            <span
+              className={`text-xs rounded-full px-2 py-0.5 font-medium shrink-0 ${
+                room.is_active
+                  ? 'bg-secondary/10 text-secondary'
+                  : 'bg-error-container/30 text-error'
+              }`}
+            >
+              {room.is_active ? 'Active' : 'Inactive'}
+            </span>
+          </div>
+          {room.short_description && (
+            <p className="text-xs text-on-surface-variant/70 line-clamp-1 mb-1">
+              {room.short_description}
+            </p>
+          )}
+          <p className="text-sm text-on-surface-variant/60">
+            <span className="font-semibold text-secondary">${room.nightly_rate}</span>
+            <span>/night</span>
+            {room.monthly_rate && (
+              <>
+                <span className="mx-1.5">·</span>
+                <span>${room.monthly_rate}/mo</span>
+              </>
+            )}
+            {(room.bedrooms || room.bathrooms) && (
+              <>
+                <span className="mx-1.5">·</span>
+                <span>{room.bedrooms}bd / {room.bathrooms}ba</span>
+              </>
+            )}
           </p>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
-          <span
-            className={`text-xs rounded-full px-2.5 py-1 font-medium ${
-              room.is_active
-                ? 'bg-secondary/10 text-secondary'
-                : 'bg-error-container/30 text-error'
-            }`}
-          >
-            {room.is_active ? 'Active' : 'Inactive'}
-          </span>
-
+        {/* Actions */}
+        <div className="flex items-center gap-2 shrink-0">
           <RoomStatusToggle roomId={room.id} isActive={room.is_active} />
 
           <Link
@@ -79,7 +111,7 @@ export default function RoomCardWithIcal({ room, siteUrl }: Props) {
       </div>
 
       {icalOpen && (
-        <div className="px-6 pb-6 pt-2 border-t border-outline-variant/40 bg-surface-container/20">
+        <div className="px-5 pb-5 pt-2 border-t border-outline-variant/40 bg-surface-container/20">
           <ICalSyncPanel room={room} siteUrl={siteUrl} />
         </div>
       )}
