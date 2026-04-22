@@ -1,7 +1,6 @@
 export const dynamic = 'force-dynamic'
 
 import { notFound, redirect } from 'next/navigation'
-import { ArrowLeftIcon } from '@heroicons/react/24/outline'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import PropertyForm from '@/components/admin/PropertyForm'
 import type { Property, StripeAccount } from '@/types'
@@ -28,30 +27,13 @@ export default async function EditPropertyPage({ params }: EditPropertyPageProps
   const globalHouseRules = settings?.global_house_rules ?? ''
 
   return (
-    <div className="min-h-screen bg-background px-4 py-10 sm:px-8">
-      <div className="max-w-3xl mx-auto space-y-8">
-        <div className="flex items-center gap-4">
-          <a
-            href="/admin/properties"
-            className="flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-on-surface transition-colors"
-          >
-            <ArrowLeftIcon className="w-4 h-4" />
-            Back to Properties
-          </a>
-        </div>
-
-        <div>
-          <h1 className="font-display text-3xl font-bold text-on-surface">Edit Property</h1>
-          <p className="text-on-surface-variant mt-1">{property.name}</p>
-        </div>
-
-        <PropertyForm
-          property={property as Property}
-          propertyId={params.id}
-          globalHouseRules={globalHouseRules}
-          stripeAccounts={(stripeAccounts ?? []) as StripeAccount[]}
-        />
-      </div>
+    <div className="-m-8 bg-background">
+      <PropertyForm
+        property={property as Property}
+        propertyId={params.id}
+        globalHouseRules={globalHouseRules}
+        stripeAccounts={(stripeAccounts ?? []) as StripeAccount[]}
+      />
     </div>
   )
 }

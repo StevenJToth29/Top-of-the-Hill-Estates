@@ -42,13 +42,20 @@ export interface Room {
   show_nightly_rate: boolean
   show_monthly_rate: boolean
   cleaning_fee?: number
+  cleaning_fee_calculation_type?: 'fixed' | 'per_guest' | 'percent'
+  cleaning_fee_booking_type?: 'short_term' | 'long_term' | 'both'
   security_deposit?: number
+  security_deposit_calculation_type?: 'fixed' | 'per_guest' | 'percent'
+  security_deposit_booking_type?: 'short_term' | 'long_term' | 'both'
   extra_guest_fee?: number
+  extra_guest_fee_calculation_type?: 'fixed' | 'per_guest' | 'percent'
+  extra_guest_fee_booking_type?: 'short_term' | 'long_term' | 'both'
   fees?: RoomFee[]
   cancellation_window_hours: number
   cancellation_policy?: string | null
   use_property_cancellation_policy?: boolean
   ical_export_token: string
+  iframe_booking_url?: string | null
   price_min?: number | null
   price_max?: number | null
   created_at: string
@@ -127,6 +134,7 @@ export interface RoomFee {
   room_id: string
   label: string
   amount: number
+  calculation_type: 'fixed' | 'per_guest' | 'percent'
   booking_type: 'short_term' | 'long_term' | 'both'
   created_at: string
 }

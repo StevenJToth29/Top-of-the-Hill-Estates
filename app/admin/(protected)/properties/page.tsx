@@ -1,9 +1,9 @@
 export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
-import { PencilSquareIcon, PlusIcon } from '@heroicons/react/24/outline'
+import { PlusIcon, PencilSquareIcon } from '@heroicons/react/24/outline'
 import { createServiceRoleClient } from '@/lib/supabase'
-import type { Property } from '@/types'
+import type { Property, Room } from '@/types'
 import DeletePropertyButton from '@/components/admin/DeletePropertyButton'
 
 export default async function AdminPropertiesPage() {
@@ -11,14 +11,13 @@ export default async function AdminPropertiesPage() {
 
   const [{ data: properties, error: propError }, { data: rooms }] = await Promise.all([
     supabase.from('properties').select('*').order('name'),
-    supabase.from('rooms').select('property_id'),
+    supabase.from('rooms').select('id, property_id, name, nightly_rate, is_active').order('name'),
   ])
 
   if (propError) {
     throw new Error(`Failed to load properties: ${propError.message}`)
   }
 
-  // Normalise rows — guard against missing columns if migration hasn't run yet
   const typedProperties = (properties ?? []).map((p) => ({
     ...p,
     images: p.images ?? [],
@@ -27,77 +26,176 @@ export default async function AdminPropertiesPage() {
     bathrooms: p.bathrooms ?? 0,
   })) as Property[]
 
-  const roomCountByProperty = (rooms ?? []).reduce<Record<string, number>>((acc, r) => {
-    acc[r.property_id] = (acc[r.property_id] ?? 0) + 1
+  const typedRooms = (rooms ?? []) as Pick<Room, 'id' | 'property_id' | 'name' | 'nightly_rate' | 'is_active'>[]
+
+  const roomsByProperty = typedRooms.reduce<
+    Record<string, Pick<Room, 'id' | 'property_id' | 'name' | 'nightly_rate' | 'is_active'>[]>
+  >((acc, r) => {
+    if (!acc[r.property_id]) acc[r.property_id] = []
+    acc[r.property_id].push(r)
     return acc
   }, {})
 
   return (
-    <div className="min-h-screen bg-background px-4 py-10 sm:px-8">
-      <div className="max-w-5xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-display text-3xl font-bold text-on-surface">Properties</h1>
-            <p className="text-on-surface-variant mt-1">{typedProperties.length} properties</p>
-          </div>
-          <Link
-            href="/admin/properties/new"
-            className="flex items-center gap-2 bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-5 py-2.5 hover:opacity-90 transition-opacity"
-          >
-            <PlusIcon className="w-4 h-4" />
-            Add Property
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h1 className="font-display text-3xl font-bold text-on-surface">Properties</h1>
+          <p className="text-on-surface-variant mt-1">
+            {typedProperties.length} propert{typedProperties.length === 1 ? 'y' : 'ies'}
+          </p>
+        </div>
+        <Link
+          href="/admin/properties/new"
+          className="flex items-center gap-2 bg-gradient-to-r from-primary to-secondary text-background font-semibold rounded-2xl px-5 py-2.5 hover:opacity-90 transition-opacity"
+        >
+          <PlusIcon className="w-4 h-4" />
+          Add Property
+        </Link>
+      </div>
+
+      {typedProperties.length === 0 ? (
+        <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-12 text-center">
+          <p className="text-on-surface-variant">No properties yet.</p>
+          <Link href="/admin/properties/new" className="mt-4 inline-block text-secondary hover:underline text-sm">
+            Add your first property
           </Link>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {typedProperties.map((property) => {
+            const propRooms = roomsByProperty[property.id] ?? []
+            const activeRooms = propRooms.filter((r) => r.is_active).length
+            const coverImage = property.images[0]
 
-        {/* List */}
-        {typedProperties.length === 0 ? (
-          <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl p-12 text-center">
-            <p className="text-on-surface-variant">No properties yet.</p>
-            <Link
-              href="/admin/properties/new"
-              className="mt-4 inline-block text-secondary hover:underline text-sm"
-            >
-              Add your first property
-            </Link>
-          </div>
-        ) : (
-          <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl overflow-hidden divide-y divide-outline-variant">
-            {typedProperties.map((property) => {
-              const roomCount = roomCountByProperty[property.id] ?? 0
-              return (
-                <div key={property.id} className="flex items-center gap-4 px-6 py-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-on-surface">{property.name}</p>
-                    <p className="text-sm text-on-surface-variant/60 mt-0.5">
-                      {property.address}, {property.city}, {property.state}
-                    </p>
-                    <p className="text-xs text-on-surface-variant/50 mt-0.5">
-                      {property.bedrooms}bd / {property.bathrooms}ba &middot;{' '}
-                      {roomCount} room{roomCount !== 1 ? 's' : ''} &middot;{' '}
-                      {property.images.length} image{property.images.length !== 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 shrink-0">
+            return (
+              <div
+                key={property.id}
+                className="group rounded-2xl border border-outline-variant/20 bg-surface-highest/40 backdrop-blur-sm overflow-hidden hover:shadow-xl hover:shadow-black/5 hover:border-outline-variant/50 transition-all duration-300"
+              >
+                {/* Cover image */}
+                <div className="relative h-44 overflow-hidden">
+                  {coverImage ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={coverImage}
+                      alt={property.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-primary/20 via-secondary/10 to-transparent flex items-center justify-center">
+                      <span className="text-6xl opacity-10 select-none">🏠</span>
+                    </div>
+                  )}
+
+                  {/* Gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
+
+                  {/* Edit button — top right, appears on hover */}
+                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                     <Link
                       href={`/admin/properties/${property.id}/edit`}
-                      className="flex items-center gap-1.5 text-sm bg-surface-container rounded-xl px-3 py-1.5 text-on-surface-variant hover:bg-surface-high transition-colors"
+                      className="flex items-center justify-center w-7 h-7 bg-black/50 backdrop-blur-md text-white rounded-lg hover:bg-black/70 transition-colors"
+                      aria-label="Edit property"
                     >
-                      <PencilSquareIcon className="w-4 h-4" />
-                      Edit
+                      <PencilSquareIcon className="w-3.5 h-3.5" />
                     </Link>
-                    <DeletePropertyButton
-                      propertyId={property.id}
-                      propertyName={property.name}
-                      hasRooms={roomCount > 0}
-                    />
+                  </div>
+
+                  {/* Name + location over gradient */}
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <h2 className="font-display text-xl font-bold text-white leading-tight drop-shadow-sm">
+                      {property.name}
+                    </h2>
+                    <p className="text-white/65 text-xs mt-0.5 tracking-wide">
+                      {property.city}, {property.state}
+                    </p>
                   </div>
                 </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-    </div>
+
+                {/* Info section */}
+                <div className="p-4">
+                  {/* Compact stats row */}
+                  <div className="flex items-center gap-2.5 text-xs text-on-surface-variant flex-wrap mb-3">
+                    <span>
+                      <span className="font-semibold text-on-surface">{propRooms.length}</span>{' '}
+                      {propRooms.length === 1 ? 'unit' : 'units'}
+                    </span>
+                    {propRooms.length > 0 && (
+                      <>
+                        <span className="text-outline-variant/40">·</span>
+                        <span className="text-green-500 font-semibold">{activeRooms} active</span>
+                      </>
+                    )}
+                    {(property.bedrooms > 0 || property.bathrooms > 0) && (
+                      <>
+                        <span className="text-outline-variant/40">·</span>
+                        <span>{property.bedrooms}bd / {property.bathrooms}ba</span>
+                      </>
+                    )}
+                    {property.images.length > 1 && (
+                      <>
+                        <span className="text-outline-variant/40">·</span>
+                        <span>{property.images.length} photos</span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Amenity chips */}
+                  {property.amenities.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-3">
+                      {property.amenities.slice(0, 4).map((a) => (
+                        <span
+                          key={a}
+                          className="text-xs px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant/70 border border-outline-variant/20"
+                        >
+                          {a}
+                        </span>
+                      ))}
+                      {property.amenities.length > 4 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-secondary/10 text-secondary border border-secondary/20">
+                          +{property.amenities.length - 4}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Rooms + actions footer */}
+                  <div className="flex items-center gap-1.5 flex-wrap pt-3 border-t border-outline-variant/15">
+                    {propRooms.map((r) => (
+                      <Link
+                        key={r.id}
+                        href={`/admin/rooms/${r.id}/edit`}
+                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-background/60 border border-outline-variant/20 hover:border-secondary/40 hover:bg-secondary/5 transition-colors"
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full shrink-0 ${r.is_active ? 'bg-green-400' : 'bg-on-surface-variant/30'}`}
+                        />
+                        <span className="text-xs font-medium text-on-surface">{r.name}</span>
+                        <span className="text-xs text-on-surface-variant/50">${r.nightly_rate}</span>
+                      </Link>
+                    ))}
+                    <Link
+                      href="/admin/rooms/new"
+                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-secondary/30 text-xs font-medium text-secondary hover:bg-secondary/5 transition-colors"
+                    >
+                      + Add Room
+                    </Link>
+                    <div className="ml-auto">
+                      <DeletePropertyButton
+                        propertyId={property.id}
+                        propertyName={property.name}
+                        hasRooms={propRooms.length > 0}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </>
   )
 }

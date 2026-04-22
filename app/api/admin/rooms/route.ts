@@ -42,26 +42,37 @@ export async function POST(request: Request) {
       amenities: body.amenities ?? [],
       images: body.images ?? [],
       cleaning_fee: cleaningFee,
+      cleaning_fee_calculation_type: body.cleaning_fee_calculation_type ?? 'fixed',
+      cleaning_fee_booking_type: body.cleaning_fee_booking_type ?? 'both',
       security_deposit: securityDeposit,
+      security_deposit_calculation_type: body.security_deposit_calculation_type ?? 'fixed',
+      security_deposit_booking_type: body.security_deposit_booking_type ?? 'both',
       extra_guest_fee: extraGuestFee,
+      extra_guest_fee_calculation_type: body.extra_guest_fee_calculation_type ?? 'per_guest',
+      extra_guest_fee_booking_type: body.extra_guest_fee_booking_type ?? 'both',
       cancellation_window_hours: Number(body.cancellation_window_hours ?? 72),
       cancellation_policy: body.cancellation_policy ?? null,
       use_property_cancellation_policy: body.use_property_cancellation_policy ?? true,
+      iframe_booking_url: body.iframe_booking_url || null,
     })
     .select('id')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const fees: { label: string; amount: number; booking_type: 'short_term' | 'long_term' | 'both' }[] = body.fees ?? []
+  const fees: { label: string; amount: number; calculation_type: 'fixed' | 'per_guest' | 'percent'; booking_type: 'short_term' | 'long_term' | 'both' }[] = body.fees ?? []
   const validBookingTypes = new Set(['short_term', 'long_term', 'both'])
+  const validCalcTypes = new Set(['fixed', 'per_guest', 'percent'])
   if (fees.some((f) => !validBookingTypes.has(f.booking_type))) {
     return NextResponse.json({ error: 'Invalid booking_type — must be short_term, long_term, or both' }, { status: 400 })
+  }
+  if (fees.some((f) => !validCalcTypes.has(f.calculation_type))) {
+    return NextResponse.json({ error: 'Invalid calculation_type — must be fixed, per_guest, or percent' }, { status: 400 })
   }
   if (fees.length > 0) {
     const { error: feesError } = await supabase
       .from('room_fees')
-      .insert(fees.map((f) => ({ room_id: data.id, label: f.label, amount: f.amount, booking_type: f.booking_type })))
+      .insert(fees.map((f) => ({ room_id: data.id, label: f.label, amount: f.amount, calculation_type: f.calculation_type, booking_type: f.booking_type })))
     if (feesError) return NextResponse.json({ error: feesError.message }, { status: 500 })
   }
 
@@ -105,21 +116,32 @@ export async function PATCH(request: Request) {
       amenities: fields.amenities,
       images: fields.images,
       cleaning_fee: cleaningFee,
+      cleaning_fee_calculation_type: fields.cleaning_fee_calculation_type ?? 'fixed',
+      cleaning_fee_booking_type: fields.cleaning_fee_booking_type ?? 'both',
       security_deposit: securityDeposit,
+      security_deposit_calculation_type: fields.security_deposit_calculation_type ?? 'fixed',
+      security_deposit_booking_type: fields.security_deposit_booking_type ?? 'both',
       extra_guest_fee: extraGuestFee,
+      extra_guest_fee_calculation_type: fields.extra_guest_fee_calculation_type ?? 'per_guest',
+      extra_guest_fee_booking_type: fields.extra_guest_fee_booking_type ?? 'both',
       cancellation_window_hours: Number(fields.cancellation_window_hours ?? 72),
       cancellation_policy: fields.cancellation_policy ?? null,
       use_property_cancellation_policy: fields.use_property_cancellation_policy ?? true,
+      iframe_booking_url: fields.iframe_booking_url || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  const fees: { label: string; amount: number; booking_type: 'short_term' | 'long_term' | 'both' }[] = fields.fees ?? []
+  const fees: { label: string; amount: number; calculation_type: 'fixed' | 'per_guest' | 'percent'; booking_type: 'short_term' | 'long_term' | 'both' }[] = fields.fees ?? []
   const validBookingTypes = new Set(['short_term', 'long_term', 'both'])
+  const validCalcTypes = new Set(['fixed', 'per_guest', 'percent'])
   if (fees.some((f) => !validBookingTypes.has(f.booking_type))) {
     return NextResponse.json({ error: 'Invalid booking_type — must be short_term, long_term, or both' }, { status: 400 })
+  }
+  if (fees.some((f) => !validCalcTypes.has(f.calculation_type))) {
+    return NextResponse.json({ error: 'Invalid calculation_type — must be fixed, per_guest, or percent' }, { status: 400 })
   }
 
   // Snapshot existing fees before delete so we can roll back if insert fails
@@ -131,12 +153,12 @@ export async function PATCH(request: Request) {
   if (fees.length > 0) {
     const { error: feesError } = await supabase
       .from('room_fees')
-      .insert(fees.map((f) => ({ room_id: id, label: f.label, amount: f.amount, booking_type: f.booking_type })))
+      .insert(fees.map((f) => ({ room_id: id, label: f.label, amount: f.amount, calculation_type: f.calculation_type, booking_type: f.booking_type })))
     if (feesError) {
       // Restore original fees to avoid data loss
       if (existingFees?.length) {
         await supabase.from('room_fees').insert(
-          existingFees.map((f) => ({ room_id: id, label: f.label, amount: f.amount, booking_type: f.booking_type })),
+          existingFees.map((f) => ({ room_id: id, label: f.label, amount: f.amount, calculation_type: f.calculation_type ?? 'fixed', booking_type: f.booking_type })),
         )
       }
       return NextResponse.json({ error: feesError.message }, { status: 500 })

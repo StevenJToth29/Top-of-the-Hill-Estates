@@ -81,7 +81,7 @@ describe('POST /api/admin/rooms', () => {
         property_id: 'prop-1',
         name: 'Suite 1',
         slug: 'suite-1',
-        fees: [{ label: 'Pet fee', amount: 50, booking_type: 'both' }],
+        fees: [{ label: 'Pet fee', amount: 50, calculation_type: 'fixed', booking_type: 'both' }],
       }),
     })
 
@@ -146,7 +146,7 @@ describe('PATCH /api/admin/rooms', () => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id: 'room-1',
-        fees: [{ label: 'Parking', amount: 20, booking_type: 'short_term' }],
+        fees: [{ label: 'Parking', amount: 20, calculation_type: 'fixed', booking_type: 'short_term' }],
       }),
     })
 
