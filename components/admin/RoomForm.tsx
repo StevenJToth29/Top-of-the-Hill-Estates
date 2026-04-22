@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline'
 import type { Room, Property, ICalSource, CancellationPolicy } from '@/types'
 import { DEFAULT_POLICY } from '@/lib/cancellation'
+import { slugify } from '@/lib/slugify'
 import AmenitiesTagInput from './AmenitiesTagInput'
 import ICalSourcesManager from './ICalSourcesManager'
 import PropertyImagePicker from './PropertyImagePicker'
@@ -15,13 +16,6 @@ interface RoomFormProps {
   properties: Property[]
   icalSources?: ICalSource[]
   roomId?: string
-}
-
-function slugify(s: string) {
-  return s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
 }
 
 function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
@@ -80,6 +74,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
   >(
     (room?.fees ?? []).map(({ label, amount, booking_type }) => ({ label, amount, booking_type }))
   )
+  const [iframeBookingUrl, setIframeBookingUrl] = useState(room?.iframe_booking_url ?? '')
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -157,6 +152,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
       cancellation_window_hours: cancellationWindowHours,
       cancellation_policy: usePropertyCancellationPolicy ? null : JSON.stringify(cancellationPolicy),
       use_property_cancellation_policy: usePropertyCancellationPolicy,
+      iframe_booking_url: iframeBookingUrl || null,
     }
 
     startTransition(async () => {
@@ -303,7 +299,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
               <label className={labelClass}>Nightly Rate</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60">$</span>
-                <input type="number" value={nightlyRate} onChange={(e) => setNightlyRate(Number(e.target.value))} min={0} className={`${inputClass} pl-8`} />
+                <input type="number" value={nightlyRate} onChange={(e) => setNightlyRate(Number(e.target.value))} onFocus={(e) => e.target.select()} min={0} className={`${inputClass} pl-8`} />
               </div>
             </div>
             <div className={showNightlyRate ? '' : 'opacity-40 pointer-events-none'}>
@@ -314,6 +310,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
                   type="number"
                   value={cleaningFee}
                   onChange={(e) => setCleaningFee(Number(e.target.value))}
+                  onFocus={(e) => e.target.select()}
                   min={0}
                   className={`${inputClass} pl-8`}
                 />
@@ -332,7 +329,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
               <label className={labelClass}>Monthly Rate</label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/60">$</span>
-                <input type="number" value={monthlyRate} onChange={(e) => setMonthlyRate(Number(e.target.value))} min={0} className={`${inputClass} pl-8`} />
+                <input type="number" value={monthlyRate} onChange={(e) => setMonthlyRate(Number(e.target.value))} onFocus={(e) => e.target.select()} min={0} className={`${inputClass} pl-8`} />
               </div>
             </div>
             <div className={showMonthlyRate ? '' : 'opacity-40 pointer-events-none'}>
@@ -343,6 +340,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
                   type="number"
                   value={securityDeposit}
                   onChange={(e) => setSecurityDeposit(Number(e.target.value))}
+                  onFocus={(e) => e.target.select()}
                   min={0}
                   className={`${inputClass} pl-8`}
                 />
@@ -368,6 +366,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
               type="number"
               value={extraGuestFee}
               onChange={(e) => setExtraGuestFee(Number(e.target.value))}
+              onFocus={(e) => e.target.select()}
               min={0}
               className={`${inputClass} pl-8`}
             />
@@ -474,6 +473,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
                     next[idx] = { ...next[idx], amount: Number(e.target.value) }
                     setAdditionalFees(next)
                   }}
+                  onFocus={(e) => e.target.select()}
                   min={0}
                   className={`${inputClass} pl-7 w-28`}
                 />
@@ -544,6 +544,22 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
 
       <CollapsibleSection title="Images" defaultOpen={!roomId}>
         <PropertyImagePicker propertyImages={propertyImages} selectedImages={images} onChange={setImages} />
+      </CollapsibleSection>
+
+      <CollapsibleSection title="Booking Widget" defaultOpen={false}>
+        <p className="text-xs text-on-surface-variant/60">
+          Paste an iframe booking URL (e.g. from Hospitable) to use it on this room's page instead of the built-in booking widget. Leave blank to use the default widget.
+        </p>
+        <div>
+          <label className={labelClass}>Iframe Booking URL</label>
+          <input
+            type="url"
+            value={iframeBookingUrl}
+            onChange={(e) => setIframeBookingUrl(e.target.value)}
+            placeholder="https://booking.hospitable.com/widget/..."
+            className={inputClass}
+          />
+        </div>
       </CollapsibleSection>
 
       {icalExportUrl && (
