@@ -30,6 +30,12 @@ Context about the business:
 Reply with only the About Us text, nothing else.`,
 }
 
+export const DEFAULT_FALLBACK_PROMPT = `Write a description for a rental listing.
+Context:
+{context}
+{hint}
+Reply with only the description text, nothing else.`
+
 export function resolvePrompts(stored: AiPrompts | null): {
   systemPrompt: string
   userPrompts: Required<Omit<AiPrompts, 'system_prompt'>>

@@ -52,6 +52,8 @@ interface SettingsFormProps {
   paymentMethodConfigs: PaymentMethodConfig[]
 }
 
+type SettingsTab = 'general' | 'booking' | 'ai'
+
 async function compressImage(file: File, maxWidth = 400): Promise<Blob> {
   return new Promise((resolve) => {
     const img = new window.Image()
@@ -127,7 +129,6 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
   const [methodSaving, setMethodSaving] = useState<Record<string, boolean>>({})
   const [methodError, setMethodError] = useState<Record<string, string>>({})
 
-  type SettingsTab = 'general' | 'booking' | 'ai'
   const [tab, setTab] = useState<SettingsTab>('general')
 
   const [aiPrompts, setAiPrompts] = useState<AiPrompts>(() => {

@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
-import { resolvePrompts, applyTemplate } from '@/lib/ai-prompts'
+import { resolvePrompts, applyTemplate, DEFAULT_FALLBACK_PROMPT } from '@/lib/ai-prompts'
 import type { AiPrompts } from '@/types'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
   } else if (fieldType === 'about_us') {
     userPromptTemplate = userPrompts.about_us
   } else {
-    userPromptTemplate = `Write a description for a rental listing.\nContext:\n{context}\n{hint}\nReply with only the description text, nothing else.`
+    userPromptTemplate = DEFAULT_FALLBACK_PROMPT
   }
 
   const userPrompt = applyTemplate(userPromptTemplate, context ?? '', hint)
