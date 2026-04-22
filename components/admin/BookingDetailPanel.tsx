@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import type { Booking, Room, Property, BookingModificationRequest, CancellationPolicy } from '@/types'
 import { calculateRefund, DEFAULT_POLICY } from '@/lib/cancellation'
@@ -66,6 +66,10 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
+
+  useEffect(() => {
+    setEditedBooking(booking)
+  }, [booking])
 
   function handleClose() {
     const next = new URLSearchParams(searchParams.toString())
@@ -406,7 +410,7 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
         {showCancelModal && (
           <CancelBookingModal
             contained
-            booking={booking}
+            booking={b as Booking & { room: Room & { property: Property } }}
             cancellationPolicy={cancellationPolicy ?? DEFAULT_POLICY}
             onCancel={handleCancelled}
             onClose={() => setShowCancelModal(false)}
