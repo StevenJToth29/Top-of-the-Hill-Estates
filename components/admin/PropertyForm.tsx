@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import type { Property, StripeAccount, CancellationPolicy } from '@/types'
+import type { Property, PropertyImage, StripeAccount, CancellationPolicy } from '@/types'
 import { DEFAULT_POLICY } from '@/lib/cancellation'
 import AmenitiesTagInput from './AmenitiesTagInput'
 import ImageUploader from './ImageUploader'
 import AIWriteButton from './AIWriteButton'
 import PlacesAddressInput from './PlacesAddressInput'
 import FormTabBar from './FormTabBar'
+import { slugify } from '@/lib/slugify'
 
 interface PropertyFormProps {
   property?: Property
@@ -78,8 +79,8 @@ export default function PropertyForm({
   const [state, setState] = useState(property?.state ?? '')
   const [zip, setZip] = useState(property?.zip ?? '')
   const [description, setDescription] = useState(property?.description ?? '')
-  const [bedrooms, setBedrooms] = useState(property?.bedrooms ?? 0)
-  const [bathrooms, setBathrooms] = useState(property?.bathrooms ?? 0)
+  const [bedrooms, setBedrooms] = useState(String(property?.bedrooms ?? 0))
+  const [bathrooms, setBathrooms] = useState(String(property?.bathrooms ?? 0))
   const [amenities, setAmenities] = useState<string[]>(property?.amenities ?? [])
   const [useGlobalRules, setUseGlobalRules] = useState(property?.use_global_house_rules ?? true)
   const [houseRules, setHouseRules] = useState(property?.house_rules ?? '')
@@ -94,7 +95,7 @@ export default function PropertyForm({
       return DEFAULT_POLICY
     }
   })
-  const [images, setImages] = useState<string[]>(property?.images ?? [])
+  const [images, setImages] = useState<PropertyImage[]>(property?.images ?? [])
   const [stripeAccountId, setStripeAccountId] = useState<string>(property?.stripe_account_id ?? '')
   const [platformFeePercent, setPlatformFeePercent] = useState<number>(property?.platform_fee_percent ?? 0)
   const [error, setError] = useState<string | null>(null)
@@ -153,8 +154,8 @@ export default function PropertyForm({
       state,
       zip,
       description,
-      bedrooms,
-      bathrooms,
+      bedrooms: parseFloat(bedrooms) || 0,
+      bathrooms: parseFloat(bathrooms) || 0,
       amenities,
       house_rules: houseRules,
       use_global_house_rules: useGlobalRules,
@@ -254,6 +255,7 @@ export default function PropertyForm({
                     onChange={setAddress}
                     onCityChange={setCity}
                     onStateChange={setState}
+                    onZipChange={setZip}
                     required
                     placeholder="123 Main St"
                     className={inputClass}
@@ -316,7 +318,7 @@ export default function PropertyForm({
                   <input
                     type="number"
                     value={bedrooms}
-                    onChange={(e) => setBedrooms(Number(e.target.value))}
+                    onChange={(e) => setBedrooms(e.target.value)}
                     min={0}
                     className={inputClass}
                   />
@@ -326,7 +328,7 @@ export default function PropertyForm({
                   <input
                     type="number"
                     value={bathrooms}
-                    onChange={(e) => setBathrooms(Number(e.target.value))}
+                    onChange={(e) => setBathrooms(e.target.value)}
                     min={0}
                     step={0.5}
                     className={inputClass}
@@ -507,7 +509,7 @@ export default function PropertyForm({
               <ImageUploader
                 images={images}
                 bucket="property-images"
-                uploadFolder={propertyId ?? 'new'}
+                uploadFolder={propertyId ?? slugify(name) || 'new'}
                 onChange={setImages}
               />
             </SCard>
