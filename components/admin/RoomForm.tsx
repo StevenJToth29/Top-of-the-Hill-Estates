@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline'
@@ -180,6 +180,14 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
       setPropertyAmenitiesSaving(false)
     }
   }
+
+  useEffect(() => {
+    return () => {
+      if (propertyAmenitiesSavedTimerRef.current) {
+        clearTimeout(propertyAmenitiesSavedTimerRef.current)
+      }
+    }
+  }, [])
 
   const icalExportUrl = room?.ical_export_token
     ? `https://tothrooms.com/api/ical/${room.ical_export_token}`

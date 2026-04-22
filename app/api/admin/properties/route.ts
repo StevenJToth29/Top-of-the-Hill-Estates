@@ -47,6 +47,14 @@ export async function POST(request: NextRequest) {
   }
 }
 
+const ALLOWED_PROPERTY_FIELDS = new Set([
+  'name', 'address', 'city', 'state', 'zip', 'description',
+  'bedrooms', 'bathrooms', 'amenities', 'house_rules',
+  'use_global_house_rules', 'images', 'stripe_account_id',
+  'platform_fee_percent', 'cancellation_policy',
+  'use_global_cancellation_policy',
+])
+
 export async function PATCH(request: NextRequest) {
   if (!(await requireAuth())) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -56,7 +64,9 @@ export async function PATCH(request: NextRequest) {
     const { id, ...fields } = body
     if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
-    const update = { ...fields }
+    const update = Object.fromEntries(
+      Object.entries(fields).filter(([k]) => ALLOWED_PROPERTY_FIELDS.has(k))
+    )
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
