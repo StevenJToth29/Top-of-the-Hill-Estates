@@ -8,6 +8,7 @@ import {
 } from 'date-fns'
 import { XMarkIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/24/outline'
 import type { Room, Property } from '@/types'
+import { OPEN_ENDED_DATE } from '@/lib/format'
 
 interface CalendarBooking {
   id: string
@@ -17,6 +18,7 @@ interface CalendarBooking {
   guest_first_name: string
   guest_last_name: string
   status: string
+  booking_type: string
 }
 
 interface CalendarICalBlock {
@@ -30,12 +32,13 @@ interface CalendarICalBlock {
 
 interface EventBar {
   id: string
-  type: 'booking' | 'ical'
+  type: 'booking' | 'long_term' | 'ical'
   label: string
   colStart: number // 1–7
   span: number
   isStart: boolean
   isEnd: boolean
+  isOpenEnded?: boolean
 }
 
 interface Props {
@@ -77,18 +80,20 @@ function getBarsForWeek(
 
   for (const b of bookings) {
     const s = parseISO(b.check_in)
-    // check_out is exclusive (last occupied night is the day before)
-    const e = addDays(parseISO(b.check_out), -1)
-    if (isAfter(s, weekEnd) || isBefore(e, weekStart)) continue
+    const isOpenEnded = b.check_out === OPEN_ENDED_DATE
+    // check_out is exclusive; for open-ended we use end-of-week as the visual cap
+    const e = isOpenEnded ? addDays(weekEnd, 1) : addDays(parseISO(b.check_out), -1)
+    if (isAfter(s, weekEnd) || (!isOpenEnded && isBefore(e, weekStart))) continue
     const { colStart, span, isStart, isEnd } = clampToWeek(s, e, weekDays)
     bars.push({
       id: b.id,
-      type: 'booking',
+      type: b.booking_type === 'long_term' ? 'long_term' : 'booking',
       label: `${b.guest_first_name} ${b.guest_last_name}`,
       colStart,
       span,
       isStart,
-      isEnd,
+      isEnd: isOpenEnded ? false : isEnd,
+      isOpenEnded,
     })
   }
 
@@ -264,14 +269,23 @@ export default function RoomCalendarModal({ room, onClose }: Props) {
                                 <div
                                   key={bar.id}
                                   title={bar.label}
-                                  style={{ gridColumn: `${bar.colStart} / span ${bar.span}` }}
+                                  style={{
+                                    gridColumn: `${bar.colStart} / span ${bar.span}`,
+                                    ...(bar.type === 'long_term'
+                                      ? {
+                                          background:
+                                            'repeating-linear-gradient(45deg, rgba(100,116,139,0.25) 0, rgba(100,116,139,0.25) 2px, transparent 2px, transparent 7px)',
+                                          borderRight: bar.isOpenEnded ? '2px dashed rgba(100,116,139,0.45)' : undefined,
+                                        }
+                                      : {}),
+                                  }}
                                   className={[
                                     'h-6 flex items-center px-2 text-xs font-medium overflow-hidden whitespace-nowrap mx-0.5',
                                     bar.isStart ? 'rounded-l-full' : '',
                                     bar.isEnd ? 'rounded-r-full' : '',
-                                    bar.type === 'booking'
-                                      ? 'bg-secondary/30 text-secondary'
-                                      : 'bg-primary/20 text-primary',
+                                    bar.type === 'booking' ? 'bg-secondary/30 text-secondary' : '',
+                                    bar.type === 'long_term' ? 'text-slate-500' : '',
+                                    bar.type === 'ical' ? 'bg-primary/20 text-primary' : '',
                                   ].join(' ')}
                                 >
                                   {bar.isStart && (
@@ -307,6 +321,16 @@ export default function RoomCalendarModal({ room, onClose }: Props) {
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-secondary/50" />
             <span className="text-xs text-on-surface-variant">Booking</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div
+              className="w-3.5 h-3.5 rounded-sm flex-shrink-0"
+              style={{
+                background:
+                  'repeating-linear-gradient(45deg, rgba(100,116,139,0.45) 0, rgba(100,116,139,0.45) 2px, transparent 2px, transparent 5px)',
+              }}
+            />
+            <span className="text-xs text-on-surface-variant">Long Term</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="w-3 h-3 rounded-full bg-primary/40" />
