@@ -1,3 +1,8 @@
+export interface PropertyImage {
+  url: string
+  description?: string
+}
+
 export interface Property {
   id: string
   name: string
@@ -6,7 +11,7 @@ export interface Property {
   state: string
   zip: string
   description: string
-  images: string[]
+  images: PropertyImage[]
   amenities: string[]
   bedrooms: number
   bathrooms: number
