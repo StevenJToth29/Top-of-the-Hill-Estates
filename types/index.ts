@@ -283,6 +283,7 @@ export type TriggerEvent =
   | 'modification_requested'
   | 'admin_new_booking'
   | 'admin_cancelled'
+  | 'booking_payment_request'
 
 export type RecipientType = 'guest' | 'admin' | 'both'
 export type QueueStatus = 'pending' | 'sent' | 'failed' | 'cancelled'
