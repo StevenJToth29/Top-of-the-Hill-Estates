@@ -73,7 +73,7 @@ export default function DuplicateRoomModal({ isOpen, onClose, roomId, roomName }
           <h2 className="text-lg font-semibold text-on-surface">Duplicate Room</h2>
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => !loading && onClose()}
             aria-label="Close"
             className="text-on-surface-variant hover:text-on-surface transition-colors"
           >
