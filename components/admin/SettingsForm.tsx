@@ -7,6 +7,9 @@ import { createClient } from '@/lib/supabase-browser'
 import type { SiteSettings, BusinessHours, CancellationPolicy, PaymentMethodConfig } from '@/types'
 import { DEFAULT_POLICY } from '@/lib/cancellation'
 import AIWriteButton from './AIWriteButton'
+import FormTabBar from './FormTabBar'
+import type { AiPrompts } from '@/types'
+import { DEFAULT_SYSTEM_PROMPT, DEFAULT_USER_PROMPTS } from '@/lib/ai-prompts'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -123,6 +126,14 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
   const [methodConfigs, setMethodConfigs] = useState<PaymentMethodConfig[]>(paymentMethodConfigs)
   const [methodSaving, setMethodSaving] = useState<Record<string, boolean>>({})
   const [methodError, setMethodError] = useState<Record<string, string>>({})
+
+  type SettingsTab = 'general' | 'booking' | 'ai'
+  const [tab, setTab] = useState<SettingsTab>('general')
+
+  const [aiPrompts, setAiPrompts] = useState<AiPrompts>(() => {
+    if (!settings.ai_prompts) return {}
+    try { return JSON.parse(settings.ai_prompts) as AiPrompts } catch { return {} }
+  })
 
   function formatPhone(raw: string): string {
     const digits = raw.replace(/\D/g, '').slice(0, 10)
@@ -298,6 +309,7 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
           business_hours: JSON.stringify(hours),
           global_house_rules: form.global_house_rules,
           cancellation_policy: JSON.stringify(cancellationPolicy),
+          ai_prompts: JSON.stringify(aiPrompts),
         }),
       })
       if (!res.ok) {
@@ -316,6 +328,12 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
   const inputClass =
     'w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50'
   const labelClass = 'text-on-surface-variant text-sm mb-1 block'
+
+  const settingsTabs = [
+    { id: 'general', label: 'General', icon: '⚙' },
+    { id: 'booking', label: 'Booking', icon: '📋' },
+    { id: 'ai', label: 'AI Prompts', icon: '✨' },
+  ]
 
   function renderMethodSection(label: string, bookingType: 'short_term' | 'long_term') {
     const methods = methodConfigs.filter((c) => c.booking_type === bookingType)
@@ -404,524 +422,329 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
 
   return (
     <>
-      <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl">
+      <FormTabBar
+        tabs={settingsTabs}
+        active={tab}
+        onChange={(id) => setTab(id as SettingsTab)}
+      />
 
-      {/* Logo */}
-      <section className="space-y-4">
-        <h2 className="font-display text-base font-semibold text-on-surface">Site Logo</h2>
-        <div className="flex items-center gap-6">
-          <div className="rounded-2xl bg-surface-container flex items-center justify-center shrink-0 p-1" style={{ width: form.logo_size + 16, height: form.logo_size + 16 }}>
-            <Image
-              src={form.logo_url || '/logo.png'}
-              alt="Current logo"
-              width={form.logo_size}
-              height={form.logo_size}
-              style={{ width: form.logo_size, height: form.logo_size }}
-              className="object-contain rounded-xl"
-              unoptimized={!!form.logo_url}
-            />
-          </div>
-          <div className="space-y-2">
-            <button
-              type="button"
-              disabled={logoUploading}
-              onClick={() => logoInputRef.current?.click()}
-              className="flex items-center gap-2 bg-surface-container hover:bg-surface-high text-on-surface-variant text-sm font-medium rounded-xl px-4 py-2.5 transition-colors disabled:opacity-50"
-            >
-              <PhotoIcon className="w-4 h-4" />
-              {logoUploading ? 'Uploading…' : 'Upload New Logo'}
-            </button>
-            <p className="text-xs text-on-surface-variant/60">
-              PNG or SVG recommended · Max 400px · Displayed site-wide
-            </p>
-            {logoError && (
-              <p className="text-xs text-error">{logoError}</p>
-            )}
-          </div>
-          <input
-            ref={logoInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/svg+xml"
-            className="hidden"
-            onChange={handleLogoUpload}
-          />
-        </div>
-        {form.logo_url && form.logo_url !== settings.logo_url && (
-          <p className="text-xs text-secondary">
-            Logo uploaded — click Save Settings below to apply it site-wide.
-          </p>
-        )}
+      <form onSubmit={handleSubmit} className="space-y-8 max-w-2xl mt-6">
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className={labelClass}>Logo Size</label>
-            <span className="text-xs text-on-surface-variant">{form.logo_size}px</span>
-          </div>
-          <input
-            type="range"
-            min={32}
-            max={96}
-            step={4}
-            value={form.logo_size}
-            onChange={(e) => setForm((prev) => ({ ...prev, logo_size: Number(e.target.value) }))}
-            className="w-full accent-primary"
-          />
-          <div className="flex justify-between text-xs text-on-surface-variant/50">
-            <span>Small</span>
-            <span>Large</span>
-          </div>
-        </div>
-      </section>
-
-      <div className="h-px bg-outline-variant" />
-
-      {/* Favicon */}
-      <section className="space-y-4">
-        <h2 className="font-display text-base font-semibold text-on-surface">Favicon</h2>
-        <div className="flex items-center gap-6">
-          <div className="rounded-xl bg-surface-container flex items-center justify-center shrink-0" style={{ width: 48, height: 48 }}>
-            {form.favicon_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={form.favicon_url}
-                alt="Favicon preview"
-                width={32}
-                height={32}
-                className="object-contain"
-              />
-            ) : (
-              <span className="text-on-surface-variant/40 text-xs">No icon</span>
-            )}
-          </div>
-          <div className="space-y-2">
-            <button
-              type="button"
-              disabled={faviconUploading}
-              onClick={() => faviconInputRef.current?.click()}
-              className="flex items-center gap-2 bg-surface-container hover:bg-surface-high text-on-surface-variant text-sm font-medium rounded-xl px-4 py-2.5 transition-colors disabled:opacity-50"
-            >
-              <PhotoIcon className="w-4 h-4" />
-              {faviconUploading ? 'Uploading…' : 'Upload Favicon'}
-            </button>
-            <p className="text-xs text-on-surface-variant/60">
-              PNG, JPEG or WebP · Square image recommended · Generates 32px, 192px and 180px variants automatically
-            </p>
-            {faviconError && (
-              <p className="text-xs text-error">{faviconError}</p>
-            )}
-          </div>
-          <input
-            ref={faviconInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            className="hidden"
-            onChange={handleFaviconUpload}
-          />
-        </div>
-        {form.favicon_url && form.favicon_url !== settings.favicon_url && (
-          <p className="text-xs text-secondary">
-            Favicon saved — refresh the page to see it in the browser tab.
-          </p>
-        )}
-      </section>
-
-      <div className="h-px bg-outline-variant" />
-
-      {/* Business info */}
-      <section className="space-y-5">
-        <h2 className="font-display text-base font-semibold text-on-surface">Business Info</h2>
-
-        <div>
-          <label htmlFor="business_name" className={labelClass}>Business Name</label>
-          <input
-            id="business_name"
-            name="business_name"
-            type="text"
-            value={form.business_name}
-            onChange={handleChange}
-            className={inputClass}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="about_text" className={labelClass}>About Us Text</label>
-          <textarea
-            id="about_text"
-            name="about_text"
-            rows={6}
-            value={form.about_text}
-            onChange={handleChange}
-            className={`${inputClass} resize-y`}
-          />
-          <div className="mt-2">
-            <AIWriteButton
-              fieldType="about_us"
-              context={[
-                form.business_name && `Business name: ${form.business_name}`,
-                form.contact_address && `Address: ${form.contact_address}`,
-                form.contact_phone && `Phone: ${form.contact_phone}`,
-                form.contact_email && `Email: ${form.contact_email}`,
-                'Type of business: short-term and long-term residential rentals',
-              ].filter(Boolean).join('\n')}
-              onAccept={(text) => {
-                setForm((prev) => ({ ...prev, about_text: text }))
-                setSaved(false)
-              }}
-            />
-          </div>
-        </div>
-      </section>
-
-      <div className="h-px bg-outline-variant" />
-
-      {/* Contact info */}
-      <section className="space-y-5">
-        <h2 className="font-display text-base font-semibold text-on-surface">Contact Info</h2>
-
-        <div>
-          <label htmlFor="contact_phone" className={labelClass}>Phone</label>
-          <input
-            id="contact_phone"
-            name="contact_phone"
-            type="tel"
-            value={form.contact_phone}
-            onChange={handleChange}
-            placeholder="(555) 555-5555"
-            className={`${inputClass} ${fieldErrors.contact_phone ? 'ring-1 ring-error' : ''}`}
-          />
-          {fieldErrors.contact_phone && (
-            <p className="text-xs text-error mt-1">{fieldErrors.contact_phone}</p>
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="contact_email" className={labelClass}>Email</label>
-          <input
-            id="contact_email"
-            name="contact_email"
-            type="text"
-            value={form.contact_email}
-            onChange={handleChange}
-            placeholder="you@example.com"
-            className={`${inputClass} ${fieldErrors.contact_email ? 'ring-1 ring-error' : ''}`}
-          />
-          {fieldErrors.contact_email && (
-            <p className="text-xs text-error mt-1">{fieldErrors.contact_email}</p>
-          )}
-        </div>
-
-        <div>
-          <label htmlFor="contact_address" className={labelClass}>Address</label>
-          <textarea
-            id="contact_address"
-            name="contact_address"
-            rows={2}
-            value={form.contact_address}
-            onChange={handleChange}
-            className={`${inputClass} resize-y`}
-          />
-        </div>
-      </section>
-
-      <div className="h-px bg-outline-variant" />
-
-      {/* Business hours */}
-      <section className="space-y-4">
-        <div>
-          <h2 className="font-display text-base font-semibold text-on-surface">Business Hours</h2>
-          <p className="text-xs text-on-surface-variant/60 mt-0.5">Displayed on your contact and about pages.</p>
-        </div>
-
-        <div className="space-y-2">
-          {DAYS.map((day) => {
-            const dayHours = hours[day]
-            return (
-              <div key={day} className="flex items-center gap-3">
-                {/* Closed toggle */}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setHours((prev) => ({
-                      ...prev,
-                      [day]: { ...prev[day], closed: !prev[day].closed },
-                    }))
-                  }
-                  className={[
-                    'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                    dayHours.closed ? 'bg-surface-high' : 'bg-primary',
-                  ].join(' ')}
-                  aria-label={`Toggle ${day}`}
-                >
-                  <span
-                    className={[
-                      'inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform',
-                      dayHours.closed ? 'translate-x-0.5' : 'translate-x-4',
-                    ].join(' ')}
+        {/* ── Tab: General ── */}
+        {tab === 'general' && (
+          <>
+            {/* Logo */}
+            <section className="space-y-4">
+              <h2 className="font-display text-base font-semibold text-on-surface">Site Logo</h2>
+              <div className="flex items-center gap-6">
+                <div className="rounded-2xl bg-surface-container flex items-center justify-center shrink-0 p-1" style={{ width: form.logo_size + 16, height: form.logo_size + 16 }}>
+                  <Image
+                    src={form.logo_url || '/logo.png'}
+                    alt="Current logo"
+                    width={form.logo_size}
+                    height={form.logo_size}
+                    style={{ width: form.logo_size, height: form.logo_size }}
+                    className="object-contain rounded-xl"
+                    unoptimized={!!form.logo_url}
                   />
-                </button>
-
-                {/* Day name */}
-                <span className="w-8 text-sm font-medium text-on-surface shrink-0">{day}</span>
-
-                {dayHours.closed ? (
-                  <span className="text-sm text-on-surface-variant/50 italic">Closed</span>
-                ) : (
-                  <div className="flex items-center gap-2 flex-1">
-                    <input
-                      type="time"
-                      value={dayHours.open}
-                      onChange={(e) =>
-                        setHours((prev) => ({
-                          ...prev,
-                          [day]: { ...prev[day], open: e.target.value },
-                        }))
-                      }
-                      className="bg-surface-highest/40 rounded-xl px-3 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:light]"
-                    />
-                    <span className="text-on-surface-variant/50 text-sm">to</span>
-                    <input
-                      type="time"
-                      value={dayHours.close}
-                      onChange={(e) =>
-                        setHours((prev) => ({
-                          ...prev,
-                          [day]: { ...prev[day], close: e.target.value },
-                        }))
-                      }
-                      className="bg-surface-highest/40 rounded-xl px-3 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:light]"
-                    />
-                    {dayHours.open && dayHours.close && (
-                      <span className="text-xs text-on-surface-variant/50 hidden sm:inline">
-                        {fmt12(dayHours.open)} – {fmt12(dayHours.close)}
-                      </span>
-                    )}
-                  </div>
-                )}
+                </div>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    disabled={logoUploading}
+                    onClick={() => logoInputRef.current?.click()}
+                    className="flex items-center gap-2 bg-surface-container hover:bg-surface-high text-on-surface-variant text-sm font-medium rounded-xl px-4 py-2.5 transition-colors disabled:opacity-50"
+                  >
+                    <PhotoIcon className="w-4 h-4" />
+                    {logoUploading ? 'Uploading…' : 'Upload New Logo'}
+                  </button>
+                  <p className="text-xs text-on-surface-variant/60">
+                    PNG or SVG recommended · Max 400px · Displayed site-wide
+                  </p>
+                  {logoError && <p className="text-xs text-error">{logoError}</p>}
+                </div>
+                <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={handleLogoUpload} />
               </div>
-            )
-          })}
-        </div>
-      </section>
-
-      <div className="h-px bg-outline-variant" />
-
-      {/* Global House Rules */}
-      <section className="space-y-4">
-        <div>
-          <h2 className="font-display text-base font-semibold text-on-surface">Global House Rules</h2>
-          <p className="text-xs text-on-surface-variant/60 mt-0.5">
-            Default rules applied to all properties. Each property can override these with its own custom rules.
-          </p>
-        </div>
-        <textarea
-          id="global_house_rules"
-          name="global_house_rules"
-          rows={6}
-          value={form.global_house_rules}
-          onChange={handleChange}
-          placeholder="No smoking, no parties, quiet hours after 10pm…"
-          className={`${inputClass} resize-y`}
-        />
-      </section>
-
-      <div className="h-px bg-outline-variant" />
-
-      {/* Short-term booking times */}
-      <section className="space-y-4">
-        <div>
-          <h2 className="font-display text-base font-semibold text-on-surface">Short-term Booking Times</h2>
-          <p className="text-xs text-on-surface-variant/60 mt-0.5">
-            Standard check-in and check-out times applied to all short-term listings.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-5">
-          <div className="space-y-1.5">
-            <label htmlFor="checkin_time" className={labelClass}>Check-in Time</label>
-            <div className="flex items-center gap-3">
-              <input
-                id="checkin_time"
-                name="checkin_time"
-                type="time"
-                value={form.checkin_time}
-                onChange={handleChange}
-                className="bg-surface-highest/40 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:light]"
-              />
-              {form.checkin_time && (
-                <span className="text-sm text-on-surface-variant">{fmt12(form.checkin_time)}</span>
+              {form.logo_url && form.logo_url !== settings.logo_url && (
+                <p className="text-xs text-secondary">Logo uploaded — click Save Settings below to apply it site-wide.</p>
               )}
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="checkout_time" className={labelClass}>Check-out Time</label>
-            <div className="flex items-center gap-3">
-              <input
-                id="checkout_time"
-                name="checkout_time"
-                type="time"
-                value={form.checkout_time}
-                onChange={handleChange}
-                className="bg-surface-highest/40 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:light]"
-              />
-              {form.checkout_time && (
-                <span className="text-sm text-on-surface-variant">{fmt12(form.checkout_time)}</span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className={labelClass}>Logo Size</label>
+                  <span className="text-xs text-on-surface-variant">{form.logo_size}px</span>
+                </div>
+                <input type="range" min={32} max={96} step={4} value={form.logo_size} onChange={(e) => setForm((prev) => ({ ...prev, logo_size: Number(e.target.value) }))} className="w-full accent-primary" />
+                <div className="flex justify-between text-xs text-on-surface-variant/50">
+                  <span>Small</span><span>Large</span>
+                </div>
+              </div>
+            </section>
+
+            <div className="h-px bg-outline-variant" />
+
+            {/* Favicon */}
+            <section className="space-y-4">
+              <h2 className="font-display text-base font-semibold text-on-surface">Favicon</h2>
+              <div className="flex items-center gap-6">
+                <div className="rounded-xl bg-surface-container flex items-center justify-center shrink-0" style={{ width: 48, height: 48 }}>
+                  {form.favicon_url ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={form.favicon_url} alt="Favicon preview" width={32} height={32} className="object-contain" />
+                  ) : (
+                    <span className="text-on-surface-variant/40 text-xs">No icon</span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <button type="button" disabled={faviconUploading} onClick={() => faviconInputRef.current?.click()} className="flex items-center gap-2 bg-surface-container hover:bg-surface-high text-on-surface-variant text-sm font-medium rounded-xl px-4 py-2.5 transition-colors disabled:opacity-50">
+                    <PhotoIcon className="w-4 h-4" />
+                    {faviconUploading ? 'Uploading…' : 'Upload Favicon'}
+                  </button>
+                  <p className="text-xs text-on-surface-variant/60">PNG, JPEG or WebP · Square image recommended · Generates 32px, 192px and 180px variants automatically</p>
+                  {faviconError && <p className="text-xs text-error">{faviconError}</p>}
+                </div>
+                <input ref={faviconInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleFaviconUpload} />
+              </div>
+              {form.favicon_url && form.favicon_url !== settings.favicon_url && (
+                <p className="text-xs text-secondary">Favicon saved — refresh the page to see it in the browser tab.</p>
               )}
+            </section>
+
+            <div className="h-px bg-outline-variant" />
+
+            {/* Business info */}
+            <section className="space-y-5">
+              <h2 className="font-display text-base font-semibold text-on-surface">Business Info</h2>
+              <div>
+                <label htmlFor="business_name" className={labelClass}>Business Name</label>
+                <input id="business_name" name="business_name" type="text" value={form.business_name} onChange={handleChange} className={inputClass} />
+              </div>
+              <div>
+                <label htmlFor="about_text" className={labelClass}>About Us Text</label>
+                <textarea id="about_text" name="about_text" rows={6} value={form.about_text} onChange={handleChange} className={`${inputClass} resize-y`} />
+                <div className="mt-2">
+                  <AIWriteButton
+                    fieldType="about_us"
+                    context={[
+                      form.business_name && `Business name: ${form.business_name}`,
+                      form.contact_address && `Address: ${form.contact_address}`,
+                      form.contact_phone && `Phone: ${form.contact_phone}`,
+                      form.contact_email && `Email: ${form.contact_email}`,
+                      'Type of business: short-term and long-term residential rentals',
+                    ].filter(Boolean).join('\n')}
+                    onAccept={(text) => { setForm((prev) => ({ ...prev, about_text: text })); setSaved(false) }}
+                  />
+                </div>
+              </div>
+            </section>
+
+            <div className="h-px bg-outline-variant" />
+
+            {/* Contact info */}
+            <section className="space-y-5">
+              <h2 className="font-display text-base font-semibold text-on-surface">Contact Info</h2>
+              <div>
+                <label htmlFor="contact_phone" className={labelClass}>Phone</label>
+                <input id="contact_phone" name="contact_phone" type="tel" value={form.contact_phone} onChange={handleChange} placeholder="(555) 555-5555" className={`${inputClass} ${fieldErrors.contact_phone ? 'ring-1 ring-error' : ''}`} />
+                {fieldErrors.contact_phone && <p className="text-xs text-error mt-1">{fieldErrors.contact_phone}</p>}
+              </div>
+              <div>
+                <label htmlFor="contact_email" className={labelClass}>Email</label>
+                <input id="contact_email" name="contact_email" type="text" value={form.contact_email} onChange={handleChange} placeholder="you@example.com" className={`${inputClass} ${fieldErrors.contact_email ? 'ring-1 ring-error' : ''}`} />
+                {fieldErrors.contact_email && <p className="text-xs text-error mt-1">{fieldErrors.contact_email}</p>}
+              </div>
+              <div>
+                <label htmlFor="contact_address" className={labelClass}>Address</label>
+                <textarea id="contact_address" name="contact_address" rows={2} value={form.contact_address} onChange={handleChange} className={`${inputClass} resize-y`} />
+              </div>
+            </section>
+
+            <div className="h-px bg-outline-variant" />
+
+            {/* Business hours */}
+            <section className="space-y-4">
+              <div>
+                <h2 className="font-display text-base font-semibold text-on-surface">Business Hours</h2>
+                <p className="text-xs text-on-surface-variant/60 mt-0.5">Displayed on your contact and about pages.</p>
+              </div>
+              <div className="space-y-2">
+                {DAYS.map((day) => {
+                  const dayHours = hours[day]
+                  return (
+                    <div key={day} className="flex items-center gap-3">
+                      <button type="button" onClick={() => setHours((prev) => ({ ...prev, [day]: { ...prev[day], closed: !prev[day].closed } }))} className={['relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary', dayHours.closed ? 'bg-surface-high' : 'bg-primary'].join(' ')} aria-label={`Toggle ${day}`}>
+                        <span className={['inline-block h-3.5 w-3.5 rounded-full bg-white shadow transition-transform', dayHours.closed ? 'translate-x-0.5' : 'translate-x-4'].join(' ')} />
+                      </button>
+                      <span className="w-8 text-sm font-medium text-on-surface shrink-0">{day}</span>
+                      {dayHours.closed ? (
+                        <span className="text-sm text-on-surface-variant/50 italic">Closed</span>
+                      ) : (
+                        <div className="flex items-center gap-2 flex-1">
+                          <input type="time" value={dayHours.open} onChange={(e) => setHours((prev) => ({ ...prev, [day]: { ...prev[day], open: e.target.value } }))} className="bg-surface-highest/40 rounded-xl px-3 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:light]" />
+                          <span className="text-on-surface-variant/50 text-sm">to</span>
+                          <input type="time" value={dayHours.close} onChange={(e) => setHours((prev) => ({ ...prev, [day]: { ...prev[day], close: e.target.value } }))} className="bg-surface-highest/40 rounded-xl px-3 py-1.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:light]" />
+                          {dayHours.open && dayHours.close && (
+                            <span className="text-xs text-on-surface-variant/50 hidden sm:inline">{fmt12(dayHours.open)} – {fmt12(dayHours.close)}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* ── Tab: Booking ── */}
+        {tab === 'booking' && (
+          <>
+            {/* Global House Rules */}
+            <section className="space-y-4">
+              <div>
+                <h2 className="font-display text-base font-semibold text-on-surface">Global House Rules</h2>
+                <p className="text-xs text-on-surface-variant/60 mt-0.5">Default rules applied to all properties. Each property can override these with its own custom rules.</p>
+              </div>
+              <textarea id="global_house_rules" name="global_house_rules" rows={6} value={form.global_house_rules} onChange={handleChange} placeholder="No smoking, no parties, quiet hours after 10pm…" className={`${inputClass} resize-y`} />
+            </section>
+
+            <div className="h-px bg-outline-variant" />
+
+            {/* Short-term Booking Times */}
+            <section className="space-y-4">
+              <div>
+                <h2 className="font-display text-base font-semibold text-on-surface">Short-term Booking Times</h2>
+                <p className="text-xs text-on-surface-variant/60 mt-0.5">Standard check-in and check-out times applied to all short-term listings.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label htmlFor="checkin_time" className={labelClass}>Check-in Time</label>
+                  <div className="flex items-center gap-3">
+                    <input id="checkin_time" name="checkin_time" type="time" value={form.checkin_time} onChange={handleChange} className="bg-surface-highest/40 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:light]" />
+                    {form.checkin_time && <span className="text-sm text-on-surface-variant">{fmt12(form.checkin_time)}</span>}
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="checkout_time" className={labelClass}>Check-out Time</label>
+                  <div className="flex items-center gap-3">
+                    <input id="checkout_time" name="checkout_time" type="time" value={form.checkout_time} onChange={handleChange} className="bg-surface-highest/40 rounded-xl px-3 py-2.5 text-sm text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 [color-scheme:light]" />
+                    {form.checkout_time && <span className="text-sm text-on-surface-variant">{fmt12(form.checkout_time)}</span>}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <div className="h-px bg-outline-variant" />
+
+            {/* Payment Processing */}
+            <section className="space-y-4">
+              <div>
+                <h2 className="font-display text-base font-semibold text-on-surface">Payment Processing</h2>
+                <p className="text-xs text-on-surface-variant/60 mt-0.5">Stripe&apos;s standard rate is 2.9% + $0.30 per transaction.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-5">
+                <div className="space-y-1.5">
+                  <label htmlFor="stripe_fee_percent" className={labelClass}>Processing fee (%)</label>
+                  <input id="stripe_fee_percent" name="stripe_fee_percent" type="number" step="0.01" min="0" value={form.stripe_fee_percent} onChange={(e) => setForm((prev) => ({ ...prev, stripe_fee_percent: Number(e.target.value) }))} className={inputClass} />
+                  <p className="text-xs text-on-surface-variant/50">e.g. 2.9 for 2.9%</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="stripe_fee_flat" className={labelClass}>Processing fee (flat, $)</label>
+                  <input id="stripe_fee_flat" name="stripe_fee_flat" type="number" step="0.01" min="0" value={form.stripe_fee_flat} onChange={(e) => setForm((prev) => ({ ...prev, stripe_fee_flat: Number(e.target.value) }))} className={inputClass} />
+                  <p className="text-xs text-on-surface-variant/50">e.g. 0.30 for $0.30</p>
+                </div>
+              </div>
+            </section>
+
+            <div className="h-px bg-outline-variant" />
+
+            {/* Cancellation Policy */}
+            <section className="space-y-4">
+              <div>
+                <h2 className="font-display text-base font-semibold text-on-surface">Default Cancellation Policy</h2>
+                <p className="text-xs text-on-surface-variant/60 mt-0.5">System-wide default applied to all rooms unless overridden at property or room level.</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                <div className="space-y-1.5">
+                  <label htmlFor="full_refund_days" className={labelClass}>Full refund window (days)</label>
+                  <input id="full_refund_days" type="number" min="0" step="1" value={cancellationPolicy.full_refund_days} onChange={(e) => setCancellationPolicy((p) => ({ ...p, full_refund_days: Number(e.target.value) }))} className={inputClass} />
+                  <p className="text-xs text-on-surface-variant/50">e.g. 7 = full refund if cancelled &gt;7 days out</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="partial_refund_hours" className={labelClass}>Partial refund cutoff (hours)</label>
+                  <input id="partial_refund_hours" type="number" min="0" step="1" value={cancellationPolicy.partial_refund_hours} onChange={(e) => setCancellationPolicy((p) => ({ ...p, partial_refund_hours: Number(e.target.value) }))} className={inputClass} />
+                  <p className="text-xs text-on-surface-variant/50">e.g. 72 = partial% if &gt;72 hrs but within full window</p>
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="partial_refund_percent" className={labelClass}>Partial refund amount (%)</label>
+                  <input id="partial_refund_percent" type="number" min="0" max="100" step="1" value={cancellationPolicy.partial_refund_percent} onChange={(e) => setCancellationPolicy((p) => ({ ...p, partial_refund_percent: Number(e.target.value) }))} className={inputClass} />
+                  <p className="text-xs text-on-surface-variant/50">e.g. 50 = 50% refund in the middle tier</p>
+                </div>
+              </div>
+            </section>
+          </>
+        )}
+
+        {/* ── Tab: AI Prompts ── */}
+        {tab === 'ai' && (
+          <section className="space-y-6">
+            <div>
+              <h2 className="font-display text-base font-semibold text-on-surface">AI Prompts</h2>
+              <p className="text-xs text-on-surface-variant/60 mt-0.5">
+                Customise the prompts used when generating copy. Leave blank to use the built-in defaults.
+                Available variables: <code className="text-secondary text-xs">{'{context}'}</code> (property/room details),{' '}
+                <code className="text-secondary text-xs">{'{hint}'}</code> (admin hint, omitted if blank).
+              </p>
             </div>
-          </div>
-        </div>
-      </section>
 
-      <div className="h-px bg-outline-variant" />
-
-      {/* Payment Processing */}
-      <section className="space-y-4">
-        <div>
-          <h2 className="font-display text-base font-semibold text-on-surface">Payment Processing</h2>
-          <p className="text-xs text-on-surface-variant/60 mt-0.5">
-            Stripe's standard rate is 2.9% + $0.30 per transaction.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 gap-5">
-          <div className="space-y-1.5">
-            <label htmlFor="stripe_fee_percent" className={labelClass}>
-              Processing fee (%)
-            </label>
-            <input
-              id="stripe_fee_percent"
-              name="stripe_fee_percent"
-              type="number"
-              step="0.01"
-              min="0"
-              value={form.stripe_fee_percent}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, stripe_fee_percent: Number(e.target.value) }))
-              }
-              className={inputClass}
-            />
-            <p className="text-xs text-on-surface-variant/50">e.g. 2.9 for 2.9%</p>
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="stripe_fee_flat" className={labelClass}>
-              Processing fee (flat, $)
-            </label>
-            <input
-              id="stripe_fee_flat"
-              name="stripe_fee_flat"
-              type="number"
-              step="0.01"
-              min="0"
-              value={form.stripe_fee_flat}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, stripe_fee_flat: Number(e.target.value) }))
-              }
-              className={inputClass}
-            />
-            <p className="text-xs text-on-surface-variant/50">e.g. 0.30 for $0.30</p>
-          </div>
-        </div>
-      </section>
-
-      <div className="h-px bg-outline-variant" />
-
-      {/* Cancellation Policy */}
-      <section className="space-y-4">
-        <div>
-          <h2 className="font-display text-base font-semibold text-on-surface">
-            Default Cancellation Policy
-          </h2>
-          <p className="text-xs text-on-surface-variant/60 mt-0.5">
-            System-wide default applied to all rooms unless overridden at property or room level.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <div className="space-y-1.5">
-            <label htmlFor="full_refund_days" className={labelClass}>
-              Full refund window (days)
-            </label>
-            <input
-              id="full_refund_days"
-              type="number"
-              min="0"
-              step="1"
-              value={cancellationPolicy.full_refund_days}
-              onChange={(e) =>
-                setCancellationPolicy((p) => ({ ...p, full_refund_days: Number(e.target.value) }))
-              }
-              className={inputClass}
-            />
-            <p className="text-xs text-on-surface-variant/50">e.g. 7 = full refund if cancelled &gt;7 days out</p>
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="partial_refund_hours" className={labelClass}>
-              Partial refund cutoff (hours)
-            </label>
-            <input
-              id="partial_refund_hours"
-              type="number"
-              min="0"
-              step="1"
-              value={cancellationPolicy.partial_refund_hours}
-              onChange={(e) =>
-                setCancellationPolicy((p) => ({ ...p, partial_refund_hours: Number(e.target.value) }))
-              }
-              className={inputClass}
-            />
-            <p className="text-xs text-on-surface-variant/50">e.g. 72 = partial% if &gt;72 hrs but within full window</p>
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="partial_refund_percent" className={labelClass}>
-              Partial refund amount (%)
-            </label>
-            <input
-              id="partial_refund_percent"
-              type="number"
-              min="0"
-              max="100"
-              step="1"
-              value={cancellationPolicy.partial_refund_percent}
-              onChange={(e) =>
-                setCancellationPolicy((p) => ({ ...p, partial_refund_percent: Number(e.target.value) }))
-              }
-              className={inputClass}
-            />
-            <p className="text-xs text-on-surface-variant/50">e.g. 50 = 50% refund in the middle tier</p>
-          </div>
-        </div>
-      </section>
-
-      <div className="flex items-center gap-4">
-        <button
-          type="submit"
-          disabled={saving}
-          className="bg-gradient-to-r from-primary to-secondary text-background rounded-2xl px-6 py-2.5 font-semibold shadow-[0_0_10px_rgba(45,212,191,0.30)] disabled:opacity-50 transition-opacity"
-        >
-          {saving ? 'Saving…' : 'Save Settings'}
-        </button>
-        {saved && (
-          <span className="text-sm text-secondary">Settings saved.</span>
+            {([
+              { key: 'system_prompt' as const, label: 'System Prompt', rows: 5, placeholder: DEFAULT_SYSTEM_PROMPT },
+              { key: 'property_description' as const, label: 'Property Description Prompt', rows: 4, placeholder: DEFAULT_USER_PROMPTS.property_description },
+              { key: 'room_description' as const, label: 'Room Description Prompt', rows: 4, placeholder: DEFAULT_USER_PROMPTS.room_description },
+              { key: 'short_description' as const, label: 'Short Description Prompt', rows: 4, placeholder: DEFAULT_USER_PROMPTS.short_description },
+              { key: 'about_us' as const, label: 'About Us Prompt', rows: 4, placeholder: DEFAULT_USER_PROMPTS.about_us },
+            ] as const).map(({ key, label, rows, placeholder }) => (
+              <div key={key}>
+                <label className={labelClass}>{label}</label>
+                <textarea
+                  rows={rows}
+                  value={aiPrompts[key] ?? ''}
+                  onChange={(e) => setAiPrompts((prev) => ({ ...prev, [key]: e.target.value }))}
+                  placeholder={placeholder}
+                  className={`${inputClass} resize-y font-mono text-xs`}
+                />
+              </div>
+            ))}
+          </section>
         )}
-        {error && (
-          <span className="text-sm text-error">{error}</span>
-        )}
-      </div>
-    </form>
 
-      <div className="mt-8 space-y-6 max-w-2xl">
-        <div>
-          <h2 className="font-display text-lg font-semibold text-on-surface mb-1">
-            Payment Methods
-          </h2>
-          <p className="text-on-surface-variant text-sm mb-6">
-            Configure which payment methods guests can use and the processing fee for each.
-          </p>
+        {/* Save button — always visible */}
+        <div className="flex items-center gap-4">
+          <button
+            type="submit"
+            disabled={saving}
+            className="bg-gradient-to-r from-primary to-secondary text-background rounded-2xl px-6 py-2.5 font-semibold shadow-[0_0_10px_rgba(45,212,191,0.30)] disabled:opacity-50 transition-opacity"
+          >
+            {saving ? 'Saving…' : 'Save Settings'}
+          </button>
+          {saved && <span className="text-sm text-secondary">Settings saved.</span>}
+          {error && <span className="text-sm text-error">{error}</span>}
         </div>
+      </form>
 
-        <div className="h-px bg-outline-variant" />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {renderMethodSection('Short-term Bookings', 'short_term')}
-          {renderMethodSection('Long-term Bookings', 'long_term')}
+      {/* Payment Methods — only shown on Booking tab */}
+      {tab === 'booking' && (
+        <div className="mt-8 space-y-6 max-w-2xl">
+          <div>
+            <h2 className="font-display text-lg font-semibold text-on-surface mb-1">Payment Methods</h2>
+            <p className="text-on-surface-variant text-sm mb-6">Configure which payment methods guests can use and the processing fee for each.</p>
+          </div>
+          <div className="h-px bg-outline-variant" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {renderMethodSection('Short-term Bookings', 'short_term')}
+            {renderMethodSection('Long-term Bookings', 'long_term')}
+          </div>
         </div>
-      </div>
+      )}
     </>
   )
 }
