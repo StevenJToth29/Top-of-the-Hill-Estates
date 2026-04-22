@@ -47,7 +47,7 @@ export function resolvePrompts(stored: AiPrompts | null): {
 
 export function applyTemplate(template: string, context: string, hint?: string): string {
   return template
-    .replace('{context}', context ?? '')
-    .replace('{hint}', hint ? `Additional instructions: ${hint}` : '')
+    .replace(/\{context\}/g, context ?? '')
+    .replace(/\{hint\}/g, hint ? `Additional instructions: ${hint}` : '')
     .trim()
 }

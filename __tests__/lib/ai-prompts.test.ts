@@ -64,4 +64,9 @@ describe('applyTemplate', () => {
     const result = applyTemplate('  text  ', 'ctx')
     expect(result).toBe('text')
   })
+
+  it('replaces multiple occurrences of {context}', () => {
+    const result = applyTemplate('{context} and {context}', 'foo')
+    expect(result).toBe('foo and foo')
+  })
 })
