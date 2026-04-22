@@ -117,6 +117,7 @@ type ContactContext = { name: string; email: string; phone?: string; message: st
 
 export type EmailContext =
   | { type: 'booking'; bookingId: string }
+  | { type: 'booking_payment_request'; bookingId: string; paymentAmount: string; paymentLink: string }
   | ({ type: 'contact' } & ContactContext)
 
 export async function evaluateAndQueueEmails(
@@ -135,7 +136,7 @@ export async function evaluateAndQueueEmails(
     if (!automations?.length) return
 
     let booking: Booking | null = null
-    if (context.type === 'booking') {
+    if (context.type === 'booking' || context.type === 'booking_payment_request') {
       const { data } = await supabase
         .from('bookings')
         .select('*, room:rooms(*, property:properties(*))')
@@ -162,7 +163,7 @@ export async function evaluateAndQueueEmails(
       const evalCtx = booking ? buildEvalContext(booking) : {}
       if (!evaluateConditions(automation.conditions, evalCtx)) continue
 
-      const variables =
+      let variables =
         booking?.room
           ? buildBookingVariables(
               booking,
@@ -177,6 +178,14 @@ export async function evaluateAndQueueEmails(
               emailSettings as EmailSettings | null,
             )
           : {}
+
+      if (context.type === 'booking_payment_request') {
+        variables = {
+          ...variables,
+          payment_amount: context.paymentAmount,
+          payment_link: context.paymentLink,
+        }
+      }
 
       const adminEmails = (emailSettings as EmailSettings | null)?.admin_recipients ?? []
       const guestEmail =
