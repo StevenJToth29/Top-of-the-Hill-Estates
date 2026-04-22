@@ -228,3 +228,55 @@ export async function notifyGHLBookingConfirmed(booking: Booking): Promise<void>
     propertyState: typedRoom.property?.state ?? '',
   })
 }
+
+/**
+ * Syncs a long-term rental inquiry to GoHighLevel — creates/updates the contact
+ * and triggers GHL_CONTACT_WEBHOOK_URL with a 'long-term-inquiry' tag.
+ */
+export async function syncLongTermInquiryToGHL(data: {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  moveIn: string
+  occupants: number
+  roomSlug: string
+  roomName: string
+  propertyName: string
+  smsConsent: boolean
+  marketingConsent: boolean
+}): Promise<void> {
+  const tags = ['long-term-inquiry']
+  if (data.smsConsent) tags.push('sms-opted-in')
+  if (data.marketingConsent) tags.push('marketing-opted-in')
+
+  const ghlContactId = await createOrUpdateGHLContact({
+    firstName: data.firstName,
+    lastName: data.lastName,
+    email: data.email,
+    phone: data.phone,
+    tags,
+    customFields: {
+      move_in_date: data.moveIn,
+      room_slug: data.roomSlug,
+    },
+  })
+
+  const webhookUrl = process.env.GHL_CONTACT_WEBHOOK_URL ?? ''
+  if (webhookUrl) {
+    await triggerGHLWorkflow(webhookUrl, {
+      contactId: ghlContactId,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      phone: data.phone,
+      moveIn: data.moveIn,
+      occupants: data.occupants,
+      roomSlug: data.roomSlug,
+      roomName: data.roomName,
+      propertyName: data.propertyName,
+      smsConsent: data.smsConsent,
+      marketingConsent: data.marketingConsent,
+    })
+  }
+}
