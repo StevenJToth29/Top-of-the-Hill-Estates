@@ -47,7 +47,7 @@ const baseBooking = {
   total_amount: 600,
   amount_paid: 600,
   amount_due_at_checkin: 0,
-  stripe_payment_intent_id: 'pi_test',
+  stripe_payment_intent_id: 'pi_test' as string | null,
   notes: null,
 }
 
@@ -115,7 +115,7 @@ describe('PATCH /api/admin/bookings/[id]/edit', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    // Restore default: room is available (clearAllMocks wipes mockResolvedValue)
+    // The 409 test sets this to false — restore for other tests
     ;(isRoomAvailableExcluding as jest.Mock).mockResolvedValue(true)
   })
 
@@ -151,6 +151,14 @@ describe('PATCH /api/admin/bookings/[id]/edit', () => {
     expect(body.error).toMatch(/cancelled/)
   })
 
+  it('returns 400 when trying to edit a completed booking', async () => {
+    setupMocks({ ...baseBooking, status: 'completed' })
+    const res = await PATCH(makeRequest({ check_in: '2026-05-01', check_out: '2026-05-07' }), mockParams)
+    expect(res.status).toBe(400)
+    const body = await res.json()
+    expect(body.error).toMatch(/completed/)
+  })
+
   it('returns 409 when new dates conflict with another booking', async () => {
     setupMocks()
     ;(isRoomAvailableExcluding as jest.Mock).mockResolvedValue(false)
@@ -165,6 +173,8 @@ describe('PATCH /api/admin/bookings/[id]/edit', () => {
       mockParams,
     )
     expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.booking).toBeDefined()
     expect(update).toHaveBeenCalledWith(
       expect.objectContaining({ check_in: '2026-05-01', check_out: '2026-05-05' }),
     )
