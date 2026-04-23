@@ -97,6 +97,7 @@ export async function POST(request: NextRequest, { params }: Params) {
           room_id: newRoom.id,
           label: f.label,
           amount: f.amount,
+          calculation_type: f.calculation_type,
           booking_type: f.booking_type,
         }))
       )

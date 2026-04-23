@@ -6,6 +6,7 @@ import { PencilSquareIcon, ArrowPathIcon, ChevronDownIcon, DocumentDuplicateIcon
 import RoomStatusToggle from './RoomStatusToggle'
 import ICalSyncPanel from '@/components/admin/ICalSyncPanel'
 import DuplicateRoomModal from '@/components/admin/DuplicateRoomModal'
+import DeleteRoomButton from '@/components/admin/DeleteRoomButton'
 import type { Room, Property, ICalSource } from '@/types'
 
 type RoomWithIcal = Room & { property: Property; ical_sources: ICalSource[] }
@@ -23,7 +24,10 @@ export default function RoomCardWithIcal({ room, siteUrl }: Props) {
     <div className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl border border-outline-variant/30 overflow-hidden hover:shadow-md transition-shadow">
       <div className="flex items-center gap-4 px-5 py-4">
         {/* Thumbnail */}
-        <div className="w-20 h-16 rounded-xl overflow-hidden shrink-0 bg-surface-container">
+        <Link
+          href={`/admin/rooms/${room.id}/edit`}
+          className="w-20 h-16 rounded-xl overflow-hidden shrink-0 bg-surface-container ring-0 hover:ring-2 hover:ring-secondary/50 transition-all"
+        >
           {room.images?.[0] ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={room.images[0]} alt={room.name} className="w-full h-full object-cover" />
@@ -32,12 +36,15 @@ export default function RoomCardWithIcal({ room, siteUrl }: Props) {
               🛏
             </div>
           )}
-        </div>
+        </Link>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-0.5">
-            <p className="font-semibold text-on-surface truncate">{room.name}</p>
+            <Link
+              href={`/admin/rooms/${room.id}/edit`}
+              className="font-semibold text-on-surface truncate hover:text-secondary transition-colors"
+            >{room.name}</Link>
             <span
               className={`text-xs rounded-full px-2 py-0.5 font-medium shrink-0 ${
                 room.is_active
@@ -54,18 +61,28 @@ export default function RoomCardWithIcal({ room, siteUrl }: Props) {
             </p>
           )}
           <p className="text-sm text-on-surface-variant/60">
-            <span className="font-semibold text-secondary">${room.nightly_rate}</span>
-            <span>/night</span>
-            {room.monthly_rate && (
+            {room.nightly_rate > 0 && (
+              <>
+                <span className="font-semibold text-secondary">${room.nightly_rate}</span>
+                <span>/night</span>
+              </>
+            )}
+            {room.monthly_rate > 0 && (
               <>
                 <span className="mx-1.5">·</span>
                 <span>${room.monthly_rate}/mo</span>
               </>
             )}
-            {(room.bedrooms || room.bathrooms) && (
+            {(room.bedrooms > 0 || room.bathrooms > 0) && (
               <>
                 <span className="mx-1.5">·</span>
                 <span>{room.bedrooms}bd / {room.bathrooms}ba</span>
+              </>
+            )}
+            {room.guest_capacity > 0 && (
+              <>
+                <span className="mx-1.5">·</span>
+                <span>{room.guest_capacity} guest{room.guest_capacity !== 1 ? 's' : ''}</span>
               </>
             )}
           </p>
@@ -91,6 +108,8 @@ export default function RoomCardWithIcal({ room, siteUrl }: Props) {
             <DocumentDuplicateIcon className="w-4 h-4" />
             Duplicate
           </button>
+
+          <DeleteRoomButton roomId={room.id} roomName={room.name} />
 
           <button
             type="button"

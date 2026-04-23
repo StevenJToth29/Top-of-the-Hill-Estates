@@ -45,7 +45,7 @@ export default async function ICalAdminPage() {
               </div>
             ))
           ) : (
-            <p className="text-on-surface-variant text-sm">No active rooms found.</p>
+            <p className="text-on-surface-variant text-sm">No active units found.</p>
           )}
         </div>
       </div>
