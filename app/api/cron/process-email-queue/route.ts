@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { sendEmail } from '@/lib/email'
 import { resolveVariables } from '@/lib/email-variables'
+import { timingSafeCompare } from '@/lib/timing-safe-compare'
 
 async function handler(request: NextRequest) {
-  if (request.headers.get('Authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (!timingSafeCompare(request.headers.get('Authorization') ?? '', `Bearer ${process.env.CRON_SECRET ?? ''}`)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { parseICalUrl } from '@/lib/ical'
 import { format } from 'date-fns'
+import { timingSafeCompare } from '@/lib/timing-safe-compare'
 
 export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
@@ -12,7 +13,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Server misconfiguration' }, { status: 500 })
   }
 
-  if (!authHeader || authHeader !== `Bearer ${cronSecret}`) {
+  if (!authHeader || !timingSafeCompare(authHeader, `Bearer ${cronSecret}`)) {
     return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
