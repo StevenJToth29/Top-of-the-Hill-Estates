@@ -23,7 +23,6 @@ export default function Footer({ logoUrl, logoSize = 52, phone, email, address }
                 height={logoSize}
                 style={{ width: logoSize, height: logoSize }}
                 className="rounded-lg"
-                unoptimized={!!logoUrl}
               />
               <span className="font-display font-bold text-on-surface text-base">
                 Top of the Hill <span className="text-primary">Rooms</span>

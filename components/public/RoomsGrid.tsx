@@ -61,7 +61,7 @@ function InlineRoomCard({
   })()
 
   return (
-    <article className="bg-surface-highest/40 backdrop-blur-xl rounded-2xl overflow-hidden hover:shadow-[0_8px_40px_rgba(45,212,191,0.12)] transition-shadow flex flex-col">
+    <article className="bg-surface-highest/40 backdrop-blur-sm rounded-2xl overflow-hidden hover:shadow-[0_8px_40px_rgba(45,212,191,0.12)] transition-shadow flex flex-col">
       <div className="relative aspect-video">
         {primaryImage ? (
           <Image

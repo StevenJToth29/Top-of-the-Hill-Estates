@@ -34,20 +34,21 @@ export default function AmenitiesGrid({ amenities }: Props) {
 
   return (
     <section className="space-y-4">
-      <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
-        Amenities
-      </p>
-      <div className="flex flex-wrap gap-2">
+      <div>
+        <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">What's included</p>
+        <p className="font-display text-lg font-bold text-on-surface mt-1">Amenities</p>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         {amenities.map((amenity) => {
           const Icon = getAmenityIcon(amenity)
           return (
-            <span
+            <div
               key={amenity}
-              className="flex items-center gap-2 bg-surface-container rounded-full px-4 py-2 text-sm text-on-surface"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-highest/40 border border-outline-variant/20 text-sm font-semibold text-on-surface"
             >
               <Icon className="w-4 h-4 text-secondary flex-shrink-0" />
               {amenity}
-            </span>
+            </div>
           )
         })}
       </div>

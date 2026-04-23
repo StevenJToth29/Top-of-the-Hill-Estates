@@ -25,31 +25,52 @@ export default async function RoomsPage({
   searchParams: SearchParams
 }) {
   const supabase = await createServerSupabaseClient()
-  const { data: allRooms } = await supabase
+
+  let query = supabase
     .from('rooms')
     .select('*, property:properties(*), fees:room_fees(*)')
     .eq('is_active', true)
-    .order('name')
 
-  const rooms = (allRooms ?? []) as RoomWithProperty[]
-
-  let filtered = rooms.filter((room) => {
-    if (searchParams.guests) {
-      const requested = parseInt(searchParams.guests, 10)
-      if (!isNaN(requested) && room.guest_capacity < requested) return false
+  // Push capacity, type, and price filters to the database
+  if (searchParams.guests) {
+    const requested = parseInt(searchParams.guests, 10)
+    if (!isNaN(requested)) {
+      query = query.gte('guest_capacity', requested)
     }
-    if (searchParams.type === 'short_term' && !room.nightly_rate) return false
-    if (searchParams.type === 'long_term' && !room.monthly_rate) return false
+  }
+
+  if (searchParams.type === 'short_term') {
+    query = query.not('nightly_rate', 'is', null)
     if (searchParams.max_price) {
       const maxPrice = parseFloat(searchParams.max_price)
       if (!isNaN(maxPrice)) {
-        if (searchParams.type === 'long_term') {
-          if (room.monthly_rate > 0 && room.monthly_rate > maxPrice) return false
-        } else {
-          if (room.nightly_rate > 0 && room.nightly_rate > maxPrice) return false
-        }
+        query = query.lte('nightly_rate', maxPrice)
       }
     }
+  } else if (searchParams.type === 'long_term') {
+    query = query.not('monthly_rate', 'is', null)
+    if (searchParams.max_price) {
+      const maxPrice = parseFloat(searchParams.max_price)
+      if (!isNaN(maxPrice)) {
+        query = query.lte('monthly_rate', maxPrice)
+      }
+    }
+  } else if (searchParams.max_price) {
+    // No type filter — apply max_price against nightly_rate as a best-effort default
+    const maxPrice = parseFloat(searchParams.max_price)
+    if (!isNaN(maxPrice)) {
+      query = query.lte('nightly_rate', maxPrice)
+    }
+  }
+
+  query = query.order('name')
+
+  const { data: allRooms } = await query
+
+  const rooms = (allRooms ?? []) as RoomWithProperty[]
+
+  // Amenities filter cannot be pushed to Supabase (JS array-contains check)
+  let filtered = rooms.filter((room) => {
     if (searchParams.amenities) {
       const required = searchParams.amenities.split(',').map((a) => a.trim()).filter(Boolean)
       if (required.length > 0 && !required.every((a) => room.amenities?.includes(a))) return false

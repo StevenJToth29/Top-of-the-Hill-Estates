@@ -1,5 +1,6 @@
 export const dynamic = 'force-dynamic'
 
+import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createServerSupabaseClient } from '@/lib/supabase'
 import LongTermInquiryForm from '@/components/public/LongTermInquiryForm'
@@ -15,7 +16,7 @@ export default async function ApplyPage({ searchParams }: Props) {
   const supabase = await createServerSupabaseClient()
   const { data: rawRoom } = await supabase
     .from('rooms')
-    .select('name, slug, property:properties(name)')
+    .select('name, slug, guest_capacity, property:properties(name)')
     .eq('slug', slug)
     .eq('is_active', true)
     .single()
@@ -25,18 +26,28 @@ export default async function ApplyPage({ searchParams }: Props) {
   const room = rawRoom as unknown as {
     name: string
     slug: string
+    guest_capacity: number
     property: { name: string } | null
   }
 
+  const maxOccupants = Math.max(room.guest_capacity ?? 1, 1)
   const propertyName = room.property?.name ?? ''
   const moveIn = searchParams.move_in ?? ''
   const parsedOccupants = parseInt(searchParams.occupants ?? '', 10)
-  const occupants = Number.isFinite(parsedOccupants) && parsedOccupants >= 1 ? parsedOccupants : 1
+  const occupants = Number.isFinite(parsedOccupants) && parsedOccupants >= 1
+    ? Math.min(parsedOccupants, maxOccupants)
+    : 1
 
   return (
     <main className="min-h-screen bg-background">
       <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
         <div className="space-y-1">
+          <Link
+            href={`/rooms/${room.slug}`}
+            className="inline-flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-on-surface transition-colors mb-2"
+          >
+            ← Back to {room.name}
+          </Link>
           {propertyName && (
             <p className="text-xs uppercase tracking-widest text-secondary font-body">
               {propertyName}
@@ -65,6 +76,7 @@ export default async function ApplyPage({ searchParams }: Props) {
             propertyName={propertyName}
             initialMoveIn={moveIn}
             initialOccupants={occupants}
+            maxOccupants={maxOccupants}
           />
         </div>
       </div>

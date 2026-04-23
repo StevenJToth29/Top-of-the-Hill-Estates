@@ -8,57 +8,62 @@ interface Props {
 export default function CancellationPolicyDisplay({ variant = 'short_term', policy }: Props) {
   if (variant === 'long_term') {
     return (
-      <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(45,212,191,0.06)] rounded-2xl p-5 space-y-4">
-        <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
-          Cancellation Policy
-        </p>
-        <div className="space-y-2">
-          <div className="flex items-center justify-between rounded-xl px-4 py-3 bg-error/10">
-            <span className="text-sm text-on-surface-variant">Deposit</span>
-            <span className="text-sm font-semibold text-error">Non-refundable</span>
-          </div>
+      <section className="space-y-4">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">Booking Protection</p>
+          <p className="font-display text-lg font-bold text-on-surface mt-1">Cancellation Policy</p>
         </div>
-      </div>
+        <div className="flex items-center gap-3 rounded-xl px-4 py-3 bg-error/10 border border-error/20">
+          <div className="w-2.5 h-2.5 rounded-full bg-error shrink-0" />
+          <div className="text-sm font-semibold text-error">Deposit is non-refundable</div>
+        </div>
+      </section>
     )
   }
 
   const rows = [
     {
-      condition: `> ${policy.full_refund_days} days before check-in`,
+      condition: `5+ days before check-in`,
       refund: 'Full refund',
-      color: 'text-green-400',
-      bg: 'bg-green-400/10',
+      dot: 'bg-green-400',
+      bar: 'bg-green-400/10 border-green-400/20',
+      text: 'text-green-400',
     },
     {
-      condition: `> ${policy.partial_refund_hours} hrs but ≤ ${policy.full_refund_days} days`,
+      condition: `2–5 days before check-in`,
       refund: `${policy.partial_refund_percent}% refund`,
-      color: 'text-amber-400',
-      bg: 'bg-amber-400/10',
+      dot: 'bg-amber-400',
+      bar: 'bg-amber-400/10 border-amber-400/20',
+      text: 'text-amber-400',
     },
     {
-      condition: `≤ ${policy.partial_refund_hours} hours before check-in`,
+      condition: `Less than 48 hours`,
       refund: 'No refund',
-      color: 'text-error',
-      bg: 'bg-error/10',
+      dot: 'bg-error',
+      bar: 'bg-error/10 border-error/20',
+      text: 'text-error',
     },
   ]
 
   return (
-    <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(45,212,191,0.06)] rounded-2xl p-5 space-y-4">
-      <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
-        Cancellation Policy
-      </p>
+    <section className="space-y-4">
+      <div>
+        <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">Booking Protection</p>
+        <p className="font-display text-lg font-bold text-on-surface mt-1">Cancellation Policy</p>
+      </div>
       <div className="space-y-2">
         {rows.map((row) => (
-          <div
-            key={row.condition}
-            className={`flex items-center justify-between rounded-xl px-4 py-3 ${row.bg}`}
-          >
-            <span className="text-sm text-on-surface-variant">{row.condition}</span>
-            <span className={`text-sm font-semibold ${row.color}`}>{row.refund}</span>
+          <div key={row.condition} className={`flex items-center gap-3 rounded-xl px-4 py-3 border ${row.bar}`}>
+            <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${row.dot}`} />
+            <div className="flex-1 text-sm text-on-surface-variant">
+              <strong className="text-on-surface">{row.condition}:</strong> {row.refund}
+            </div>
           </div>
         ))}
       </div>
-    </div>
+      <p className="text-xs text-on-surface-variant/60">
+        Violations of house rules may result in forfeiture of the security deposit.
+      </p>
+    </section>
   )
 }

@@ -9,6 +9,7 @@ interface Props {
   propertyName: string
   initialMoveIn?: string
   initialOccupants?: number
+  maxOccupants?: number
 }
 
 interface FieldErrors {
@@ -17,7 +18,6 @@ interface FieldErrors {
   email?: string
   phone?: string
   move_in?: string
-  occupants?: string
 }
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -28,7 +28,6 @@ function validate(fields: {
   email: string
   phone: string
   move_in: string
-  occupants: string
 }): FieldErrors {
   const errors: FieldErrors = {}
   if (!fields.first_name.trim()) errors.first_name = 'First name is required.'
@@ -39,8 +38,6 @@ function validate(fields: {
   if (!fields.phone.trim()) errors.phone = 'Phone number is required.'
   else if (digits.length < 10) errors.phone = 'Please enter a valid phone number (at least 10 digits).'
   if (!fields.move_in) errors.move_in = 'Move-in date is required.'
-  if (!fields.occupants || Number(fields.occupants) < 1)
-    errors.occupants = 'Number of occupants is required.'
   return errors
 }
 
@@ -50,6 +47,7 @@ export default function LongTermInquiryForm({
   propertyName,
   initialMoveIn = '',
   initialOccupants = 1,
+  maxOccupants = 1,
 }: Props) {
   const router = useRouter()
   const [fields, setFields] = useState({
@@ -58,8 +56,8 @@ export default function LongTermInquiryForm({
     email: '',
     phone: '',
     move_in: initialMoveIn,
-    occupants: String(initialOccupants),
   })
+  const [occupants, setOccupants] = useState(Math.min(initialOccupants, maxOccupants))
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [smsConsent, setSmsConsent] = useState(false)
   const [marketingConsent, setMarketingConsent] = useState(false)
@@ -92,7 +90,7 @@ export default function LongTermInquiryForm({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...fields,
-          occupants: Number(fields.occupants),
+          occupants,
           room_slug: roomSlug,
           room_name: roomName,
           property_name: propertyName,
@@ -199,7 +197,7 @@ export default function LongTermInquiryForm({
           )}
         </div>
 
-        <div>
+        <div className="sm:col-span-2">
           <label className="block text-on-surface-variant text-sm mb-1" htmlFor="move_in">
             Desired Move-in Date <span className="text-error">*</span>
           </label>
@@ -215,25 +213,32 @@ export default function LongTermInquiryForm({
             <p className="text-error text-xs mt-1">{fieldErrors.move_in}</p>
           )}
         </div>
-
-        <div>
-          <label className="block text-on-surface-variant text-sm mb-1" htmlFor="occupants">
-            Number of Occupants <span className="text-error">*</span>
-          </label>
-          <input
-            id="occupants"
-            type="number"
-            min={1}
-            value={fields.occupants}
-            onChange={(e) => updateField('occupants', e.target.value)}
-            className={inputClass('occupants')}
-            placeholder="1"
-          />
-          {fieldErrors.occupants && (
-            <p className="text-error text-xs mt-1">{fieldErrors.occupants}</p>
-          )}
-        </div>
       </div>
+
+      {maxOccupants > 1 && (
+        <div>
+          <p className="text-on-surface-variant text-sm mb-2">
+            Number of Occupants <span className="text-error">*</span>
+          </p>
+          <div className="flex gap-2 flex-wrap">
+            {Array.from({ length: maxOccupants }, (_, i) => i + 1).map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setOccupants(n)}
+                className={[
+                  'px-4 py-2 rounded-xl text-sm font-medium transition-colors',
+                  occupants === n
+                    ? 'bg-secondary text-background'
+                    : 'bg-surface-highest/40 text-on-surface-variant hover:text-on-surface hover:bg-surface-highest/60',
+                ].join(' ')}
+              >
+                {n} {n === 1 ? 'Occupant' : 'Occupants'}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="space-y-3">
         <label className="flex items-start gap-3 bg-surface-highest/40 backdrop-blur-xl rounded-xl p-4 cursor-pointer">
