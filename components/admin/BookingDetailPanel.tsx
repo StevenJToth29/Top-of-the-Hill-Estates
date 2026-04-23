@@ -230,7 +230,7 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
 
           {/* Stay Details */}
           <SectionLabel>Stay Details</SectionLabel>
-          {room?.name && <Row label="Room" val={room.name} />}
+          {room?.name && <Row label="Unit" val={room.name} />}
           {property?.name && <Row label="Property" val={property.name} />}
           <Row
             label="Check-in"

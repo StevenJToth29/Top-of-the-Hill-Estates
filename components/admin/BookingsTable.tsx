@@ -41,7 +41,7 @@ const filterInputClass =
 
 const COLUMNS: { label: string; key: SortKey }[] = [
   { label: 'Guest',    key: 'guest' },
-  { label: 'Room',     key: 'room' },
+  { label: 'Unit',     key: 'room' },
   { label: 'Property', key: 'property' },
   { label: 'Check-in', key: 'check_in' },
   { label: 'Check-out',key: 'check_out' },

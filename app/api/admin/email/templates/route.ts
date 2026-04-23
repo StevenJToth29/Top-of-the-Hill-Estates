@@ -31,10 +31,16 @@ export async function POST(request: NextRequest) {
   if (!body.name || !body.subject || !body.body) {
     return NextResponse.json({ error: 'name, subject, and body are required' }, { status: 400 })
   }
+  const fields: Record<string, unknown> = {}
+  if (body.name !== undefined) fields.name = body.name
+  if (body.subject !== undefined) fields.subject = body.subject
+  if (body.body !== undefined) fields.body = body.body
+  if (body.design !== undefined) fields.design = body.design
+  if (body.is_active !== undefined) fields.is_active = body.is_active
   const supabase = createServiceRoleClient()
   const { data, error } = await supabase
     .from('email_templates')
-    .insert(body)
+    .insert(fields)
     .select()
     .single()
   if (error) {

@@ -509,7 +509,7 @@ export default function PropertyForm({
               <ImageUploader
                 images={images}
                 bucket="property-images"
-                uploadFolder={propertyId ?? slugify(name) || 'new'}
+                uploadFolder={(propertyId ?? slugify(name)) || 'new'}
                 onChange={setImages}
               />
             </SCard>

@@ -34,11 +34,18 @@ export async function PUT(
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   const body = (await request.json()) as Record<string, unknown>
-  delete body.is_pre_planned
+  const fields: Record<string, unknown> = {}
+  if (body.name !== undefined) fields.name = body.name
+  if (body.trigger_event !== undefined) fields.trigger_event = body.trigger_event
+  if (body.is_active !== undefined) fields.is_active = body.is_active
+  if (body.delay_minutes !== undefined) fields.delay_minutes = body.delay_minutes
+  if (body.conditions !== undefined) fields.conditions = body.conditions
+  if (body.template_id !== undefined) fields.template_id = body.template_id
+  if (body.recipient_type !== undefined) fields.recipient_type = body.recipient_type
   const supabase = createServiceRoleClient()
   const { data, error } = await supabase
     .from('email_automations')
-    .update(body)
+    .update(fields)
     .eq('id', params.id)
     .select()
     .single()

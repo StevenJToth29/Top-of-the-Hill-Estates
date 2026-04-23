@@ -124,7 +124,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
               <tr>
                 {/* Room column header */}
                 <th className="sticky left-0 top-0 z-30 bg-surface-container/95 backdrop-blur-sm px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-on-surface-variant border-b border-r border-outline-variant/60 w-[160px] min-w-[160px]">
-                  Room
+                  Unit
                 </th>
 
                 {days.map((day) => {
@@ -244,7 +244,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                     colSpan={days.length + 1}
                     className="py-16 text-center text-on-surface-variant text-sm"
                   >
-                    No active rooms found.
+                    No active units found.
                   </td>
                 </tr>
               )}

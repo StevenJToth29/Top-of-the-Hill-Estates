@@ -47,7 +47,7 @@ function sortBookings(bookings: BookingWithRoom[], key: SortKey, dir: SortDir) {
 
 const COLUMNS: { label: string; key: SortKey }[] = [
   { label: 'Guest', key: 'guest' },
-  { label: 'Room', key: 'room' },
+  { label: 'Unit', key: 'room' },
   { label: 'Check-in', key: 'check_in' },
   { label: 'Check-out', key: 'check_out' },
   { label: 'Type', key: 'booking_type' },

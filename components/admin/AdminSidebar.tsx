@@ -28,7 +28,7 @@ import { useState } from 'react'
 export const NAV_ITEMS = [
   { label: 'Dashboard', href: '/admin', icon: ChartBarIcon },
   { label: 'Properties', href: '/admin/properties', icon: BuildingOfficeIcon },
-  { label: 'Rooms', href: '/admin/rooms', icon: BedIcon },
+  { label: 'Units', href: '/admin/rooms', icon: BedIcon },
   { label: 'Bookings', href: '/admin/bookings', icon: CalendarIcon },
   { label: 'Calendar', href: '/admin/calendar', icon: CalendarDaysIcon },
   { label: 'Payout', href: '/admin/payout-accounts', icon: BanknotesIcon },
@@ -90,7 +90,7 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
       <div className="px-6 py-5 flex items-center gap-3">
         <Image
           src={logoUrl ?? '/logo.png'}
-          alt="Top of the Hill Rooms"
+          alt="Top of the Hill Estates"
           width={logoSize}
           height={logoSize}
           style={{ width: logoSize, height: logoSize }}
@@ -136,7 +136,7 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
           <div className="py-5 px-3 flex flex-col items-center gap-3">
             <Image
               src={logoUrl ?? '/logo.png'}
-              alt="Top of the Hill Rooms"
+              alt="Top of the Hill Estates"
               width={collapsed ? 32 : logoSize}
               height={collapsed ? 32 : logoSize}
               style={{ width: collapsed ? 32 : logoSize, height: collapsed ? 32 : logoSize }}

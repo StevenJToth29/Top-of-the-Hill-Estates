@@ -700,7 +700,7 @@ export default function BookingsClient({
                   />
                 </th>
                 <SortTH label="Guest" sortKey="guest" activeKey={sortKey} sortDir={sortDir} onSort={handleSort} />
-                <SortTH label="Room" sortKey="room" activeKey={sortKey} sortDir={sortDir} onSort={handleSort} />
+                <SortTH label="Unit" sortKey="room" activeKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortTH label="Check-in" sortKey="check_in" activeKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortTH label="Check-out" sortKey="check_out" activeKey={sortKey} sortDir={sortDir} onSort={handleSort} />
                 <SortTH label="Type" sortKey="booking_type" activeKey={sortKey} sortDir={sortDir} onSort={handleSort} />

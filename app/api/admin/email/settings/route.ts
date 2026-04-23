@@ -27,6 +27,11 @@ export async function PUT(request: NextRequest) {
   }
 
   const body = (await request.json()) as Record<string, unknown>
+  const fields: Record<string, unknown> = {}
+  if (body.from_name !== undefined) fields.from_name = body.from_name
+  if (body.from_email !== undefined) fields.from_email = body.from_email
+  if (body.admin_recipients !== undefined) fields.admin_recipients = body.admin_recipients
+  if (body.review_url !== undefined) fields.review_url = body.review_url
   const supabase = createServiceRoleClient()
 
   const { data: existing } = await supabase
@@ -37,13 +42,13 @@ export async function PUT(request: NextRequest) {
   const { data, error } = existing
     ? await supabase
         .from('email_settings')
-        .update(body)
+        .update(fields)
         .eq('id', (existing as { id: string }).id)
         .select()
         .single()
     : await supabase
         .from('email_settings')
-        .insert(body)
+        .insert(fields)
         .select()
         .single()
 

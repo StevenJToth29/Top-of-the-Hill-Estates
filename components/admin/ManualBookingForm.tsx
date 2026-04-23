@@ -116,10 +116,10 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
     <form onSubmit={handleSubmit} className="space-y-5">
       <div className="space-y-1">
         <label className="text-xs text-on-surface-variant">
-          Room <span className="text-error">*</span>
+          Unit <span className="text-error">*</span>
         </label>
         {loadingRooms ? (
-          <p className="text-sm text-on-surface-variant">Loading rooms…</p>
+          <p className="text-sm text-on-surface-variant">Loading units…</p>
         ) : (
           <select
             value={roomId}
@@ -127,7 +127,7 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
             required
             className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 outline-none"
           >
-            <option value="">Select a room…</option>
+            <option value="">Select a unit…</option>
             {rooms.map((r) => (
               <option key={r.id} value={r.id}>
                 {r.name} — {formatCurrency(r.nightly_rate)}/night / {formatCurrency(r.monthly_rate)}/mo

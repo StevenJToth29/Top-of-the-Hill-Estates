@@ -142,7 +142,7 @@ export function TaskModal({
         <div>
           <label className="block text-xs font-medium text-slate-600 mb-2">Scope</label>
           <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
-            {[{ v: 'property', label: 'Property-level' }, { v: 'room', label: 'Room-specific' }].map(({ v, label }) => (
+            {[{ v: 'property', label: 'Property-level' }, { v: 'room', label: 'Unit-specific' }].map(({ v, label }) => (
               <button key={v} type="button" onClick={() => setScope(v as 'property' | 'room')}
                 className={`flex-1 py-2 font-medium transition-colors ${
                   scope === v ? 'text-white' : 'text-slate-500 hover:bg-slate-50'
@@ -166,7 +166,7 @@ export function TaskModal({
           {scope === 'room' && (
             <select value={roomId} onChange={(e) => setRoomId(e.target.value)}
               className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
-              <option value="">Select a room…</option>
+              <option value="">Select a unit…</option>
               {rooms.map((r) => (
                 <option key={r.id} value={r.id}>{r.property?.name ? `${r.property.name} — ${r.name}` : r.name}</option>
               ))}

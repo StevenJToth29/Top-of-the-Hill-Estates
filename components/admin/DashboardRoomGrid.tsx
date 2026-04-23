@@ -147,7 +147,7 @@ export default function DashboardRoomGrid({ rooms }: Props) {
         className="mb-3 font-display text-[15px] font-[800]"
         style={{ color: '#0F172A' }}
       >
-        Room Status
+        Unit Status
       </p>
       <div
         className="grid gap-3"
