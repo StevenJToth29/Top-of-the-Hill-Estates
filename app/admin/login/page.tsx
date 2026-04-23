@@ -24,7 +24,8 @@ function LoginForm() {
       setError(error.message)
       setLoading(false)
     } else {
-      const redirectTo = searchParams.get('redirectTo') ?? '/admin'
+      const raw = searchParams.get('redirectTo') ?? '/admin'
+      const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/admin'
       window.location.href = redirectTo
     }
   }
