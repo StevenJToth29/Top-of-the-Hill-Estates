@@ -279,6 +279,7 @@ export async function GET(request: Request) {
       .select('*, room:rooms(*, property:properties(*))')
       .eq('id', booking_id)
       .ilike('guest_email', guest_email)
+      .in('status', ['confirmed', 'pending'])
       .single()
 
     if (error || !booking) {

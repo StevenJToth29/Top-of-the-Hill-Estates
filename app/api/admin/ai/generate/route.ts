@@ -24,8 +24,30 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  const body = await request.json()
+  let body: { fieldType?: string; context?: string; hint?: string; imageUrl?: string }
+  try {
+    body = await request.json()
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+
   const { fieldType, context, hint, imageUrl } = body
+
+  if (typeof context === 'string' && context.length > 4000) {
+    return new Response(JSON.stringify({ error: 'context too long' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
+  if (typeof hint === 'string' && hint.length > 500) {
+    return new Response(JSON.stringify({ error: 'hint too long' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  }
 
   const supabase = createServiceRoleClient()
   const { data: settingsData } = await supabase

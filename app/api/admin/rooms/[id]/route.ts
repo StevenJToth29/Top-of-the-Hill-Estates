@@ -18,6 +18,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return NextResponse.json({ error: 'Invalid body' }, { status: 400 })
   }
 
+  // Narrow allowlist: this route is used only by SmartPricingModal for price range updates.
+  // Full room edits go through the room form at /admin/rooms/[id]/edit.
   const allowed = ['price_min', 'price_max']
   const updates: Record<string, unknown> = {}
   for (const key of allowed) {
