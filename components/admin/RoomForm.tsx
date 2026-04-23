@@ -144,7 +144,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
 
   const isNew = !room
   const selectedProperty = properties.find((p) => p.id === propertyId)
-  const propertyImages = selectedProperty?.images ?? []
+  const propertyImages = (selectedProperty?.images ?? []).map((img) => img.url)
   const [propertyAmenities, setPropertyAmenities] = useState<string[]>(
     selectedProperty?.amenities ?? []
   )

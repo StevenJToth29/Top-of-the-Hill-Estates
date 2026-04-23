@@ -72,7 +72,7 @@ describe('PATCH /api/admin/properties — partial update', () => {
         amenities: ['Pool'],
         house_rules: 'No smoking',
         use_global_house_rules: false,
-        images: [],
+        images: [{ url: 'https://example.com/photo.jpg', description: 'Living room' }],
         stripe_account_id: null,
         platform_fee_percent: 0,
         cancellation_policy: null,
@@ -87,8 +87,33 @@ describe('PATCH /api/admin/properties — partial update', () => {
     expect(updateArg.amenities).toEqual(['Pool'])
     expect(updateArg.bedrooms).toBe(4)
     expect(updateArg).not.toHaveProperty('id')
+    // images are now PropertyImage[] objects, not plain strings
+    expect(updateArg.images).toEqual([{ url: 'https://example.com/photo.jpg', description: 'Living room' }])
     // 16 payload fields — id is excluded from the update object
     expect(Object.keys(updateArg)).toHaveLength(16)
+  })
+
+  it('accepts PropertyImage[] with descriptions in the images field', async () => {
+    mockAuthed()
+    const { propertiesUpdate } = mockDb()
+
+    const images = [
+      { url: 'https://example.com/a.jpg', description: 'Kitchen' },
+      { url: 'https://example.com/b.jpg' },
+    ]
+
+    const req = new Request('http://localhost/api/admin/properties', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'prop-1', images }),
+    })
+
+    await PATCH(req)
+
+    const updateArg = propertiesUpdate.mock.calls[0][0]
+    expect(updateArg.images).toEqual(images)
+    expect(updateArg.images[0].description).toBe('Kitchen')
+    expect(updateArg.images[1]).not.toHaveProperty('description')
   })
 
   it('preserves falsy values — false, 0, null — when explicitly sent', async () => {
