@@ -27,6 +27,18 @@ export async function POST(request: NextRequest) {
   const body = await request.json()
   const { fieldType, context, hint, imageUrl } = body
 
+  const SUPABASE_STORAGE_PREFIX =
+    'https://ajfmqjpczpghxwhazfgk.supabase.co/storage/v1/object/public/'
+
+  if (imageUrl !== undefined && imageUrl !== null) {
+    if (typeof imageUrl !== 'string' || !imageUrl.startsWith(SUPABASE_STORAGE_PREFIX)) {
+      return new Response(
+        JSON.stringify({ error: 'imageUrl must be a Supabase storage URL.' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      )
+    }
+  }
+
   const supabase = createServiceRoleClient()
   const { data: settingsData } = await supabase
     .from('site_settings')
