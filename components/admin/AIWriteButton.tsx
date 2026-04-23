@@ -6,10 +6,12 @@ import { SparklesIcon, XMarkIcon, ArrowPathIcon, CheckIcon } from '@heroicons/re
 interface AIWriteButtonProps {
   fieldType: 'short_description' | 'room_description' | 'property_description' | 'about_us'
   context: string
+  imageUrl?: string | null
+  amenitiesCount?: number
   onAccept: (text: string) => void
 }
 
-export default function AIWriteButton({ fieldType, context, onAccept }: AIWriteButtonProps) {
+export default function AIWriteButton({ fieldType, context, imageUrl, amenitiesCount, onAccept }: AIWriteButtonProps) {
   const [open, setOpen] = useState(false)
   const [hint, setHint] = useState('')
   const [result, setResult] = useState('')
@@ -28,7 +30,7 @@ export default function AIWriteButton({ fieldType, context, onAccept }: AIWriteB
       const res = await fetch('/api/admin/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fieldType, context, hint }),
+        body: JSON.stringify({ fieldType, context, hint, imageUrl: imageUrl ?? null }),
         signal: abortRef.current.signal,
       })
 
@@ -97,6 +99,31 @@ export default function AIWriteButton({ fieldType, context, onAccept }: AIWriteB
               <XMarkIcon className="w-4 h-4" />
             </button>
           </div>
+
+          {amenitiesCount !== undefined && (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border ${
+                  imageUrl
+                    ? 'bg-secondary/10 text-secondary border-secondary/20'
+                    : 'bg-amber-50 text-amber-600 border-amber-200'
+                }`}
+              >
+                {imageUrl ? <CheckIcon className="w-3 h-3" /> : '⚠'}
+                {imageUrl ? 'Photo loaded' : 'No photo — add one for richer output'}
+              </span>
+              <span
+                className={`flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border ${
+                  amenitiesCount > 0
+                    ? 'bg-secondary/10 text-secondary border-secondary/20'
+                    : 'bg-amber-50 text-amber-600 border-amber-200'
+                }`}
+              >
+                {amenitiesCount > 0 ? <CheckIcon className="w-3 h-3" /> : '⚠'}
+                {amenitiesCount > 0 ? `${amenitiesCount} amenit${amenitiesCount === 1 ? 'y' : 'ies'}` : 'No amenities — add some for richer output'}
+              </span>
+            </div>
+          )}
 
           <input
             type="text"

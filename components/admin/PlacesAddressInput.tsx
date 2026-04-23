@@ -15,6 +15,7 @@ export interface PlacesAddressInputProps {
   onChange: (value: string) => void
   onCityChange: (city: string) => void
   onStateChange: (state: string) => void
+  onZipChange?: (zip: string) => void
   className?: string
   placeholder?: string
   required?: boolean
@@ -30,6 +31,7 @@ export interface ParsedAddress {
   address?: string
   city?: string
   state?: string
+  zip?: string
 }
 
 export function parseAddressComponents(components: AddressComponent[]): ParsedAddress {
@@ -42,11 +44,13 @@ export function parseAddressComponents(components: AddressComponent[]): ParsedAd
   const route = get('route', 'long_name')
   const locality = get('locality', 'long_name') ?? get('sublocality', 'long_name')
   const adminArea = get('administrative_area_level_1', 'short_name')
+  const postalCode = get('postal_code', 'long_name')
 
   const result: ParsedAddress = {}
   if (route) result.address = streetNumber ? `${streetNumber} ${route}` : route
   if (locality) result.city = locality
   if (adminArea) result.state = adminArea
+  if (postalCode) result.zip = postalCode
 
   return result
 }
@@ -56,6 +60,7 @@ export default function PlacesAddressInput({
   onChange,
   onCityChange,
   onStateChange,
+  onZipChange,
   className,
   placeholder,
   required,
@@ -66,10 +71,12 @@ export default function PlacesAddressInput({
   const onChangeRef = useRef(onChange)
   const onCityChangeRef = useRef(onCityChange)
   const onStateChangeRef = useRef(onStateChange)
+  const onZipChangeRef = useRef(onZipChange)
   // Mutate during render — safe for refs, keeps Autocomplete initialisation stable
   onChangeRef.current = onChange
   onCityChangeRef.current = onCityChange
   onStateChangeRef.current = onStateChange
+  onZipChangeRef.current = onZipChange
 
   useEffect(() => {
     if (!inputRef.current) return
@@ -95,6 +102,7 @@ export default function PlacesAddressInput({
           if (parsed.address !== undefined) onChangeRef.current(parsed.address)
           if (parsed.city !== undefined) onCityChangeRef.current(parsed.city)
           if (parsed.state !== undefined) onStateChangeRef.current(parsed.state)
+          if (parsed.zip !== undefined) onZipChangeRef.current?.(parsed.zip)
         })
       })
       .catch((err: unknown) => {
