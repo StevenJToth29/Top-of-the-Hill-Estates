@@ -1,4 +1,5 @@
 import { createServiceRoleClient } from '@/lib/supabase'
+import { OPEN_ENDED_DATE } from '@/lib/format'
 import type {
   Booking,
   Room,
@@ -22,8 +23,8 @@ export function evaluateConditions(
     const val = context[rule.field]
     const cmp = rule.value
     switch (rule.op) {
-      case 'eq':  return val == cmp
-      case 'neq': return val != cmp
+      case 'eq':  return String(val) === String(cmp)
+      case 'neq': return String(val) !== String(cmp)
       case 'gt':  return Number(val) > Number(cmp)
       case 'gte': return Number(val) >= Number(cmp)
       case 'lt':  return Number(val) < Number(cmp)
@@ -281,6 +282,8 @@ export async function seedReminderEmails(bookingId: string): Promise<void> {
     ])
 
     const booking = bookingData as Booking & { room?: Room & { property?: Property } }
+    // Skip checkout-based reminders for open-ended bookings — no meaningful checkout date
+    const isOpenEnded = booking.check_out === OPEN_ENDED_DATE
     const variables = booking.room
       ? buildBookingVariables(
           booking,
@@ -303,6 +306,10 @@ export async function seedReminderEmails(bookingId: string): Promise<void> {
 
       const baseDate =
         automation.trigger_event === 'checkin_reminder' ? checkInBase : checkOutBase
+
+      // Skip checkout-based reminders for open-ended bookings
+      if (isOpenEnded && automation.trigger_event !== 'checkin_reminder') continue
+
       const sendAt = new Date(baseDate.getTime() + automation.delay_minutes * 60 * 1000)
 
       if (sendAt <= now) continue

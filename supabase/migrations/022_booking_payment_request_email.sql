@@ -12,7 +12,7 @@ SELECT
   'Payment Request — Additional Amount Due',
   'Payment Request — Additional Amount Due for Your Booking',
   '<p>Hi {{guest_first_name}},</p>
-<p>Your booking at {{unit_name}} ({{property_name}}) has been updated and an additional payment of <strong>{{payment_amount}}</strong> is now due.</p>
+<p>Your booking at {{room_name}} ({{property_name}}) has been updated and an additional payment of <strong>{{payment_amount}}</strong> is now due.</p>
 <p><a href="{{payment_link}}" style="background:#2DD4BF;color:#0F172A;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block;margin:16px 0">Pay {{payment_amount}} Now</a></p>
 <p>If you have any questions, please contact us.</p>',
   NULL,
