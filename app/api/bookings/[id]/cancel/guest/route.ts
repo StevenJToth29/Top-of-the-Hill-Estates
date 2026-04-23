@@ -68,7 +68,7 @@ export async function POST(
     const now = new Date()
     const refund = calculateRefund(booking as Booking, now, policy)
 
-    const { error: updateError } = await supabase
+    const { data: updated, error: updateError } = await supabase
       .from('bookings')
       .update({
         status: 'cancelled',
@@ -77,10 +77,18 @@ export async function POST(
         refund_amount: refund.refund_amount,
       })
       .eq('id', params.id)
+      .in('status', ['confirmed', 'pending'])
+      .select()
+      .single()
 
     if (updateError) {
       console.error('Failed to cancel booking:', updateError)
       return NextResponse.json({ error: 'Failed to cancel booking' }, { status: 500 })
+    }
+
+    if (!updated) {
+      // Another concurrent request already cancelled this booking — treat as success
+      return NextResponse.json({ success: true, refund_amount: 0 })
     }
 
     if (booking.stripe_payment_intent_id) {
