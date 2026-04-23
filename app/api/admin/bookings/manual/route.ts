@@ -15,6 +15,10 @@ function computeNightlySubtotal(
   const start = new Date(Date.UTC(ciY, ciM - 1, ciD))
   const end = new Date(Date.UTC(coY, coM - 1, coD))
   let total = 0
+  const MAX_NIGHTS = 365
+  if ((end.getTime() - start.getTime()) / 86400000 > MAX_NIGHTS) {
+    return baseRate * MAX_NIGHTS
+  }
   const cur = new Date(start)
   while (cur < end) {
     const dateStr = cur.toISOString().slice(0, 10)
@@ -52,6 +56,11 @@ export async function POST(request: Request) {
     if (!body[field]) {
       return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 })
     }
+  }
+
+  // Validate booking_type before using it
+  if (body.booking_type !== 'short_term' && body.booking_type !== 'long_term') {
+    return NextResponse.json({ error: 'Invalid booking_type' }, { status: 400 })
   }
 
   // Compute amounts server-side

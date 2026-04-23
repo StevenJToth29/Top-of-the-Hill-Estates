@@ -17,6 +17,10 @@ function computeNightlySubtotal(
   const start = new Date(Date.UTC(ciY, ciM - 1, ciD))
   const end = new Date(Date.UTC(coY, coM - 1, coD))
   let total = 0
+  const MAX_NIGHTS = 365
+  if ((end.getTime() - start.getTime()) / 86400000 > MAX_NIGHTS) {
+    return baseRate * MAX_NIGHTS
+  }
   const cur = new Date(start)
   while (cur < end) {
     total += overrideMap[cur.toISOString().slice(0, 10)] ?? baseRate
