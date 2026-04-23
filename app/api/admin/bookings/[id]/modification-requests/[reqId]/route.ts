@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
+import { isRoomAvailableExcluding } from '@/lib/availability'
 
 export async function PATCH(
   request: NextRequest,
@@ -51,9 +52,36 @@ export async function PATCH(
     if (action === 'approve') {
       const { data: currentBooking } = await supabase
         .from('bookings')
-        .select('total_amount')
+        .select('total_amount, room_id')
         .eq('id', params.id)
         .single()
+
+      if (!currentBooking) {
+        // Roll back the request status so admin can retry
+        await supabase
+          .from('booking_modification_requests')
+          .update({ status: 'pending', admin_note: null })
+          .eq('id', params.reqId)
+        return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
+      }
+
+      // Re-check availability — room may have been booked since the request was made
+      const available = await isRoomAvailableExcluding(
+        currentBooking.room_id,
+        modRequest.requested_check_in,
+        modRequest.requested_check_out,
+        params.id,
+      )
+      if (!available) {
+        await supabase
+          .from('booking_modification_requests')
+          .update({ status: 'pending', admin_note: null })
+          .eq('id', params.reqId)
+        return NextResponse.json(
+          { error: 'Room is no longer available for the requested dates' },
+          { status: 409 },
+        )
+      }
 
       const { error: bookingUpdateError } = await supabase
         .from('bookings')

@@ -74,9 +74,18 @@ export async function isRoomAvailable(
   const blocked = new Set(await getBlockedDatesForRoom(roomId, checkIn, checkOut))
   if (blocked.size === 0) return true
 
+  const checkOutCapped =
+    checkOut >= OPEN_ENDED_DATE
+      ? (() => {
+          const cap = new Date()
+          cap.setUTCDate(cap.getUTCDate() + 730)
+          return cap.toISOString().split('T')[0]
+        })()
+      : checkOut
+
   return eachDayOfInterval({
     start: parseISO(checkIn),
-    end: addDays(parseISO(checkOut), -1),
+    end: addDays(parseISO(checkOutCapped), -1),
   }).every((day) => !blocked.has(format(day, 'yyyy-MM-dd')))
 }
 
@@ -176,8 +185,17 @@ export async function isRoomAvailableExcluding(
 
   if (blocked.size === 0) return true
 
+  const checkOutCapped =
+    checkOut >= OPEN_ENDED_DATE
+      ? (() => {
+          const cap = new Date()
+          cap.setUTCDate(cap.getUTCDate() + 730)
+          return cap.toISOString().split('T')[0]
+        })()
+      : checkOut
+
   return eachDayOfInterval({
     start: parseISO(checkIn),
-    end: addDays(parseISO(checkOut), -1),
+    end: addDays(parseISO(checkOutCapped), -1),
   }).every((day) => !blocked.has(format(day, 'yyyy-MM-dd')))
 }

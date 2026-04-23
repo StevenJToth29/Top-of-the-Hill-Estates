@@ -60,6 +60,8 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
   const isLongTerm = booking.booking_type === 'long_term'
 
   // Client-side total preview using current room rates (not booking snapshot)
+  const additionalFees = (booking.fees ?? []).reduce((sum, f) => sum + f.amount, 0)
+
   const newTotal = (() => {
     const extraGuests = Math.max(0, guestCount - 1)
     if (isLongTerm) {
@@ -68,7 +70,7 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
         room.security_deposit ?? 0,
         room.extra_guest_fee ?? 0,
         extraGuests,
-      )
+      ) + additionalFees
     }
     if (!checkOut || checkOut === OPEN_ENDED_DATE) return booking.total_amount
     return computeShortTermTotal(
@@ -78,7 +80,7 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
       room.cleaning_fee ?? 0,
       room.extra_guest_fee ?? 0,
       extraGuests,
-    )
+    ) + additionalFees
   })()
 
   const delta = newTotal - booking.amount_paid

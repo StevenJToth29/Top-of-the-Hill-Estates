@@ -24,6 +24,11 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'dates must be a non-empty array of date strings' }, { status: 400 })
   }
 
+  const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
+  if (!(dates as string[]).every((d) => ISO_DATE_RE.test(d))) {
+    return NextResponse.json({ error: 'dates must be in YYYY-MM-DD format' }, { status: 400 })
+  }
+
   const rows = (dates as string[]).map((date) => ({
     room_id,
     date,

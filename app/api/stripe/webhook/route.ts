@@ -85,8 +85,38 @@ export async function POST(request: NextRequest) {
 
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session
-        if (!session.payment_intent) break
         const isPaid = session.payment_status === 'paid'
+
+        // Additional-charge checkout from the booking-edit flow — look up by booking_id in metadata
+        if (session.metadata?.type === 'booking_edit_additional_charge') {
+          const bookingId = session.metadata.booking_id
+          if (bookingId && isPaid && session.amount_total) {
+            const { data: existingBooking } = await supabase
+              .from('bookings')
+              .select('amount_paid')
+              .eq('id', bookingId)
+              .single()
+
+            if (existingBooking) {
+              const additionalPaid = session.amount_total / 100
+              const { error } = await supabase
+                .from('bookings')
+                .update({
+                  amount_paid: existingBooking.amount_paid + additionalPaid,
+                  amount_due_at_checkin: 0,
+                })
+                .eq('id', bookingId)
+
+              if (error) {
+                console.error('Failed to update amount_paid on additional-charge checkout:', error)
+              }
+            }
+          }
+          break
+        }
+
+        // Standard checkout session (original booking payment)
+        if (!session.payment_intent) break
 
         const updatePayload: Record<string, unknown> = { stripe_session_id: session.id }
         if (isPaid) {

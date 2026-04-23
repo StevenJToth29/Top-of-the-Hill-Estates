@@ -1,7 +1,7 @@
 // components/admin/CalendarGrid.tsx
 'use client'
 
-import React, { useRef, useCallback, useMemo } from 'react'
+import React, { useRef, useCallback, useMemo, useEffect } from 'react'
 import { format, isToday, getDay } from 'date-fns'
 import { clsx } from 'clsx'
 import { HomeIcon } from '@heroicons/react/16/solid'
@@ -206,6 +206,17 @@ export function CalendarGrid({
       dragging.current = false
       onSelectionChange(null)
     }
+  }, [onSelectionChange])
+
+  useEffect(() => {
+    const cancel = () => {
+      if (dragging.current) {
+        dragging.current = false
+        onSelectionChange(null)
+      }
+    }
+    window.addEventListener('mouseup', cancel)
+    return () => window.removeEventListener('mouseup', cancel)
   }, [onSelectionChange])
 
   const propertiesWithRooms = useMemo(() => {

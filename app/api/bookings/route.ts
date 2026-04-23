@@ -299,7 +299,8 @@ export async function GET(request: Request) {
         room:rooms(name, slug, property:properties(name, city, state))
       `)
       .eq('id', booking_id)
-      .eq('guest_email', guest_email.toLowerCase())
+      .ilike('guest_email', guest_email)
+      .in('status', ['confirmed', 'pending'])
       .single()
 
     if (error || !booking) {

@@ -79,9 +79,8 @@ export async function POST(
     const cleaningFee: number = room?.cleaning_fee ?? booking.cleaning_fee ?? 0
     const securityDeposit: number = room?.security_deposit ?? booking.security_deposit ?? 0
     const extraGuestFee: number = room?.extra_guest_fee ?? booking.extra_guest_fee ?? 0
-    const guestCapacity: number = room?.guest_capacity ?? 4
 
-    const extraGuests = Math.max(0, (guest_count ?? 1) - guestCapacity)
+    const extraGuests = Math.max(0, (guest_count ?? 1) - 1)
     const extraGuestTotal = extraGuests * extraGuestFee * totalNights
 
     // Fetch any additional booking_fees snapshot

@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
 import { isRoomAvailable } from '@/lib/availability'
 import { OPEN_ENDED_DATE } from '@/lib/format'
-import type { BookingType } from '@/types'
+import { evaluateAndQueueEmails, seedReminderEmails } from '@/lib/email-queue'
+import { notifyGHLBookingConfirmed } from '@/lib/ghl'
+import type { BookingType, Booking } from '@/types'
 
 function computeNightlySubtotal(
   checkIn: string,
@@ -195,6 +197,30 @@ export async function POST(request: Request) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
+
+  const createdBooking = data as Booking
+
+  notifyGHLBookingConfirmed(createdBooking).catch((err) => {
+    console.error('GHL notification error on manual booking:', err)
+  })
+
+  evaluateAndQueueEmails('booking_confirmed', {
+    type: 'booking',
+    bookingId: createdBooking.id,
+  }).catch((err) => {
+    console.error('email queue error on manual booking_confirmed:', err)
+  })
+
+  evaluateAndQueueEmails('admin_new_booking', {
+    type: 'booking',
+    bookingId: createdBooking.id,
+  }).catch((err) => {
+    console.error('email queue error on manual admin_new_booking:', err)
+  })
+
+  seedReminderEmails(createdBooking.id).catch((err) => {
+    console.error('seedReminderEmails error on manual booking:', err)
+  })
 
   return NextResponse.json({ success: true, booking: data }, { status: 201 })
 }

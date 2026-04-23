@@ -9,8 +9,6 @@ import CancelBookingModal from './CancelBookingModal'
 import EditBookingForm from './EditBookingForm'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 
-const todayStr = new Date().toISOString().split('T')[0]
-
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
   confirmed: { label: 'Confirmed', color: '#059669', bg: 'rgba(5,150,105,0.08)',  border: 'rgba(5,150,105,0.2)' },
   pending:   { label: 'Pending',   color: '#D97706', bg: 'rgba(217,119,6,0.08)',  border: 'rgba(217,119,6,0.2)' },
@@ -58,6 +56,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 }
 
 export default function BookingDetailPanel({ booking, modificationRequests = [], cancellationPolicy }: Props) {
+  const todayStr = new Date().toISOString().split('T')[0]
   const [showCancelModal, setShowCancelModal] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)

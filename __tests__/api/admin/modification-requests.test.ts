@@ -5,7 +5,12 @@ jest.mock('@/lib/supabase', () => ({
   createServiceRoleClient: jest.fn(),
 }))
 
+jest.mock('@/lib/availability', () => ({
+  isRoomAvailableExcluding: jest.fn().mockResolvedValue(true),
+}))
+
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
+import { isRoomAvailableExcluding } from '@/lib/availability'
 import { PATCH } from '@/app/api/admin/bookings/[id]/modification-requests/[reqId]/route'
 
 const mockParams = { params: { id: 'booking-1', reqId: 'req-1' } }
@@ -34,7 +39,7 @@ function setupMocks(modRequest = pendingRequest, bookingUpdateError: unknown = n
 
   const bookingSelectChain = {
     eq: jest.fn().mockReturnThis(),
-    single: jest.fn().mockResolvedValue({ data: { total_amount: 400 }, error: null }),
+    single: jest.fn().mockResolvedValue({ data: { total_amount: 400, room_id: 'room-1' }, error: null }),
   }
   const bookingUpdateChain = { eq: jest.fn().mockResolvedValue({ error: bookingUpdateError }) }
   const bookingUpdate = jest.fn().mockReturnValue(bookingUpdateChain)
@@ -66,7 +71,10 @@ function setupMocks(modRequest = pendingRequest, bookingUpdateError: unknown = n
 }
 
 describe('PATCH /api/admin/bookings/[id]/modification-requests/[reqId]', () => {
-  beforeEach(() => jest.clearAllMocks())
+  beforeEach(() => {
+    jest.clearAllMocks()
+    ;(isRoomAvailableExcluding as jest.Mock).mockResolvedValue(true)
+  })
 
   it('returns 401 if not authenticated', async () => {
     ;(createServerSupabaseClient as jest.Mock).mockResolvedValue({
@@ -101,6 +109,13 @@ describe('PATCH /api/admin/bookings/[id]/modification-requests/[reqId]', () => {
     expect(res.status).toBe(200)
     expect(bookingUpdate).not.toHaveBeenCalled()
     expect(reqUpdate).toHaveBeenCalledWith({ status: 'rejected', admin_note: 'Dates not available.' })
+  })
+
+  it('approve: returns 409 if room is no longer available', async () => {
+    setupMocks()
+    ;(isRoomAvailableExcluding as jest.Mock).mockResolvedValue(false)
+    const res = await PATCH(makeRequest({ action: 'approve' }), mockParams as never)
+    expect(res.status).toBe(409)
   })
 
   it('returns 400 if request is not pending', async () => {
