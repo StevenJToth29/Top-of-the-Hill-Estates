@@ -32,7 +32,9 @@ interface DayInfo {
   status: DayStatus
   tooltip: string
   initial?: string
+  guestName?: string
   isOpenEndedTail?: boolean
+  isOpenEndedHead?: boolean
 }
 
 function getDayInfo(
@@ -51,10 +53,14 @@ function getDayInfo(
       if (!isBefore(date, start) && isBefore(date, end)) {
         const isLongTerm = booking.booking_type === 'long_term'
         const isOpenEnded = booking.check_out === OPEN_ENDED_DATE
+        const guestName = `${booking.guest_first_name} ${booking.guest_last_name}`
+        const isHead = isLongTerm && isOpenEnded && (isSameDay(date, start) || date.getDate() === 1)
         return {
           status: isLongTerm ? 'long_term' : 'booking',
-          tooltip: `${booking.guest_first_name} ${booking.guest_last_name} (${booking.check_in} – ${isOpenEnded ? 'open-ended' : booking.check_out}) [${booking.status}]`,
+          tooltip: `${guestName} (${booking.check_in} – ${isOpenEnded ? 'open-ended' : booking.check_out}) [${booking.status}]`,
           initial: (booking.guest_last_name[0] ?? '').toUpperCase(),
+          guestName: isHead ? guestName : undefined,
+          isOpenEndedHead: isHead,
           isOpenEndedTail: isLongTerm && isOpenEnded && isSameDay(date, endOfMonth(date)),
         }
       }
@@ -185,7 +191,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                   {/* Day cells */}
                   {days.map((day) => {
                     const dateStr = format(day, 'yyyy-MM-dd')
-                    const { status, tooltip, initial, isOpenEndedTail } = getDayInfo(dateStr, room.id, bookings, icalBlocks)
+                    const { status, tooltip, initial, guestName, isOpenEndedHead, isOpenEndedTail } = getDayInfo(dateStr, room.id, bookings, icalBlocks)
                     const todayDay = isToday(day)
                     const isFirst = day.getDate() === 1
                     const isSun = isSundayFn(day)
@@ -211,6 +217,7 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                           isSun && !isFirst && 'border-l border-l-outline-variant/40',
                           status === 'booking' && 'bg-secondary/25 hover:bg-secondary/35',
                           status === 'long_term' && 'hover:brightness-95',
+                          status === 'long_term' && isOpenEndedHead && 'overflow-visible',
                           status === 'ical' && 'bg-primary/15 hover:bg-primary/25',
                           status === 'available' && 'hover:bg-surface-high',
                           todayDay && status === 'available' && 'ring-1 ring-inset ring-primary/40',
@@ -221,7 +228,12 @@ export default function RoomsCalendar({ rooms, bookings, icalBlocks }: RoomsCale
                             {initial}
                           </span>
                         )}
-                        {status === 'long_term' && !isOpenEndedTail && initial && (
+                        {status === 'long_term' && isOpenEndedHead && guestName && (
+                          <span className="text-slate-600 text-[9px] font-bold leading-none select-none whitespace-nowrap overflow-visible pl-1">
+                            {guestName}
+                          </span>
+                        )}
+                        {status === 'long_term' && !isOpenEndedHead && !isOpenEndedTail && initial && (
                           <span className="text-slate-500 text-[9px] font-bold leading-none select-none">
                             {initial}
                           </span>
