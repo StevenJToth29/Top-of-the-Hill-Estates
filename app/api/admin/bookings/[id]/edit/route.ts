@@ -83,7 +83,15 @@ export async function PATCH(
     }
 
     {
-      const checkOutForAvailability = checkOut === OPEN_ENDED_DATE ? OPEN_ENDED_DATE : checkOut
+      const CAP_DAYS = 730
+      const checkOutForAvailability =
+        checkOut === OPEN_ENDED_DATE
+          ? (() => {
+              const cap = new Date()
+              cap.setUTCDate(cap.getUTCDate() + CAP_DAYS)
+              return cap.toISOString().split('T')[0]
+            })()
+          : checkOut
       const available = await isRoomAvailableExcluding(b.room_id, checkIn, checkOutForAvailability, b.id)
       if (!available) {
         return NextResponse.json(
@@ -95,7 +103,7 @@ export async function PATCH(
 
     const { data: room, error: roomError } = await supabase
       .from('rooms')
-      .select('nightly_rate, monthly_rate, cleaning_fee, security_deposit, extra_guest_fee')
+      .select('nightly_rate, monthly_rate, cleaning_fee, security_deposit, extra_guest_fee, property:properties(stripe_account_id, platform_fee_percent)')
       .eq('id', b.room_id)
       .single()
 
@@ -144,11 +152,21 @@ export async function PATCH(
     } else {
       const securityDeposit = room.security_deposit ?? 0
       newTotal = room.monthly_rate + securityDeposit + extraGuestFee * extraGuests + additionalFees
-      newTotalNights = checkOut === OPEN_ENDED_DATE ? 0 : b.total_nights
+      if (checkOut === OPEN_ENDED_DATE) {
+        newTotalNights = 0
+      } else {
+        const [ltciY, ltciM, ltciD] = checkIn.split('-').map(Number)
+        const [ltcoY, ltcoM, ltcoD] = checkOut.split('-').map(Number)
+        newTotalNights = Math.round(
+          (Date.UTC(ltcoY, ltcoM - 1, ltcoD) - Date.UTC(ltciY, ltciM - 1, ltciD)) / 86400000,
+        )
+      }
     }
 
-    const delta = newTotal - b.amount_paid
-    const amountDueAtCheckin = Math.max(0, newTotal - b.amount_paid)
+    newTotal += b.processing_fee ?? 0
+
+    const priceDelta = newTotal - b.total_amount   // price change, drives Stripe action
+    const amountDueAtCheckin = Math.max(0, newTotal - b.amount_paid)  // what guest still owes
 
     const { data: updated, error: updateError } = await supabase
       .from('bookings')
@@ -175,17 +193,17 @@ export async function PATCH(
       return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 })
     }
 
-    if (b.stripe_payment_intent_id && Math.abs(delta) >= 0.01) {
-      if (delta < 0) {
+    if (b.stripe_payment_intent_id && Math.abs(priceDelta) >= 0.01) {
+      if (priceDelta < 0) {
         try {
           await stripe.refunds.create({
             payment_intent: b.stripe_payment_intent_id,
-            amount: Math.round(Math.abs(delta) * 100),
+            amount: Math.round(Math.abs(priceDelta) * 100),
             reverse_transfer: true,
           })
           await supabase
             .from('bookings')
-            .update({ amount_paid: b.amount_paid + delta, amount_due_at_checkin: 0 })
+            .update({ amount_paid: Math.max(0, b.amount_paid - Math.abs(priceDelta)), amount_due_at_checkin: 0 })
             .eq('id', b.id)
         } catch (stripeErr) {
           console.error('Stripe refund error on booking edit:', stripeErr)
@@ -198,21 +216,31 @@ export async function PATCH(
               price_data: {
                 currency: 'usd',
                 product_data: { name: `Additional charge — booking ${b.id.slice(0, 8).toUpperCase()}` },
-                unit_amount: Math.round(delta * 100),
+                unit_amount: Math.round(priceDelta * 100),
               },
               quantity: 1,
             }],
             customer_email: guestEmail,
+            ...(((room as any).property?.stripe_account_id)
+              ? {
+                  payment_intent_data: {
+                    application_fee_amount: Math.round(
+                      priceDelta * 100 * (((room as any).property.platform_fee_percent ?? 0) / 100)
+                    ),
+                    transfer_data: { destination: (room as any).property.stripe_account_id },
+                  },
+                }
+              : {}),
             metadata: { booking_id: b.id, type: 'booking_edit_additional_charge' },
-            success_url: `${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}/booking-confirmed`,
-            cancel_url: `${process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'}`,
+            success_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/booking-confirmed`,
+            cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}`,
           })
           const paymentLink = session.url
           if (paymentLink) {
             evaluateAndQueueEmails('booking_payment_request', {
               type: 'booking_payment_request',
               bookingId: b.id,
-              paymentAmount: `$${delta.toFixed(2)}`,
+              paymentAmount: `$${priceDelta.toFixed(2)}`,
               paymentLink,
             }).catch((err) => console.error('email queue error on payment_request:', err))
           } else {
