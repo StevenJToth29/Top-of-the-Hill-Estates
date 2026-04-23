@@ -51,7 +51,7 @@ describe('EmailSettingsForm', () => {
     })
     render(<EmailSettingsForm settings={base} />)
     await userEvent.click(screen.getByRole('button', { name: /save settings/i }))
-    await waitFor(() => expect(screen.getByText('Saved!')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText(/saved!/i)).toBeInTheDocument())
   })
 
   it('shows error message on failure', async () => {

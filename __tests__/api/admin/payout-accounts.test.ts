@@ -134,7 +134,13 @@ describe('POST /api/admin/payout-accounts', () => {
 
     const res = await POST(makePostRequest({ label: 'House A Bank' }))
 
-    expect(mockStripeAccountsCreate).toHaveBeenCalledWith({ type: 'express' })
+    expect(mockStripeAccountsCreate).toHaveBeenCalledWith({
+      type: 'express',
+      capabilities: {
+        card_payments: { requested: true },
+        transfers: { requested: true },
+      },
+    })
     expect(db.insert).toHaveBeenCalledWith({ label: 'House A Bank', stripe_account_id: 'acct_generated123' })
     expect(res.status).toBe(201)
     expect(await res.json()).toEqual(created)

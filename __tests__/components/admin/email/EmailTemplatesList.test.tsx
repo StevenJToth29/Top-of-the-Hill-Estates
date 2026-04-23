@@ -17,6 +17,8 @@ jest.mock('next/link', () => ({
 jest.mock('@heroicons/react/24/outline', () => ({
   PencilIcon: () => React.createElement('span', { 'data-testid': 'pencil-icon' }),
   TrashIcon: () => React.createElement('span', { 'data-testid': 'trash-icon' }),
+  MagnifyingGlassIcon: () => React.createElement('span'),
+  PlusIcon: () => React.createElement('span'),
 }))
 
 const templates: EmailTemplate[] = [
@@ -92,7 +94,7 @@ describe('EmailTemplatesList', () => {
 
   it('edit link points to template editor', () => {
     render(<EmailTemplatesList templates={templates} />)
-    const editLinks = screen.getAllByRole('link')
-    expect(editLinks[0]).toHaveAttribute('href', '/admin/email/templates/t1')
+    const editIcon = screen.getAllByTestId('pencil-icon')[0]
+    expect(editIcon.closest('a')).toHaveAttribute('href', '/admin/email/templates/t1')
   })
 })

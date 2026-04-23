@@ -114,10 +114,13 @@ function makeDbMock(opts: {
     if (table === 'booking_fees') {
       return { insert: jest.fn().mockResolvedValue({ error: null }) }
     }
-    // fallback
+    // fallback (handles date_overrides and any future tables)
     return {
       select: jest.fn().mockReturnThis(),
       eq: jest.fn().mockReturnThis(),
+      gte: jest.fn().mockReturnThis(),
+      lt: jest.fn().mockReturnThis(),
+      not: jest.fn().mockResolvedValue({ data: [], error: null }),
       order: jest.fn().mockResolvedValue({ data: [], error: null }),
       in: jest.fn().mockResolvedValue({ data: [], error: null }),
       single: jest.fn().mockResolvedValue({ data: null, error: null }),

@@ -14,10 +14,13 @@ const mockLoadDesign = jest.fn()
 jest.mock('react-email-editor', () => {
   const React = require('react')
   const EmailEditor = React.forwardRef(
-    (_props: unknown, ref: React.Ref<unknown>) => {
+    (props: { onReady?: (unlayer: unknown) => void }, ref: React.Ref<unknown>) => {
       React.useImperativeHandle(ref, () => ({
         editor: { exportHtml: mockExportHtml, loadDesign: mockLoadDesign },
       }))
+      React.useEffect(() => {
+        props.onReady?.({ exportHtml: mockExportHtml, loadDesign: mockLoadDesign })
+      }, [])
       return React.createElement('div', { 'data-testid': 'unlayer-editor' })
     },
   )
@@ -78,13 +81,16 @@ describe('EmailTemplateEditor', () => {
     })
 
     render(<EmailTemplateEditor template={null} />)
-    await userEvent.type(screen.getByPlaceholderText(/e\.g\. booking/i), 'My Template')
+    await userEvent.type(screen.getByPlaceholderText(/template name/i), 'My Template')
     await userEvent.type(screen.getByPlaceholderText(/your booking at/i), 'The Subject')
 
-    // Simulate onReady by triggering the editor ref — not possible directly in jsdom,
-    // so we verify the save button is disabled until ready, then confirm the guard message.
     await userEvent.click(screen.getByRole('button', { name: /create template/i }))
-    expect(screen.getByText(/editor is still loading/i)).toBeInTheDocument()
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith(
+        '/api/admin/email/templates',
+        expect.objectContaining({ method: 'POST' }),
+      )
+    })
   })
 
   it('renders the Unlayer editor canvas', () => {

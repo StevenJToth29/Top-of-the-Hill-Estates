@@ -70,6 +70,15 @@ function setupMocks(
       if (table === 'booking_fees') {
         return { insert: bookingFeesInsert }
       }
+      if (table === 'date_overrides') {
+        return {
+          select: jest.fn().mockReturnThis(),
+          eq: jest.fn().mockReturnThis(),
+          gte: jest.fn().mockReturnThis(),
+          lt: jest.fn().mockReturnThis(),
+          not: jest.fn().mockResolvedValue({ data: [], error: null }),
+        }
+      }
     }),
   })
 

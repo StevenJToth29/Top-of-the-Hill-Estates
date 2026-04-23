@@ -37,7 +37,10 @@ const baseBooking = {
 
 function setupMocks(booking = baseBooking, windowHours = 72) {
   const updateChain = {
-    eq: jest.fn().mockResolvedValue({ error: null }),
+    eq: jest.fn().mockReturnThis(),
+    in: jest.fn().mockReturnThis(),
+    select: jest.fn().mockReturnThis(),
+    single: jest.fn().mockResolvedValue({ data: { id: 'booking-1' }, error: null }),
   }
   const update = jest.fn().mockReturnValue(updateChain)
 
@@ -113,7 +116,7 @@ describe('POST /api/bookings/[id]/cancel/guest', () => {
     expect(data.success).toBe(true)
     expect(data.refund_amount).toBe(100)
     expect(update).toHaveBeenCalledWith(expect.objectContaining({ status: 'cancelled', cancellation_reason: 'guest_requested' }))
-    expect((stripe.refunds.create as jest.Mock)).toHaveBeenCalledWith({ payment_intent: 'pi_test', amount: 10000 })
+    expect((stripe.refunds.create as jest.Mock)).toHaveBeenCalledWith({ payment_intent: 'pi_test', amount: 10000, reverse_transfer: true })
   })
 
   it('does not issue Stripe refund when refund_amount is 0', async () => {
