@@ -14,7 +14,7 @@ export async function createOrUpdateGHLContact(data: {
   email: string
   phone: string
   tags: string[]
-  customFields: Record<string, string>
+  customFields: { id: string; field_value: string }[]
 }): Promise<string | null> {
   const apiKey = process.env.GHL_API_KEY ?? ''
   const locationId = process.env.GHL_LOCATION_ID ?? ''
@@ -43,7 +43,7 @@ export async function createOrUpdateGHLContact(data: {
         phone: data.phone,
         locationId,
         tags: data.tags,
-        customFields: Object.entries(data.customFields).map(([key, value]) => ({ key, value })),
+        customFields: data.customFields,
       }),
     })
 
@@ -113,12 +113,12 @@ export async function syncToGHL(booking: Booking): Promise<void> {
     email: booking.guest_email,
     phone: booking.guest_phone,
     tags: [booking.booking_type, typedRoom.property?.name ?? '', typedRoom.name],
-    customFields: {
-      check_in_date: booking.check_in,
-      check_out_date: booking.check_out,
-      room_slug: typedRoom.slug,
-      booking_id: booking.id,
-    },
+    customFields: [
+      { id: process.env.GHL_FIELD_CHECK_IN_ID ?? 'VLXN19uIDL0f84gREYyy', field_value: booking.check_in },
+      { id: process.env.GHL_FIELD_CHECK_OUT_ID ?? '20RfeImKFzB2wsX3rSH5', field_value: booking.check_out },
+      { id: process.env.GHL_FIELD_ROOM_NAME_ID ?? 'f2m4XC2ByCQWKfZJHntE', field_value: typedRoom.name },
+      { id: process.env.GHL_FIELD_BOOKING_ID ?? 'UongSn70hGlckbsmyMkD', field_value: booking.id },
+    ],
   })
 
   if (ghlContactId) {
@@ -159,9 +159,7 @@ export async function syncContactInquiryToGHL(data: {
     email: data.email,
     phone: data.phone ?? '',
     tags,
-    customFields: {
-      inquiry_message: data.message,
-    },
+    customFields: [],
   })
 
   const webhookUrl = process.env.GHL_CONTACT_WEBHOOK_URL ?? ''
@@ -256,10 +254,10 @@ export async function syncLongTermInquiryToGHL(data: {
     email: data.email,
     phone: data.phone,
     tags,
-    customFields: {
-      move_in_date: data.moveIn,
-      room_slug: data.roomSlug,
-    },
+    customFields: [
+      { id: process.env.GHL_FIELD_MOVE_IN_DATE_ID ?? 'iPzaNsmpAS1JaCeE4Zz7', field_value: data.moveIn },
+      { id: process.env.GHL_FIELD_LT_ROOM_NAME_ID ?? 'jFhvUuOUarVOEjN1tZJO', field_value: data.roomName },
+    ],
   })
 
   const webhookUrl = process.env.GHL_CONTACT_WEBHOOK_URL ?? ''

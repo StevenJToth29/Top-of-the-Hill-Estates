@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
+import { differenceInCalendarDays } from 'date-fns'
 import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { isRoomAvailable } from '@/lib/availability'
 import { syncToGHL } from '@/lib/ghl'
 import { evaluateAndQueueEmails } from '@/lib/email-queue'
+import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import type { Booking, BookingType, PaymentMethodConfig } from '@/types'
 
 function computeNightlySubtotal(
@@ -43,6 +45,10 @@ interface CreateBookingBody {
 
 export async function POST(request: Request) {
   try {
+    if (!checkRateLimit(getClientIp(request), 'bookings', 10)) {
+      return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+    }
+
     const body = (await request.json()) as CreateBookingBody
 
     const {
@@ -50,7 +56,7 @@ export async function POST(request: Request) {
       booking_type,
       guest_first_name,
       guest_last_name,
-      guest_email,
+      guest_email: rawGuestEmail,
       guest_phone,
       check_in,
       check_out,
@@ -59,6 +65,12 @@ export async function POST(request: Request) {
       sms_consent,
       marketing_consent,
     } = body
+
+    if (booking_type !== 'short_term' && booking_type !== 'long_term') {
+      return NextResponse.json({ error: 'Invalid booking_type' }, { status: 400 })
+    }
+
+    const guest_email = rawGuestEmail?.toLowerCase() ?? ''
 
     const safeGuestCount = Math.max(1, Math.floor(Number(guest_count) || 1))
     const safeTotalNights = Math.max(1, Math.floor(Number(total_nights) || 1))
@@ -76,6 +88,11 @@ export async function POST(request: Request) {
     if (roomError || !room) {
       console.error('Room lookup failed:', roomError)
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
+    }
+
+    const nightCount = differenceInCalendarDays(new Date(check_out), new Date(check_in))
+    if (nightCount > 365) {
+      return NextResponse.json({ error: 'Booking duration exceeds maximum allowed' }, { status: 400 })
     }
 
     const available = await isRoomAvailable(room_id, check_in, check_out)
@@ -276,9 +293,13 @@ export async function GET(request: Request) {
     const supabase = createServiceRoleClient()
     const { data: booking, error } = await supabase
       .from('bookings')
-      .select('*, room:rooms(*, property:properties(*))')
+      .select(`
+        id, status, check_in, check_out, guests, total_amount, amount_paid,
+        booking_type, created_at,
+        room:rooms(name, slug, property:properties(name, city, state))
+      `)
       .eq('id', booking_id)
-      .ilike('guest_email', guest_email)
+      .eq('guest_email', guest_email.toLowerCase())
       .single()
 
     if (error || !booking) {

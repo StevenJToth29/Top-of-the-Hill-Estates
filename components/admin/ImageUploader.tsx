@@ -7,9 +7,10 @@ import NextImage from 'next/image'
 import type { PropertyImage } from '@/types'
 
 async function compressImage(file: File, maxWidth = 1200): Promise<Blob> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const img = new window.Image()
     const url = URL.createObjectURL(file)
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error(`Failed to load image: ${file.name}`)) }
     img.onload = () => {
       const canvas = document.createElement('canvas')
       const scale = Math.min(1, maxWidth / img.width)
@@ -17,8 +18,11 @@ async function compressImage(file: File, maxWidth = 1200): Promise<Blob> {
       canvas.height = img.height * scale
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
-      canvas.toBlob((blob) => resolve(blob!), 'image/jpeg', 0.85)
       URL.revokeObjectURL(url)
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob)
+        else reject(new Error(`Failed to compress image: ${file.name}`))
+      }, 'image/jpeg', 0.85)
     }
     img.src = url
   })
@@ -33,7 +37,7 @@ interface ImageUploaderProps {
 
 export default function ImageUploader({ images, bucket, uploadFolder, onChange }: ImageUploaderProps) {
   const [isFileDragging, setIsFileDragging] = useState(false)
-  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [dragIndex, setDragIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
@@ -58,31 +62,43 @@ export default function ImageUploader({ images, bucket, uploadFolder, onChange }
   async function uploadFiles(files: FileList | File[]) {
     const supabase = createClient()
     setError(null)
-    setUploading(true)
+
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'))
+    if (imageFiles.length === 0) return
 
     const newImages: PropertyImage[] = []
-    for (const file of Array.from(files)) {
-      if (!file.type.startsWith('image/')) continue
-      try {
-        const compressed = await compressImage(file)
-        const path = `${uploadFolder}/${Date.now()}-${file.name}`
-        const { data, error: uploadError } = await supabase.storage
-          .from(bucket)
-          .upload(path, compressed, { contentType: 'image/jpeg', upsert: false })
+    try {
+      for (let i = 0; i < imageFiles.length; i++) {
+        const file = imageFiles[i]
+        setUploadProgress(`Uploading ${i + 1} of ${imageFiles.length}…`)
+        try {
+          const compressed = await compressImage(file)
+          const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+          const path = `${uploadFolder}/${Date.now()}-${safeName}`
 
-        if (uploadError) throw uploadError
+          let data, uploadError
+          // Retry once on transient server errors (504, 503, etc.)
+          for (let attempt = 0; attempt < 2; attempt++) {
+            ;({ data, error: uploadError } = await supabase.storage
+              .from(bucket)
+              .upload(path, compressed, { contentType: 'image/jpeg', upsert: false }))
+            if (!uploadError) break
+            const status = (uploadError as { status?: number }).status ?? 0
+            if (status < 500) break  // non-retryable (4xx)
+          }
 
-        const {
-          data: { publicUrl },
-        } = supabase.storage.from(bucket).getPublicUrl(data.path)
-        newImages.push({ url: publicUrl })
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Upload failed')
+          if (uploadError) throw uploadError
+
+          const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(data!.path)
+          newImages.push({ url: publicUrl })
+        } catch (err) {
+          setError(`${file.name}: ${err instanceof Error ? err.message : 'Upload failed'}`)
+        }
       }
+      onChange([...images, ...newImages])
+    } finally {
+      setUploadProgress(null)
     }
-
-    onChange([...images, ...newImages])
-    setUploading(false)
   }
 
   async function deleteImage(url: string) {
@@ -90,7 +106,8 @@ export default function ImageUploader({ images, bucket, uploadFolder, onChange }
     const bucketMarker = `/object/public/${bucket}/`
     const idx = url.indexOf(bucketMarker)
     if (idx !== -1) {
-      const path = url.slice(idx + bucketMarker.length)
+      // Decode so the storage key matches the actual filename (handles spaces, etc.)
+      const path = decodeURIComponent(url.slice(idx + bucketMarker.length))
       await supabase.storage.from(bucket).remove([path])
     }
     onChange(images.filter((img) => img.url !== url))
@@ -150,13 +167,13 @@ export default function ImageUploader({ images, bucket, uploadFolder, onChange }
             : 'border-secondary/30 bg-surface-highest/20 hover:border-secondary/50 hover:bg-surface-highest/30'
         }`}
       >
-        {uploading ? (
+        {uploadProgress ? (
           <div className="flex items-center gap-3 text-on-surface-variant">
             <svg className="animate-spin w-5 h-5" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
             </svg>
-            Uploading…
+            {uploadProgress}
           </div>
         ) : (
           <>
