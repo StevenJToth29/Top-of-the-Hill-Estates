@@ -95,8 +95,9 @@ function expandRecurringTasks(
 
       const rule = new RRule(rruleOptions)
       const occurrences = rule.between(from, to, true)
-
-      for (const occ of occurrences) {
+      const MAX_OCCURRENCES = 500
+      const capped = occurrences.slice(0, MAX_OCCURRENCES)
+      for (const occ of capped) {
         const dateStr = occ.toISOString().split('T')[0]
         result.push({ ...task, due_date: dateStr })
       }
