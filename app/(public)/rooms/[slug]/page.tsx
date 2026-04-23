@@ -1,5 +1,6 @@
-export const dynamic = 'force-dynamic'
+export const revalidate = 60
 
+import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { format, addMonths } from 'date-fns'
@@ -10,14 +11,34 @@ import type { Room, PropertyImage } from '@/types'
 import dynamicImport from 'next/dynamic'
 import { hospitableBookingFlag } from '@/flags'
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+const getRoomBySlug = cache(async (slug: string) => {
   const supabase = await createServerSupabaseClient()
-  const { data: room } = await supabase
+  return supabase
     .from('rooms')
-    .select('name, description, nightly_rate, bedrooms, bathrooms, guest_capacity, images, property:properties(name, city, state)')
-    .eq('slug', params.slug)
+    .select('*, property:properties(*)')
+    .eq('slug', slug)
     .eq('is_active', true)
     .single()
+})
+
+const geocodeAddress = cache(async (address: string): Promise<{ lat: number; lng: number } | null> => {
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+  if (!apiKey) return null
+  try {
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`,
+      { next: { revalidate: 86400 } },
+    )
+    const data = await res.json()
+    const loc = data?.results?.[0]?.geometry?.location
+    return loc ? { lat: loc.lat, lng: loc.lng } : null
+  } catch {
+    return null
+  }
+})
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { data: room } = await getRoomBySlug(params.slug)
 
   if (!room) return {}
 
@@ -72,15 +93,10 @@ interface Props {
 }
 
 export default async function RoomDetailPage({ params, searchParams }: Props) {
-  const showHospitableWidget = await hospitableBookingFlag()
   const supabase = await createServerSupabaseClient()
-  const [{ data: rawRoom }, { data: siteSettings }] = await Promise.all([
-    supabase
-      .from('rooms')
-      .select('*, property:properties(*)')
-      .eq('slug', params.slug)
-      .eq('is_active', true)
-      .single(),
+  const [showHospitableWidget, { data: rawRoom }, { data: siteSettings }] = await Promise.all([
+    hospitableBookingFlag(),
+    getRoomBySlug(params.slug),
     supabase.from('site_settings').select('global_house_rules, stripe_fee_percent, stripe_fee_flat, cancellation_policy').maybeSingle(),
   ])
 
@@ -101,7 +117,13 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
 
   const serviceSupabase = createServiceRoleClient()
 
-  const [{ data: roomFees, error: feesError }, blockedDates, { data: rawOverrides }] = await Promise.all([
+  const mapAddress = rawRoom.property
+    ? [rawRoom.property.address, rawRoom.property.city, rawRoom.property.state, rawRoom.property.zip]
+        .filter(Boolean)
+        .join(', ')
+    : null
+
+  const [{ data: roomFees, error: feesError }, blockedDates, { data: rawOverrides }, mapCoords] = await Promise.all([
     supabase
       .from('room_fees')
       .select('*')
@@ -119,6 +141,9 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
       .gte('date', format(today, 'yyyy-MM-dd'))
       .lt('date', format(sixMonthsOut, 'yyyy-MM-dd'))
       .not('price_override', 'is', null),
+    mapAddress && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
+      ? geocodeAddress(mapAddress)
+      : Promise.resolve(null),
   ])
 
   const dateOverrides: Record<string, number> = {}
@@ -131,12 +156,6 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
   }
 
   const room = { ...rawRoom, fees: roomFees ?? [] } as unknown as Room
-
-  const mapAddress = room.property
-    ? [room.property.address, room.property.city, room.property.state, room.property.zip]
-        .filter(Boolean)
-        .join(', ')
-    : null
 
   const allAmenities = Array.from(
     new Set([...(room.property?.amenities ?? []), ...(room.amenities ?? [])]),
@@ -236,22 +255,26 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
             </div>
 
             {/* Map — elevated near top */}
-            {mapAddress && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && (
+            {mapCoords && (
               <>
                 <div className="space-y-3">
                   <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">
                     Location
                   </p>
-                  <LocationMap address={mapAddress} />
+                  <LocationMap lat={mapCoords.lat} lng={mapCoords.lng} />
                 </div>
                 {divider}
               </>
             )}
 
             {/* Description + house rules read-more */}
-            {(room.description || houseRules) && (
+            {(room.description || room.property?.description || houseRules) && (
               <>
-                <RoomDescription description={room.description ?? null} houseRules={houseRules} />
+                <RoomDescription
+                  description={room.description ?? null}
+                  propertyDescription={room.property?.description ?? null}
+                  houseRules={houseRules}
+                />
                 {divider}
               </>
             )}

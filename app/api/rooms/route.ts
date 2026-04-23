@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import { isRoomAvailable } from '@/lib/availability'
+import { getAvailableRoomIds } from '@/lib/availability'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const MAX_STAY_DAYS = 365
@@ -50,10 +50,12 @@ export async function GET(request: NextRequest) {
   )
 
   if (checkin && checkout) {
-    const available = await Promise.all(
-      filteredRooms.map((room) => isRoomAvailable(room.id, checkin, checkout)),
+    const availableIds = await getAvailableRoomIds(
+      filteredRooms.map((r) => r.id),
+      checkin,
+      checkout,
     )
-    filteredRooms = filteredRooms.filter((_, i) => available[i])
+    filteredRooms = filteredRooms.filter((r) => availableIds.has(r.id))
   }
 
   return Response.json({ rooms: filteredRooms })

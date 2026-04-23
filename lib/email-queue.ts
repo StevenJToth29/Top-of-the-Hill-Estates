@@ -127,32 +127,44 @@ export async function evaluateAndQueueEmails(
   const supabase = createServiceRoleClient()
 
   try {
-    const { data: automations } = await supabase
-      .from('email_automations')
-      .select('*')
-      .eq('trigger_event', event)
-      .eq('is_active', true)
+    const isBookingContext =
+      context.type === 'booking' || context.type === 'booking_payment_request'
+
+    const [
+      { data: automations },
+      { data: bookingData, error: bookingError },
+      { data: emailSettings },
+      { data: siteSettings },
+    ] = await Promise.all([
+      supabase
+        .from('email_automations')
+        .select('*')
+        .eq('trigger_event', event)
+        .eq('is_active', true),
+      isBookingContext
+        ? supabase
+            .from('bookings')
+            .select('*, room:rooms(*, property:properties(*))')
+            .eq('id', (context as { bookingId: string }).bookingId)
+            .single()
+        : Promise.resolve({ data: null, error: null }),
+      supabase.from('email_settings').select('*').maybeSingle(),
+      supabase.from('site_settings').select('*').maybeSingle(),
+    ])
 
     if (!automations?.length) return
 
     let booking: Booking | null = null
-    if (context.type === 'booking' || context.type === 'booking_payment_request') {
-      const { data } = await supabase
-        .from('bookings')
-        .select('*, room:rooms(*, property:properties(*))')
-        .eq('id', context.bookingId)
-        .single()
-      if (!data) {
-        console.error(`evaluateAndQueueEmails: booking ${context.bookingId} not found`)
+    if (isBookingContext) {
+      if (!bookingData) {
+        console.error(
+          `evaluateAndQueueEmails: booking ${(context as { bookingId: string }).bookingId} not found`,
+          bookingError,
+        )
         return
       }
-      booking = data as Booking
+      booking = bookingData as Booking
     }
-
-    const [{ data: emailSettings }, { data: siteSettings }] = await Promise.all([
-      supabase.from('email_settings').select('*').maybeSingle(),
-      supabase.from('site_settings').select('*').maybeSingle(),
-    ])
 
     const now = new Date()
     const queueRows: Array<Record<string, unknown>> = []
