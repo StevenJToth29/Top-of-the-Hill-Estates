@@ -175,7 +175,7 @@ export async function evaluateAndQueueEmails(
       const evalCtx = booking ? buildEvalContext(booking) : {}
       if (!evaluateConditions(automation.conditions, evalCtx)) continue
 
-      let variables =
+      let variables: Record<string, string> =
         booking?.room
           ? buildBookingVariables(
               booking,

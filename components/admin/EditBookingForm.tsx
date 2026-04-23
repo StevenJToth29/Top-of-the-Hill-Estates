@@ -59,6 +59,7 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
   const room = booking.room
   const isLongTerm = booking.booking_type === 'long_term'
 
+  // Client-side total preview using current room rates (not booking snapshot)
   const newTotal = (() => {
     const extraGuests = Math.max(0, guestCount - 1)
     if (isLongTerm) {
@@ -81,6 +82,7 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
   })()
 
   const delta = newTotal - booking.amount_paid
+  const totalDiff = newTotal - booking.total_amount
   const hasStripe = !!booking.stripe_payment_intent_id
 
   async function handleSubmit(e: React.FormEvent) {
@@ -178,6 +180,7 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
                     className="w-4 h-4 rounded border-slate-300 text-slate-600 focus:ring-teal-400"
                   />
                   <span className="text-xs text-slate-600">No end date (open-ended tenancy)</span>
+                  <span className="ml-auto text-[10px] text-slate-400">Long Term only</span>
                 </label>
               )}
             </div>
@@ -261,8 +264,8 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
                   <div
                     className="rounded-xl p-3 text-sm space-y-1.5"
                     style={{
-                      background: delta > 0 ? 'rgba(245,158,11,0.07)' : 'rgba(16,185,129,0.07)',
-                      border: `1px solid ${delta > 0 ? 'rgba(245,158,11,0.25)' : 'rgba(16,185,129,0.2)'}`,
+                      background: totalDiff > 0 ? 'rgba(245,158,11,0.07)' : 'rgba(16,185,129,0.07)',
+                      border: `1px solid ${totalDiff > 0 ? 'rgba(245,158,11,0.25)' : 'rgba(16,185,129,0.2)'}`,
                     }}
                   >
                     <div className="flex justify-between text-slate-500">
@@ -278,18 +281,18 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
                       <span className="font-semibold text-slate-800">{formatCurrency(booking.amount_paid)}</span>
                     </div>
                     <div className="flex justify-between pt-1.5 mt-1 border-t border-black/10">
-                      <span className="font-bold text-slate-700">{delta > 0 ? 'Additional charge' : 'Refund'}</span>
+                      <span className="font-bold text-slate-700">{totalDiff > 0 ? 'Additional charge' : 'Refund'}</span>
                       <span
                         className="font-bold"
-                        style={{ color: delta > 0 ? '#b45309' : '#059669' }}
+                        style={{ color: totalDiff > 0 ? '#b45309' : '#059669' }}
                       >
-                        {delta > 0 ? '+' : '−'}{formatCurrency(Math.abs(delta))}
+                        {totalDiff > 0 ? '+' : '−'}{formatCurrency(Math.abs(delta))}
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 pt-1 leading-relaxed">
-                      {delta > 0
+                      {totalDiff > 0
                         ? hasStripe
-                          ? `A payment request for ${formatCurrency(delta)} will be emailed to ${email} automatically on save.`
+                          ? `A payment request for ${formatCurrency(Math.abs(delta))} will be emailed to ${email} automatically on save.`
                           : `Balance updated on record. No Stripe payment to process (manual booking).`
                         : hasStripe
                         ? `A Stripe refund of ${formatCurrency(Math.abs(delta))} will be issued automatically on save.`

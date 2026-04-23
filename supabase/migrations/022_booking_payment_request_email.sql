@@ -7,7 +7,7 @@ ALTER TYPE email_trigger_event ADD VALUE IF NOT EXISTS 'booking_payment_request'
 
 -- First, create a placeholder email template for the payment request
 INSERT INTO email_templates (id, name, subject, body, design, is_active, created_at, updated_at)
-SELECT
+VALUES (
   gen_random_uuid(),
   'Payment Request — Additional Amount Due',
   'Payment Request — Additional Amount Due for Your Booking',
@@ -19,9 +19,8 @@ SELECT
   true,
   now(),
   now()
-WHERE NOT EXISTS (
-  SELECT 1 FROM email_templates WHERE name = 'Payment Request — Additional Amount Due'
-);
+)
+ON CONFLICT DO NOTHING;
 
 -- Create the automation that uses this template
 INSERT INTO email_automations (

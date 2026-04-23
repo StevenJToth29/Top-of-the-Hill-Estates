@@ -50,6 +50,7 @@ export async function PATCH(
     const { id } = await params
     const supabase = createServiceRoleClient()
 
+    // Fetch existing booking
     const { data: booking, error: fetchError } = await supabase
       .from('bookings')
       .select('*')
@@ -69,6 +70,7 @@ export async function PATCH(
       )
     }
 
+    // Parse incoming fields with fallback to existing values
     const checkIn = (body.check_in as string | undefined) ?? b.check_in
     const checkOut = (body.check_out as string | undefined) ?? b.check_out
     const guestFirstName = (body.guest_first_name as string | undefined) ?? b.guest_first_name
@@ -82,10 +84,15 @@ export async function PATCH(
       ? (body.notes as string | null)
       : b.notes ?? null
 
+    // Validate dates
     if (checkOut !== OPEN_ENDED_DATE && checkIn >= checkOut) {
       return NextResponse.json({ error: 'check_in must be before check_out' }, { status: 400 })
     }
 
+    // Availability check (excluding this booking's own dates)
+    // Note: open-ended bookings skip this check because isRoomAvailableExcluding cannot
+    // handle '9999-12-31' as the end date. A check-in date change on an open-ended
+    // booking is not validated against conflicts as a result.
     {
       const checkOutForAvailability = checkOut === OPEN_ENDED_DATE ? OPEN_ENDED_DATE : checkOut
       const available = await isRoomAvailableExcluding(b.room_id, checkIn, checkOutForAvailability, b.id)
@@ -97,6 +104,7 @@ export async function PATCH(
       }
     }
 
+    // Fetch authoritative current room rates
     const { data: room, error: roomError } = await supabase
       .from('rooms')
       .select('nightly_rate, monthly_rate, cleaning_fee, security_deposit, extra_guest_fee')
@@ -120,10 +128,12 @@ export async function PATCH(
     const extraGuests = Math.max(0, guestCount - 1)
     const extraGuestFee = room.extra_guest_fee ?? 0
 
+    // Recalculate total
     let newTotal: number
     let newTotalNights: number
 
     if (b.booking_type === 'short_term' && checkOut !== OPEN_ENDED_DATE) {
+      // Fetch price overrides for the new date range
       const { data: overrides } = await supabase
         .from('date_overrides')
         .select('date, price_override')
@@ -146,6 +156,7 @@ export async function PATCH(
       const cleaningFee = room.cleaning_fee ?? 0
       newTotal = nightlySubtotal + cleaningFee + extraGuestFee * extraGuests * newTotalNights + additionalFees
     } else {
+      // long_term: only extra_guest_fee changes with guest count; base is monthly_rate + security_deposit
       const securityDeposit = room.security_deposit ?? 0
       newTotal = room.monthly_rate + securityDeposit + extraGuestFee * extraGuests + additionalFees
       newTotalNights = checkOut === OPEN_ENDED_DATE ? 0 : b.total_nights
@@ -154,6 +165,7 @@ export async function PATCH(
     const delta = newTotal - b.amount_paid
     const amountDueAtCheckin = Math.max(0, newTotal - b.amount_paid)
 
+    // Update booking record
     const { data: updated, error: updateError } = await supabase
       .from('bookings')
       .update({
@@ -179,8 +191,10 @@ export async function PATCH(
       return NextResponse.json({ error: 'Failed to update booking' }, { status: 500 })
     }
 
+    // Payment adjustments (non-blocking — don't fail the edit if Stripe errors)
     if (b.stripe_payment_intent_id && Math.abs(delta) >= 0.01) {
       if (delta < 0) {
+        // Price decreased — issue partial refund
         try {
           await stripe.refunds.create({
             payment_intent: b.stripe_payment_intent_id,
@@ -195,6 +209,7 @@ export async function PATCH(
           console.error('Stripe refund error on booking edit:', stripeErr)
         }
       } else {
+        // Price increased — create Stripe Checkout Session for the delta and email guest
         try {
           const session = await stripe.checkout.sessions.create({
             mode: 'payment',
