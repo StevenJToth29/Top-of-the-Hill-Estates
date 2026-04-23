@@ -1,8 +1,8 @@
 import type { Metadata } from 'next'
 import { EnvelopeIcon, PhoneIcon, MapPinIcon, ClockIcon } from '@heroicons/react/24/outline'
-import { createServerSupabaseClient } from '@/lib/supabase'
 import ContactForm from '@/components/public/ContactForm'
 import type { SiteSettings } from '@/types'
+import { getSiteSettings } from '@/lib/site-settings'
 
 export const metadata: Metadata = {
   title: 'Contact Us | Top of the Hill Rooms',
@@ -17,13 +17,11 @@ const FALLBACK: Pick<SiteSettings, 'contact_phone' | 'contact_email' | 'contact_
 }
 
 export default async function ContactPage() {
-  const supabase = await createServerSupabaseClient()
-  const { data: settings } = await supabase.from('site_settings').select('*').single()
+  const settings = await getSiteSettings()
 
-  const s = settings as SiteSettings | null
-  const phone = s?.contact_phone ?? FALLBACK.contact_phone
-  const email = s?.contact_email ?? FALLBACK.contact_email
-  const address = s?.contact_address ?? FALLBACK.contact_address
+  const phone = settings?.contact_phone ?? FALLBACK.contact_phone
+  const email = settings?.contact_email ?? FALLBACK.contact_email
+  const address = settings?.contact_address ?? FALLBACK.contact_address
 
   return (
     <main className="min-h-screen bg-background py-16 px-4">

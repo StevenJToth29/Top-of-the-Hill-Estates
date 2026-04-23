@@ -149,3 +149,7 @@ vite.config.ts.timestamp-*
 .worktrees/
 .claude/worktrees/
 .superpowers/
+.env*.local
+
+# One-time migration scripts (contain hardcoded credentials)
+scripts/

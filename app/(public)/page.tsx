@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { createServerSupabaseClient } from '@/lib/supabase'
-import type { Property, Room, SiteSettings } from '@/types'
+import type { Property, Room } from '@/types'
+import { getSiteSettings } from '@/lib/site-settings'
 
 export const metadata: Metadata = {
   title: 'Room Rentals in Mesa & Tempe, AZ — Book Direct',
@@ -26,17 +27,16 @@ async function getData() {
   try {
     const supabase = await createServerSupabaseClient()
 
-    const [roomsResult, settingsResult] = await Promise.all([
+    const [roomsResult, settings] = await Promise.all([
       supabase
         .from('rooms')
         .select('*, property:properties(*)')
         .eq('is_active', true)
         .order('name'),
-      supabase.from('site_settings').select('*').limit(1).single(),
+      getSiteSettings(),
     ])
 
     const rooms: Array<Room & { property: Property }> = roomsResult.data ?? []
-    const settings: SiteSettings | null = settingsResult.data ?? null
 
     const propertyMap = new Map<string, Property & { rooms: Room[] }>()
     for (const room of rooms) {
