@@ -9,7 +9,7 @@ import { getBlockedDatesForRoom } from '@/lib/availability'
 import { resolvePolicy } from '@/lib/cancellation'
 import type { Room, PropertyImage } from '@/types'
 import dynamicImport from 'next/dynamic'
-import { hospitableBookingFlag } from '@/flags'
+import { iFrameFlag, hAppFlag } from '@/flags'
 
 const getRoomBySlug = cache(async (slug: string) => {
   const supabase = await createServerSupabaseClient()
@@ -94,13 +94,17 @@ interface Props {
 
 export default async function RoomDetailPage({ params, searchParams }: Props) {
   const supabase = await createServerSupabaseClient()
-  const [showHospitableWidget, { data: rawRoom }, { data: siteSettings }] = await Promise.all([
-    hospitableBookingFlag(),
+  const [showIFrame, showHApp, { data: rawRoom }, { data: siteSettings }] = await Promise.all([
+    iFrameFlag(),
+    hAppFlag(),
     getRoomBySlug(params.slug),
     supabase.from('site_settings').select('global_house_rules, stripe_fee_percent, stripe_fee_flat, cancellation_policy').maybeSingle(),
   ])
 
   if (!rawRoom) notFound()
+
+  // iFrame ON = use iframe if available; hApp ON = restrict iframe to source=hApp only
+  const showIframe = showIFrame && !!rawRoom.iframe_booking_url && (!showHApp || searchParams.source === 'hApp')
 
   // Build URL → description lookup from property image library
   const propertyImages = (rawRoom.property?.images ?? []) as PropertyImage[]
@@ -190,7 +194,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
             id="booking-widget-anchor"
             className="order-first lg:order-last lg:sticky lg:top-24 space-y-3"
           >
-            {showHospitableWidget && room.iframe_booking_url ? (
+            {showIframe ? (
               /* Iframe widget — no card wrapper, full natural height */
               <iframe
                 id="booking-iframe"
@@ -212,14 +216,13 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
                     initialGuests={searchParams.guests ? parseInt(searchParams.guests, 10) : undefined}
                     stripeFeePercent={stripeFeePercent}
                     stripeFeeFlat={stripeFeeFlat}
-                    cancellationPolicy={resolvedPolicy}
                   />
                 </div>
               </div>
             )}
 
             {/* Quick info — hidden when iframe (widget already shows this detail) */}
-            {!showHospitableWidget && (
+            {!showIframe && (
               <QuickInfoCard
                 guestCapacity={room.guest_capacity}
                 minNights={room.minimum_nights_short_term}
