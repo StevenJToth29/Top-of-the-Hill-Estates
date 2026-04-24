@@ -17,6 +17,8 @@
     "@flags-sdk/vercel": "^1.0.3",
     "@googlemaps/js-api-loader": "^2.0.2",
     "@heroicons/react": "^2.2.0",
+    "@keystatic/core": "^0.5.50",
+    "@keystatic/next": "^5.0.4",
     "@stripe/connect-js": "^3.3.35",
     "@stripe/react-connect-js": "^3.3.34",
     "@stripe/react-stripe-js": "^6.1.0",
