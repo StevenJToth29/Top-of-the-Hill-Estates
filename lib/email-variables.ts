@@ -30,6 +30,8 @@ export const VARIABLE_GROUPS: VariableGroup[] = [
       { key: 'room_name', label: 'Room name' },
       { key: 'property_name', label: 'Property name' },
       { key: 'booking_type', label: 'Booking type' },
+      { key: 'decline_reason', label: 'Decline reason' },
+      { key: 'application_deadline_hours', label: 'Hours until application deadline' },
     ],
   },
   {
@@ -85,6 +87,8 @@ export const SAMPLE_VARIABLES: Record<string, string> = {
   review_url: 'https://g.page/r/example-review',
   contact_name: 'John Doe',
   contact_message: "I'm interested in booking for a family visit next month.",
+  decline_reason: 'We are unable to accommodate your request at this time.',
+  application_deadline_hours: '24',
 }
 
 export function resolveVariables(
@@ -111,4 +115,14 @@ export const TRIGGER_EVENT_LABELS: Record<string, string> = {
   modification_requested: 'Modification Requested',
   admin_new_booking: 'Admin — New Booking',
   admin_cancelled: 'Admin — Booking Cancelled',
+  application_needed: 'Application Needed',
+  application_reminder_24h: 'Application Reminder (24h)',
+  application_reminder_12h: 'Application Reminder (12h)',
+  application_expired: 'Application Expired',
+  booking_approved: 'Booking Approved',
+  booking_declined: 'Booking Declined',
+  booking_auto_declined: 'Booking Auto-Declined (Timeout)',
+  admin_application_submitted: 'Admin — New Application Submitted',
+  admin_application_overdue: 'Admin — Application Overdue',
+  admin_missed_deadline: 'Admin — Missed Review Deadline',
 }

@@ -76,6 +76,7 @@ export function buildBookingVariables(
     contact_phone: siteSettings?.contact_phone ?? '',
     contact_email: siteSettings?.contact_email ?? emailSettings?.from_email ?? '',
     review_url: emailSettings?.review_url ?? '',
+    decline_reason: '',
   }
 }
 
@@ -198,6 +199,15 @@ export async function evaluateAndQueueEmails(
           payment_amount: context.paymentAmount,
           payment_link: context.paymentLink,
         }
+      }
+
+      if (['booking_declined', 'booking_auto_declined'].includes(event)) {
+        const { data: appData } = await supabase
+          .from('booking_applications')
+          .select('decline_reason')
+          .eq('booking_id', (context as { bookingId: string }).bookingId)
+          .maybeSingle()
+        variables.decline_reason = appData?.decline_reason ?? 'We are unable to accommodate your request at this time.'
       }
 
       const adminEmails = (emailSettings as EmailSettings | null)?.admin_recipients ?? []
