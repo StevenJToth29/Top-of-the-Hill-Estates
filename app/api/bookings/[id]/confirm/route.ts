@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
-import { notifyGHLBookingConfirmed } from '@/lib/ghl'
-import { evaluateAndQueueEmails, seedReminderEmails } from '@/lib/email-queue'
+import { evaluateAndQueueEmails } from '@/lib/email-queue'
 import type { Booking } from '@/types'
 
 export async function POST(
@@ -22,8 +21,8 @@ export async function POST(
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
     }
 
-    if (booking.status === 'confirmed') {
-      return NextResponse.json({ status: 'confirmed' })
+    if (booking.status === 'pending_docs' || booking.status === 'confirmed') {
+      return NextResponse.json({ status: 'pending_docs' })
     }
 
     if (booking.status !== 'pending') {
@@ -37,29 +36,22 @@ export async function POST(
     // Verify with Stripe directly — never trust the client to claim payment succeeded
     const paymentIntent = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id)
 
-    // ACH/bank account payments are async: they move through processing → succeeded over 1-5 days.
-    // requires_action = micro-deposit verification pending (user must verify before payment clears)
-    // processing     = bank transfer initiated, will succeed/fail within days
-    // Both are valid post-authorization states — let the booking proceed and the webhook confirms it.
-    if (paymentIntent.status === 'processing') {
-      return NextResponse.json({ status: 'processing' })
-    }
-
-    if (paymentIntent.status === 'requires_action') {
-      return NextResponse.json({ status: 'requires_action' })
-    }
-
-    if (paymentIntent.status !== 'succeeded') {
+    // requires_capture = card authorized with manual capture (standard flow for approval-based bookings)
+    // succeeded        = payment already captured (legacy / direct charge)
+    // processing       = ACH/bank transfer initiated, will settle within days
+    // requires_action  = micro-deposit verification pending before bank payment clears
+    const validStatuses = ['requires_capture', 'succeeded', 'processing', 'requires_action']
+    if (!validStatuses.includes(paymentIntent.status)) {
       return NextResponse.json(
-        { error: `Payment not complete (status: ${paymentIntent.status})` },
-        { status: 402 },
+        { error: 'Payment not yet authorized' },
+        { status: 400 },
       )
     }
 
     const { data: confirmed, error: updateError } = await supabase
       .from('bookings')
       .update({
-        status: 'confirmed',
+        status: 'pending_docs',
         amount_paid: (paymentIntent.amount_received ?? paymentIntent.amount) / 100,
       })
       .eq('id', params.id)
@@ -68,29 +60,21 @@ export async function POST(
       .single()
 
     if (updateError || !confirmed) {
-      console.error('Failed to confirm booking:', updateError)
+      console.error('Failed to move booking to pending_docs:', updateError)
       return NextResponse.json({ error: 'Failed to confirm booking' }, { status: 500 })
     }
 
-    notifyGHLBookingConfirmed(confirmed as Booking).catch((err) => {
-      console.error('GHL confirmation trigger error:', err)
-    })
-
-    evaluateAndQueueEmails('booking_confirmed', {
+    evaluateAndQueueEmails('application_needed', {
       type: 'booking',
       bookingId: (confirmed as Booking).id,
-    }).catch((err) => { console.error('email queue error on booking_confirmed:', err) })
+    }).catch((err) => { console.error('email queue error:', err) })
 
     evaluateAndQueueEmails('admin_new_booking', {
       type: 'booking',
       bookingId: (confirmed as Booking).id,
     }).catch((err) => { console.error('email queue error on admin_new_booking:', err) })
 
-    seedReminderEmails((confirmed as Booking).id).catch((err) => {
-      console.error('seedReminderEmails error:', err)
-    })
-
-    return NextResponse.json({ status: 'confirmed' })
+    return NextResponse.json({ status: 'pending_docs' })
   } catch (err) {
     console.error('POST /api/bookings/[id]/confirm error:', err)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
