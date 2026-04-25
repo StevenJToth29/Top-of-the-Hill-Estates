@@ -146,6 +146,42 @@ export default function BookingManageView({
         <span>←</span> Back
       </button>
 
+      {booking.status === 'pending_docs' && (
+        <div className="mb-6 bg-warning/10 border border-warning/30 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-xl">⚠️</span>
+            <div className="flex-1">
+              <p className="font-semibold text-on-surface text-sm mb-1">Your application is incomplete</p>
+              <p className="text-on-surface-variant text-sm mb-3">
+                Complete your ID verification and screening questions to finalize your booking request.
+                Your payment hold is active but you have not been charged.
+              </p>
+              <a
+                href={`/booking/apply/${booking.id}?email=${encodeURIComponent(booking.guest_email)}`}
+                className="inline-block bg-primary text-on-primary rounded-lg px-4 py-2 text-sm font-semibold"
+              >
+                Resume Application →
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {booking.status === 'under_review' && (
+        <div className="mb-6 bg-primary/10 border border-primary/30 rounded-xl p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-xl">🔍</span>
+            <div>
+              <p className="font-semibold text-on-surface text-sm mb-1">Application under review</p>
+              <p className="text-on-surface-variant text-sm">
+                Your application has been submitted and is being reviewed. You will receive an email
+                with a decision within 24 hours. Your payment will only be captured if approved.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Booking summary */}
       <div className="bg-surface-container rounded-2xl p-6 shadow-[0_8px_40px_rgba(45,212,191,0.06)]">
         <h1 className="font-display text-2xl font-bold text-primary mb-4">Your Booking</h1>
