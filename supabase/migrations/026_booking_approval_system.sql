@@ -29,6 +29,10 @@ CREATE TABLE IF NOT EXISTS booking_applications (
 CREATE UNIQUE INDEX IF NOT EXISTS booking_applications_booking_id_key
   ON booking_applications(booking_id);
 
+CREATE TRIGGER update_booking_applications_updated_at
+  BEFORE UPDATE ON booking_applications
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
 -- 4. guest_id_documents table
 CREATE TABLE IF NOT EXISTS guest_id_documents (
   id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -48,15 +52,35 @@ CREATE TABLE IF NOT EXISTS guest_id_documents (
 CREATE UNIQUE INDEX IF NOT EXISTS guest_id_documents_application_guest_key
   ON guest_id_documents(application_id, guest_index);
 
+CREATE INDEX IF NOT EXISTS guest_id_documents_booking_id_idx
+  ON guest_id_documents(booking_id);
+
 -- 5. RLS policies
 ALTER TABLE booking_applications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE guest_id_documents ENABLE ROW LEVEL SECURITY;
 
 -- Service role bypasses RLS — public access is intentionally blocked
-CREATE POLICY "Service role only" ON booking_applications
-  USING (false);
-CREATE POLICY "Service role only" ON guest_id_documents
-  USING (false);
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'booking_applications'
+      AND policyname = 'Service role only'
+  ) THEN
+    CREATE POLICY "Service role only" ON booking_applications USING (false);
+  END IF;
+END $$;
+
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public'
+      AND tablename  = 'guest_id_documents'
+      AND policyname = 'Service role only'
+  ) THEN
+    CREATE POLICY "Service role only" ON guest_id_documents USING (false);
+  END IF;
+END $$;
 
 -- 6. Supabase Storage bucket for ID photos (private)
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
