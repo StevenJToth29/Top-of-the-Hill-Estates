@@ -18,11 +18,14 @@ export default async function BookingApplyPage({ params, searchParams }: PagePro
 
   const supabase = createServiceRoleClient()
 
+  // Escape LIKE wildcards to prevent SQL injection via email parameter
+  const escapedEmail = email.replace(/%/g, '\\%').replace(/_/g, '\\_')
+
   const { data: booking } = await supabase
     .from('bookings')
     .select('*, room:rooms(name, property:properties(name, house_rules))')
     .eq('id', bookingId)
-    .ilike('guest_email', email)
+    .ilike('guest_email', escapedEmail)
     .maybeSingle()
 
   if (!booking) redirect('/booking/manage')
