@@ -70,7 +70,7 @@ export interface Room {
 }
 
 export type BookingType = 'short_term' | 'long_term'
-export type BookingStatus = 'pending' | 'confirmed' | 'cancelled' | 'completed' | 'expired'
+export type BookingStatus = 'pending' | 'pending_docs' | 'under_review' | 'confirmed' | 'cancelled' | 'completed' | 'expired'
 
 export interface Booking {
   id: string
@@ -109,6 +109,38 @@ export interface Booking {
   updated_at: string
   // joined
   room?: Room
+}
+
+export interface BookingApplication {
+  id: string
+  booking_id: string
+  purpose_of_stay: string
+  traveling_from: string
+  shared_living_exp: string
+  house_rules_confirmed: boolean
+  additional_info: string | null
+  decision: 'approved' | 'declined' | null
+  decline_reason: string | null
+  submitted_at: string | null
+  reviewed_at: string | null
+  reviewed_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface GuestIdDocument {
+  id: string
+  application_id: string
+  booking_id: string
+  guest_index: number
+  guest_name: string
+  current_address: string
+  id_photo_url: string | null
+  ai_quality_result: 'pass' | 'fail_blurry' | 'fail_partial' | null
+  ai_authenticity_flag: 'clear' | 'flagged' | 'uncertain' | null
+  ai_validation_notes: string | null
+  ai_validated_at: string | null
+  created_at: string
 }
 
 export interface ICalBlock {
@@ -284,6 +316,16 @@ export type TriggerEvent =
   | 'admin_new_booking'
   | 'admin_cancelled'
   | 'booking_payment_request'
+  | 'application_needed'
+  | 'application_reminder_24h'
+  | 'application_reminder_12h'
+  | 'application_expired'
+  | 'booking_approved'
+  | 'booking_declined'
+  | 'booking_auto_declined'
+  | 'admin_application_submitted'
+  | 'admin_application_overdue'
+  | 'admin_missed_deadline'
 
 export type RecipientType = 'guest' | 'admin' | 'both'
 export type QueueStatus = 'pending' | 'sent' | 'failed' | 'cancelled'
