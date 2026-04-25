@@ -24,6 +24,27 @@ function addDateRangeToSet(
 }
 
 /**
+ * Returns the latest check_out date (YYYY-MM-DD) across all confirmed/pending
+ * bookings for a room on or after fromDate, or null if there are none.
+ * Used to determine the earliest a long-term guest can move in.
+ */
+export async function getLatestCheckoutForRoom(
+  roomId: string,
+  fromDate: string,
+): Promise<string | null> {
+  const supabase = createServiceRoleClient()
+  const { data } = await supabase
+    .from('bookings')
+    .select('check_out')
+    .eq('room_id', roomId)
+    .in('status', ['confirmed', 'pending', 'pending_docs', 'under_review'])
+    .gte('check_out', fromDate)
+    .order('check_out', { ascending: false })
+    .limit(1)
+  return data?.[0]?.check_out ?? null
+}
+
+/**
  * Returns an array of ISO date strings (YYYY-MM-DD) that are blocked
  * for a given room within the specified date range.
  *
@@ -42,7 +63,7 @@ export async function getBlockedDatesForRoom(
         .from('bookings')
         .select('check_in, check_out')
         .eq('room_id', roomId)
-        .in('status', ['confirmed', 'pending'])
+        .in('status', ['confirmed', 'pending', 'pending_docs', 'under_review'])
         .lt('check_in', endDate)
         .gte('check_out', startDate),
       supabase
@@ -108,7 +129,7 @@ export async function getAvailableRoomIds(
       .from('bookings')
       .select('room_id, check_in, check_out')
       .in('room_id', roomIds)
-      .in('status', ['confirmed', 'pending'])
+      .in('status', ['confirmed', 'pending', 'pending_docs', 'under_review'])
       .lt('check_in', checkOut)
       .gte('check_out', checkIn),
     supabase
@@ -164,7 +185,7 @@ export async function isRoomAvailableExcluding(
         .from('bookings')
         .select('check_in, check_out')
         .eq('room_id', roomId)
-        .in('status', ['confirmed', 'pending'])
+        .in('status', ['confirmed', 'pending', 'pending_docs', 'under_review'])
         .neq('id', excludeBookingId)
         .lt('check_in', checkOut)
         .gte('check_out', checkIn),
