@@ -94,7 +94,7 @@ NOTE: <one sentence explanation, max 100 chars>`,
     const authMatch = text.match(/AUTHENTICITY:\s*(CLEAR|FLAGGED|UNCERTAIN)/i)
     const noteMatch = text.match(/NOTE:\s*(.+)/i)
 
-    ai_quality_result = (qualityMatch?.[1]?.toLowerCase() ?? 'pass') as typeof ai_quality_result
+    ai_quality_result = (qualityMatch?.[1]?.toLowerCase() ?? 'pass') as 'pass' | 'fail_blurry' | 'fail_partial'
     ai_authenticity_flag = (authMatch?.[1]?.toLowerCase() ?? 'clear') as typeof ai_authenticity_flag
     ai_validation_notes = noteMatch?.[1]?.trim() ?? ''
   } catch (err) {

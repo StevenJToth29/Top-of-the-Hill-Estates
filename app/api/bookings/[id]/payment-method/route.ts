@@ -74,8 +74,10 @@ export async function PATCH(
     const base_amount = Math.round((Number(typedBooking.total_amount) - Number(typedBooking.processing_fee ?? 0)) * 100) / 100
     const rate = Number(methodConfig.fee_percent) / 100
     const flat = Number(methodConfig.fee_flat)
-    const grand_total = Math.round(((base_amount + flat) / (1 - rate)) * 100) / 100
-    const processing_fee = Math.round((grand_total - base_amount) * 100) / 100
+    const processing_fee = Math.round(
+      (base_amount * rate + flat) * 100
+    ) / 100
+    const grand_total = Math.round((base_amount + processing_fee) * 100) / 100
 
     // application_fee_amount = (base × platform_fee_percent) + full processing_fee
     // This keeps the entire customer-facing processing fee on the platform account,
