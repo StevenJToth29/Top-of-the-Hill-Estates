@@ -50,14 +50,24 @@ export async function POST(_req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'Application cannot be started for this booking' }, { status: 400 })
   }
 
+  const { data: existing } = await supabase
+    .from('booking_applications')
+    .select('*')
+    .eq('booking_id', bookingId)
+    .maybeSingle()
+
+  if (existing) {
+    return NextResponse.json({ application: existing })
+  }
+
   const { data: application, error } = await supabase
     .from('booking_applications')
-    .upsert({ booking_id: bookingId }, { onConflict: 'booking_id', ignoreDuplicates: false })
+    .insert({ booking_id: bookingId })
     .select()
     .single()
 
   if (error) {
-    console.error('application POST: upsert error:', error)
+    console.error('application POST: insert error:', error)
     return NextResponse.json({ error: 'Failed to create application' }, { status: 500 })
   }
 
@@ -93,7 +103,11 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
       .from('booking_applications')
       .select('*')
       .eq('booking_id', bookingId)
-      .single()
+      .maybeSingle()
+
+    if (!app) {
+      return NextResponse.json({ error: 'Application not found — start the application first' }, { status: 422 })
+    }
 
     const { data: docs } = await supabase
       .from('guest_id_documents')
