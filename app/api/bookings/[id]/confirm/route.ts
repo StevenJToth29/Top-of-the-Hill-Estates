@@ -69,11 +69,6 @@ export async function POST(
       bookingId: (confirmed as Booking).id,
     }).catch((err) => { console.error('email queue error:', err) })
 
-    evaluateAndQueueEmails('admin_new_booking', {
-      type: 'booking',
-      bookingId: (confirmed as Booking).id,
-    }).catch((err) => { console.error('email queue error on admin_new_booking:', err) })
-
     return NextResponse.json({ status: 'pending_docs' })
   } catch (err) {
     console.error('POST /api/bookings/[id]/confirm error:', err)
