@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import { capturePaymentIntent, stripe } from '@/lib/stripe'
-import { evaluateAndQueueEmails, seedReminderEmails } from '@/lib/email-queue'
+import { evaluateAndQueueEmails, seedReminderEmails, cancelBookingEmails } from '@/lib/email-queue'
 
 interface RouteContext { params: Promise<{ id: string }> }
 interface ReviewBody { decision: 'approved' | 'declined'; decline_reason?: string }
@@ -34,6 +34,10 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   const now = new Date().toISOString()
 
   if (body.decision === 'approved') {
+    if (!booking.stripe_payment_intent_id) {
+      return NextResponse.json({ error: 'No payment intent found for this booking' }, { status: 400 })
+    }
+
     try {
       await capturePaymentIntent(booking.stripe_payment_intent_id)
     } catch (err) {
@@ -86,6 +90,8 @@ export async function PATCH(req: Request, { params }: RouteContext) {
         reviewed_by: user.id,
       })
       .eq('booking_id', bookingId)
+
+    await cancelBookingEmails(bookingId).catch((err) => console.error('cancelBookingEmails error:', err))
 
     evaluateAndQueueEmails('booking_declined', { type: 'booking', bookingId }).catch(
       (err) => { console.error('email queue error on booking_declined:', err) }
