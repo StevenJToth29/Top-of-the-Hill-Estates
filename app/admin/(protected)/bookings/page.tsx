@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from 'next/cache'
 import { createServiceRoleClient } from '@/lib/supabase'
 import BookingsClient from '@/components/admin/BookingsClient'
 import BookingDetailPanel from '@/components/admin/BookingDetailPanel'
+import BookingsPageTabs from '@/components/admin/BookingsPageTabs'
 import { resolvePolicy } from '@/lib/cancellation'
 import type { Booking, Room, Property, BookingModificationRequest, CancellationPolicy } from '@/types'
 
@@ -54,9 +55,13 @@ export default async function AdminBookingsPage({
 
   return (
     <>
-      <BookingsClient
-        bookings={(bookings ?? []) as Array<Booking & { room: Room & { property: Property } }>}
-        selectedId={searchParams.id}
+      <BookingsPageTabs
+        bookingsContent={
+          <BookingsClient
+            bookings={(bookings ?? []) as Array<Booking & { room: Room & { property: Property } }>}
+            selectedId={searchParams.id}
+          />
+        }
       />
       {selectedBooking && (
         <BookingDetailPanel
