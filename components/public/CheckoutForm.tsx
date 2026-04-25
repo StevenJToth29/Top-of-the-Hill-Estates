@@ -336,6 +336,10 @@ export default function CheckoutForm({ bookingParams, onProcessingFeeSet, availa
             </p>
           )}
 
+          <div className="bg-surface-highest/40 rounded-xl px-4 py-3 text-sm text-on-surface-variant mb-4 border border-outline/50">
+            <span className="font-semibold text-on-surface">Approval required</span> — your card will be authorized but not charged until your booking application is reviewed and approved.
+          </div>
+
           <Elements stripe={stripePromise} options={{ clientSecret, appearance }}>
             <StripePaymentSection
               bookingId={bookingId}

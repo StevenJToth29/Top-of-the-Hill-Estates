@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { format, differenceInDays, parseISO, addDays } from 'date-fns'
 import type { Room, BookingType, RoomFee } from '@/types'
 import DatePicker from './DatePicker'
+import DateRangePicker from './DateRangePicker'
 
 interface Props {
   room: Room
@@ -15,6 +16,7 @@ interface Props {
   initialGuests?: number
   stripeFeePercent?: number
   stripeFeeFlat?: number
+  minMoveIn?: string
 }
 
 function formatDate(d: Date) {
@@ -35,7 +37,7 @@ const pillBase =
 const pillActive = 'bg-secondary/20 text-secondary border border-secondary/50'
 const pillInactive = 'bg-surface-container text-on-surface-variant hover:text-on-surface'
 
-export default function BookingWidget({ room, blockedDates, dateOverrides = {}, initialCheckin, initialCheckout, initialGuests, stripeFeePercent = 2.9, stripeFeeFlat = 0.30 }: Props) {
+export default function BookingWidget({ room, blockedDates, dateOverrides = {}, initialCheckin, initialCheckout, initialGuests, stripeFeePercent = 2.9, stripeFeeFlat = 0.30, minMoveIn }: Props) {
   const router = useRouter()
   const blockedSet = useMemo(() => new Set(blockedDates), [blockedDates])
 
@@ -101,7 +103,7 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
   const stGenericFees = roomFees.filter((f) => f.booking_type === 'short_term' || f.booking_type === 'both')
   const stGenericTotal = stGenericFees.reduce((sum, f) => sum + f.amount, 0)
   const stTotal = subtotal + cleaningFee + stExtraGuestTotal + stGenericTotal
-  const stProcessingFee = nights > 0 ? Math.round((stTotal * (stripeFeePercent / 100) + stripeFeeFlat) * 100) / 100 : 0
+  const stProcessingFee = nights > 0 ? Math.round(((stTotal + stripeFeeFlat) / (1 - stripeFeePercent / 100) - stTotal) * 100) / 100 : 0
   const stGrandTotal = stTotal + stProcessingFee
 
   // Long-term fee totals
@@ -109,7 +111,7 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
   const ltGenericFees = roomFees.filter((f) => f.booking_type === 'long_term' || f.booking_type === 'both')
   const ltGenericTotal = ltGenericFees.reduce((sum, f) => sum + f.amount, 0)
   const ltTotal = room.monthly_rate + securityDeposit + ltExtraGuestTotal + ltGenericTotal
-  const ltProcessingFee = Math.round((ltTotal * (stripeFeePercent / 100) + stripeFeeFlat) * 100) / 100
+  const ltProcessingFee = Math.round(((ltTotal + stripeFeeFlat) / (1 - stripeFeePercent / 100) - ltTotal) * 100) / 100
   const ltGrandTotal = ltTotal + ltProcessingFee
 
   const validate = useCallback((): boolean => {
@@ -140,6 +142,13 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
       }
       if (blockedSet.has(moveIn)) {
         setError('Selected move-in date is unavailable.')
+        return false
+      }
+      const effectiveMin = minMoveIn && minMoveIn > today ? minMoveIn : today
+      if (moveIn < effectiveMin) {
+        setError(
+          `Move-in date must be on or after ${format(parseISO(effectiveMin), 'MMMM d, yyyy')}.`
+        )
         return false
       }
     }
@@ -243,38 +252,17 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
 
       {bookingType === 'short_term' && (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-surface-highest/40 rounded-xl px-3 py-2.5">
-              <DatePicker
-                label="Check-in"
-                value={checkIn}
-                onChange={(d) => {
-                  setCheckIn(d)
-                  setCheckOut('')
-                  setError('')
-                }}
-                min={today}
-                placeholder="Add date"
-                blockedDates={blockedDates}
-              />
-            </div>
-            <div className="bg-surface-highest/40 rounded-xl px-3 py-2.5">
-              <DatePicker
-                label="Check-out"
-                value={checkOut}
-                onChange={(d) => {
-                  setCheckOut(d)
-                  setError('')
-                }}
-                min={
-                  checkIn
-                    ? format(addDays(parseISO(checkIn), room.minimum_nights_short_term), 'yyyy-MM-dd')
-                    : today
-                }
-                max={checkOutMax}
-                placeholder="Add date"
-              />
-            </div>
+          <div>
+            <DateRangePicker
+              checkIn={checkIn}
+              checkOut={checkOut}
+              onCheckInChange={(d) => { setCheckIn(d); setCheckOut(''); setError('') }}
+              onCheckOutChange={(d) => { setCheckOut(d); setError('') }}
+              min={today}
+              minNights={room.minimum_nights_short_term}
+              checkOutMax={checkOutMax}
+              blockedDates={blockedDates}
+            />
           </div>
 
           {GuestSelector}
@@ -332,11 +320,17 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
                 setMoveIn(d)
                 setError('')
               }}
-              min={today}
+              min={minMoveIn && minMoveIn > today ? minMoveIn : today}
               placeholder="Add date"
               blockedDates={blockedDates}
             />
           </div>
+          {minMoveIn && minMoveIn > today && (
+            <p className="text-xs text-on-surface-variant">
+              Earliest available:{' '}
+              {format(parseISO(minMoveIn), 'MMMM d, yyyy')}
+            </p>
+          )}
 
           {GuestSelector}
 
@@ -390,6 +384,9 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
       >
         {bookingType === 'long_term' ? 'Apply Now' : 'Book Now'}
       </button>
+      <p className="text-center text-xs text-on-surface-variant mt-2">
+        Bookings require admin approval. You will not be charged until approved.
+      </p>
     </div>
   )
 }
