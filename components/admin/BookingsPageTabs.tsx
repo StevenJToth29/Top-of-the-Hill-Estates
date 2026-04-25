@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, ReactNode } from 'react'
 import ApplicationsTab from '@/components/admin/ApplicationsTab'
 
 interface Props {
-  bookingsContent: React.ReactNode
+  bookingsContent: ReactNode
 }
 
 export default function BookingsPageTabs({ bookingsContent }: Props) {
@@ -12,10 +12,13 @@ export default function BookingsPageTabs({ bookingsContent }: Props) {
 
   return (
     <div>
-      <div className="flex gap-1 border-b border-outline mb-6">
+      <div className="flex gap-1 border-b border-outline mb-6" role="tablist">
         {(['bookings', 'applications'] as const).map((t) => (
           <button
             key={t}
+            role="tab"
+            aria-selected={tab === t}
+            id={`tab-${t}`}
             onClick={() => setTab(t)}
             className={`px-5 py-2.5 text-sm font-semibold capitalize border-b-2 transition-colors
               ${tab === t
@@ -26,7 +29,9 @@ export default function BookingsPageTabs({ bookingsContent }: Props) {
           </button>
         ))}
       </div>
-      {tab === 'bookings' ? bookingsContent : <ApplicationsTab />}
+      <div id={tab === 'bookings' ? 'tabpanel-bookings' : 'tabpanel-applications'} role="tabpanel">
+        {tab === 'bookings' ? bookingsContent : <ApplicationsTab />}
+      </div>
     </div>
   )
 }
