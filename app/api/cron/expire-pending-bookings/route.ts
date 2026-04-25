@@ -82,15 +82,20 @@ async function handler(request: NextRequest) {
       try {
         if (booking.stripe_payment_intent_id) {
           const pi = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id)
-          if (['requires_capture', 'requires_payment_method', 'requires_confirmation', 'requires_action'].includes(pi.status)) {
+          // Note: 'processing' is excluded here — unlike authorize-capture cards (Sweep 2),
+          // an under_review booking that reached processing has likely already settled
+          // and should not be forcibly cancelled via this path.
+          const cancellableStatuses = ['requires_capture', 'requires_payment_method', 'requires_confirmation', 'requires_action']
+          if (cancellableStatuses.includes(pi.status)) {
             await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id)
           }
         }
         await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', booking.id)
-        await supabase
+        const { error: appErr } = await supabase
           .from('booking_applications')
           .update({ decision: 'declined', decline_reason: 'Automatically declined — review deadline passed' })
           .eq('booking_id', booking.id)
+        if (appErr) console.error(`auto-decline-review: failed to update application for booking ${booking.id}:`, appErr)
         evaluateAndQueueEmails('booking_auto_declined', { type: 'booking', bookingId: booking.id }).catch(console.error)
         evaluateAndQueueEmails('admin_missed_deadline', { type: 'booking', bookingId: booking.id }).catch(console.error)
         return true
