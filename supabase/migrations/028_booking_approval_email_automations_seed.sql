@@ -6,7 +6,7 @@ INSERT INTO email_automations (name, trigger_event, is_active, delay_minutes, re
 VALUES
   ('Application Needed',          'application_needed',          true,    0,    'guest', '{"operator":"AND","rules":[]}'),
   ('Application Reminder 24h',    'application_reminder_24h',    true, 1440,    'guest', '{"operator":"AND","rules":[]}'),
-  ('Application Reminder 12h',    'application_reminder_12h',    true, 2160,    'guest', '{"operator":"AND","rules":[]}'),
+  ('Application Reminder 12h',    'application_reminder_12h',    true,  720,    'guest', '{"operator":"AND","rules":[]}'),
   ('Application Expired',         'application_expired',         true,    0,    'guest', '{"operator":"AND","rules":[]}'),
   ('Booking Approved',            'booking_approved',            true,    0,    'guest', '{"operator":"AND","rules":[]}'),
   ('Booking Declined',            'booking_declined',            true,    0,    'guest', '{"operator":"AND","rules":[]}'),

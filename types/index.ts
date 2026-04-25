@@ -105,6 +105,7 @@ export interface Booking {
   marketing_consent: boolean
   source?: string | null
   notes?: string | null
+  application_deadline?: string | null
   created_at: string
   updated_at: string
   // joined

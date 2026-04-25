@@ -77,6 +77,9 @@ export function buildBookingVariables(
     contact_email: siteSettings?.contact_email ?? emailSettings?.from_email ?? '',
     review_url: emailSettings?.review_url ?? '',
     decline_reason: '',
+    application_deadline_hours: booking.application_deadline
+      ? String(Math.max(0, Math.round((new Date(booking.application_deadline).getTime() - Date.now()) / 3600000)))
+      : '',
   }
 }
 
