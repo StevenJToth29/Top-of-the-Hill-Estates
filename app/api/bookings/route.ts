@@ -194,7 +194,9 @@ export async function POST(request: Request) {
       {
         amount: Math.round(total_amount * 100),
         currency: 'usd',
-        payment_method_types: enabledMethods.map((m) => m.method_key),
+        payment_method_types: enabledMethods
+          .map((m) => m.method_key)
+          .filter((key) => key !== 'us_bank_account'),
         capture_method: 'manual',
         metadata: { room_id, booking_type, guest_email },
         payment_method_options: {
