@@ -42,21 +42,20 @@ export default function IdUploadStep({ bookingId, guestCount, savedDocs, onAllPa
     })
   }
 
-  async function handleUpload(idx: number, file: File) {
+  async function handleUpload(idx: number, file: File, name: string, address: string) {
     updateDraft(idx, { uploading: true, error: null, file })
 
     const buffer = await file.arrayBuffer()
     const base64 = btoa(String.fromCharCode(...new Uint8Array(buffer)))
     const storageKey = `${bookingId}/${idx + 1}-${Date.now()}-${file.name}`
 
-    const draft = drafts[idx]
     const res = await fetch(`/api/bookings/${bookingId}/validate-id`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         guest_index: idx + 1,
-        guest_name: draft.name,
-        current_address: draft.address,
+        guest_name: name,
+        current_address: address,
         id_photo_url: storageKey,
         image_base64: base64,
         image_mime_type: file.type,
@@ -127,8 +126,9 @@ export default function IdUploadStep({ bookingId, guestCount, savedDocs, onAllPa
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-on-surface-variant text-xs mb-1">Full Name</label>
+                <label htmlFor={`guest-${idx}-name`} className="block text-on-surface-variant text-xs mb-1">Full Name</label>
                 <input
+                  id={`guest-${idx}-name`}
                   type="text"
                   value={draft.name}
                   onChange={(e) => updateDraft(idx, { name: e.target.value })}
@@ -138,8 +138,9 @@ export default function IdUploadStep({ bookingId, guestCount, savedDocs, onAllPa
                 />
               </div>
               <div>
-                <label className="block text-on-surface-variant text-xs mb-1">Current Address</label>
+                <label htmlFor={`guest-${idx}-address`} className="block text-on-surface-variant text-xs mb-1">Current Address</label>
                 <input
+                  id={`guest-${idx}-address`}
                   type="text"
                   value={draft.address}
                   onChange={(e) => updateDraft(idx, { address: e.target.value })}
@@ -162,10 +163,11 @@ export default function IdUploadStep({ bookingId, guestCount, savedDocs, onAllPa
                     ref={(el) => { fileRefs.current[idx] = el }}
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/heic"
+                    aria-label={`Upload photo ID for Guest ${idx + 1}`}
                     disabled={draft.uploading || !draft.name.trim() || !draft.address.trim()}
                     onChange={(e) => {
                       const file = e.target.files?.[0]
-                      if (file) handleUpload(idx, file)
+                      if (file) handleUpload(idx, file, draft.name, draft.address)
                     }}
                     className="block w-full text-sm text-on-surface-variant file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-secondary/10 file:text-secondary hover:file:bg-secondary/20 disabled:opacity-50"
                   />

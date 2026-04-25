@@ -31,8 +31,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const body = (await req.json()) as RequestBody
   const { guest_index, guest_name, current_address, id_photo_url, image_base64, image_mime_type } = body
 
+  if (image_base64.length > 6_900_000) {
+    return NextResponse.json({ error: 'Image too large. Please use an image under 5 MB.' }, { status: 413 })
+  }
+
   if (guest_index < 1 || guest_index > (booking.guest_count ?? 1)) {
     return NextResponse.json({ error: 'Invalid guest_index' }, { status: 400 })
+  }
+
+  const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic']
+  if (!allowedMimeTypes.includes(image_mime_type)) {
+    return NextResponse.json({ error: 'Unsupported image type. Use JPEG, PNG, WebP, or HEIC.' }, { status: 400 })
   }
 
   let ai_quality_result: 'pass' | 'fail_blurry' | 'fail_partial' = 'pass'
