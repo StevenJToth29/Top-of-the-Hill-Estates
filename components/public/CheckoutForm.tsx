@@ -350,7 +350,7 @@ export default function CheckoutForm({ bookingParams, onProcessingFeeSet, availa
               onFeeConfirmed={onProcessingFeeSet}
               onSuccess={(id) =>
                 router.push(
-                  `/booking/confirmation?booking_id=${id}&guest_email=${encodeURIComponent(guestInfo.guest_email)}`,
+                  `/booking/apply/${id}?email=${encodeURIComponent(guestInfo.guest_email)}`,
                 )
               }
               onError={setError}
