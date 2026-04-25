@@ -144,6 +144,41 @@ export interface GuestIdDocument {
   created_at: string
 }
 
+// Shared shape for the /api/admin/applications list and the review panel
+export interface ApplicationRow {
+  id: string
+  status: string
+  check_in: string
+  check_out: string
+  guest_count: number
+  guest_first_name: string
+  guest_last_name: string
+  guest_email: string
+  total_amount: number
+  application_deadline: string | null
+  stripe_payment_intent_id: string
+  room: { name: string; property: { name: string } } | null
+  application: {
+    id: string
+    submitted_at?: string | null
+    decision?: string | null
+    purpose_of_stay?: string
+    traveling_from?: string
+    shared_living_exp?: string
+    house_rules_confirmed?: boolean
+    additional_info?: string | null
+  } | null
+  guest_id_documents: {
+    id: string
+    guest_index: number
+    ai_quality_result: string | null
+    ai_authenticity_flag: string | null
+    ai_validation_notes?: string | null
+    guest_name?: string
+    current_address?: string
+  }[]
+}
+
 export interface ICalBlock {
   id: string
   room_id: string

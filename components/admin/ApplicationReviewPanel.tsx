@@ -1,39 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-
-interface GuestDoc {
-  id: string
-  guest_index: number
-  ai_quality_result: string | null
-  ai_authenticity_flag: string | null
-  ai_validation_notes?: string | null
-  guest_name?: string
-  current_address?: string
-}
-
-interface ApplicationRow {
-  id: string
-  check_in: string
-  check_out: string
-  guest_count: number
-  guest_first_name: string
-  guest_last_name: string
-  guest_email: string
-  total_amount: number
-  application_deadline: string | null
-  stripe_payment_intent_id: string
-  room: { name: string; property: { name: string } } | null
-  application: {
-    id: string
-    purpose_of_stay?: string
-    traveling_from?: string
-    shared_living_exp?: string
-    house_rules_confirmed?: boolean
-    additional_info?: string | null
-  } | null
-  guest_id_documents: GuestDoc[]
-}
+import type { ApplicationRow } from '@/types'
 
 interface Props {
   application: ApplicationRow
@@ -121,12 +89,10 @@ export default function ApplicationReviewPanel({ application, onBack, onDecision
                   {app.house_rules_confirmed ? <><span className="text-secondary">✓</span><span>Confirmed</span></> : <><span className="text-error">✗</span><span>Not confirmed</span></>}
                 </div>
               </div>
-              {app.additional_info && (
-                <div>
-                  <div className="text-xs font-semibold text-on-surface-variant uppercase tracking-wide mb-1">5. Additional info</div>
-                  <div className="bg-surface-highest/40 rounded-lg px-3 py-2 text-sm text-on-surface">{app.additional_info}</div>
-                </div>
-              )}
+              <div>
+                <div className="text-xs font-semibold text-on-surface-variant uppercase tracking-wide mb-1">5. Additional info</div>
+                <div className="bg-surface-highest/40 rounded-lg px-3 py-2 text-sm text-on-surface">{app.additional_info || '—'}</div>
+              </div>
             </div>
           )}
         </div>

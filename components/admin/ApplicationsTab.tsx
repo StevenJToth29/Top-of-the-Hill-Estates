@@ -2,23 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import ApplicationReviewPanel from '@/components/admin/ApplicationReviewPanel'
-
-interface ApplicationRow {
-  id: string
-  status: string
-  check_in: string
-  check_out: string
-  guest_count: number
-  guest_first_name: string
-  guest_last_name: string
-  guest_email: string
-  total_amount: number
-  application_deadline: string | null
-  stripe_payment_intent_id: string
-  room: { name: string; property: { name: string } } | null
-  application: { id: string; submitted_at: string | null; decision: string | null } | null
-  guest_id_documents: { id: string; guest_index: number; ai_quality_result: string | null; ai_authenticity_flag: string | null }[]
-}
+import type { ApplicationRow } from '@/types'
 
 function Countdown({ deadline }: { deadline: string | null }) {
   const [remaining, setRemaining] = useState('')
