@@ -195,6 +195,7 @@ export async function POST(request: Request) {
         amount: Math.round(total_amount * 100),
         currency: 'usd',
         payment_method_types: enabledMethods.map((m) => m.method_key),
+        capture_method: 'manual',
         metadata: { room_id, booking_type, guest_email },
         payment_method_options: {
           us_bank_account: {
@@ -232,7 +233,7 @@ export async function POST(request: Request) {
         amount_paid: 0,
         amount_due_at_checkin,
         stripe_payment_intent_id: paymentIntent.id,
-        status: 'pending',
+        status: 'pending_docs',
         sms_consent,
         marketing_consent,
       })

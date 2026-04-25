@@ -20,3 +20,11 @@ export const stripe = new Proxy({} as Stripe, {
     return typeof value === 'function' ? (value as Function).bind(client) : value
   },
 })
+
+export async function capturePaymentIntent(paymentIntentId: string): Promise<void> {
+  const pi = await stripe.paymentIntents.retrieve(paymentIntentId)
+  if (pi.status === 'requires_capture') {
+    await stripe.paymentIntents.capture(paymentIntentId)
+  }
+  // ACH/bank payments in 'processing' or 'succeeded' capture automatically — no action needed
+}
