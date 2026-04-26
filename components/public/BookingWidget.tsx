@@ -6,6 +6,7 @@ import { format, differenceInDays, parseISO, addDays } from 'date-fns'
 import type { Room, BookingType, RoomFee } from '@/types'
 import DatePicker from './DatePicker'
 import DateRangePicker from './DateRangePicker'
+import { buildAirbnbUrl } from '@/lib/airbnb'
 
 interface Props {
   room: Room
@@ -30,6 +31,14 @@ function isRangeBlocked(checkIn: string, checkOut: string, blocked: Set<string>)
     if (blocked.has(formatDate(addDays(start, i)))) return true
   }
   return false
+}
+
+function AirbnbLogoIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M16 2C9.373 2 4 7.373 4 14c0 2.95 1.05 5.66 2.785 7.775L16 30l9.215-8.225C27.05 19.66 28 16.95 28 14c0-6.627-5.373-12-12-12zm0 16a5 5 0 110-10 5 5 0 010 10z" />
+    </svg>
+  )
 }
 
 const pillBase =
@@ -189,7 +198,6 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
       amount_to_pay: String(stTotal),
       amount_due: '0',
     })
-
     router.push(`/checkout?${params.toString()}`)
   }, [
     validate, room, bookingType, guests, checkIn, checkOut, moveIn, nights,
@@ -267,6 +275,7 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
 
           {GuestSelector}
 
+
           {nights > 0 && (
             <div className="bg-surface-container rounded-xl p-4 space-y-2 text-sm">
               <div className="flex justify-between text-on-surface-variant">
@@ -296,6 +305,17 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
                   <span>${f.amount.toLocaleString()}</span>
                 </div>
               ))}
+              {room.airbnb_listing_id && (
+                <a
+                  href={buildAirbnbUrl(room.airbnb_listing_id, { checkIn, checkOut, guests })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full border border-secondary/50 text-secondary rounded-xl py-2 text-sm font-medium hover:bg-secondary/5 transition-colors"
+                >
+                  <AirbnbLogoIcon className="w-4 h-4 text-[#FF5A5F]" />
+                  See these dates on Airbnb ↗
+                </a>
+              )}
               <div className="flex justify-between pt-2 border-t border-outline-variant">
                 <span className="text-on-surface font-medium">Due today</span>
                 <span className="text-primary font-bold text-lg">${stTotal.toLocaleString()}</span>
@@ -360,6 +380,17 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
                   <span>${f.amount.toLocaleString()}</span>
                 </div>
               ))}
+              {room.airbnb_listing_id && (
+                <a
+                  href={buildAirbnbUrl(room.airbnb_listing_id, { checkIn: moveIn, guests })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 w-full border border-secondary/50 text-secondary rounded-xl py-2 text-sm font-medium hover:bg-secondary/5 transition-colors"
+                >
+                  <AirbnbLogoIcon className="w-4 h-4 text-[#FF5A5F]" />
+                  Compare on Airbnb ↗
+                </a>
+              )}
               <div className="flex justify-between pt-2 border-t border-outline-variant">
                 <span className="text-on-surface font-medium">Due today</span>
                 <span className="text-primary font-bold text-2xl">${ltTotal.toLocaleString()}</span>
@@ -387,6 +418,25 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
       <p className="text-center text-xs text-on-surface-variant mt-2">
         Bookings require admin approval. You will not be charged until approved.
       </p>
+      {room.airbnb_listing_id && (
+        <a
+          href={buildAirbnbUrl(
+            room.airbnb_listing_id,
+            checkIn && checkOut
+              ? { checkIn, checkOut, guests }
+              : moveIn
+              ? { checkIn: moveIn, guests }
+              : undefined,
+          )}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center gap-1.5 text-xs text-on-surface-variant hover:text-[#FF5A5F] transition-colors"
+        >
+          <AirbnbLogoIcon className="w-3.5 h-3.5 text-[#FF5A5F]" />
+          Compare on Airbnb
+          <span aria-hidden="true">↗</span>
+        </a>
+      )}
     </div>
   )
 }
