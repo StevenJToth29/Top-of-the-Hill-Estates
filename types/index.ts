@@ -61,6 +61,7 @@ export interface Room {
   use_property_cancellation_policy?: boolean
   ical_export_token: string
   iframe_booking_url?: string | null
+  airbnb_listing_id?: string | null
   price_min?: number | null
   price_max?: number | null
   created_at: string
@@ -80,6 +81,10 @@ export interface Booking {
   guest_last_name: string
   guest_email: string
   guest_phone: string
+  guest_address_street?: string | null
+  guest_address_city?: string | null
+  guest_address_state?: string | null
+  guest_address_zip?: string | null
   check_in: string // ISO date string
   check_out: string // ISO date string
   total_nights: number
@@ -174,8 +179,10 @@ export interface ApplicationRow {
     ai_quality_result: string | null
     ai_authenticity_flag: string | null
     ai_validation_notes?: string | null
-    guest_name?: string
-    current_address?: string
+    guest_name?: string | null
+    current_address?: string | null
+    id_photo_url?: string | null
+    id_photo_signed_url?: string | null
   }[]
 }
 
