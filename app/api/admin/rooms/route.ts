@@ -54,6 +54,7 @@ export async function POST(request: Request) {
       cancellation_policy: body.cancellation_policy ?? null,
       use_property_cancellation_policy: body.use_property_cancellation_policy ?? true,
       iframe_booking_url: body.iframe_booking_url || null,
+      airbnb_listing_id: body.airbnb_listing_id || null,
     })
     .select('id')
     .single()
@@ -128,6 +129,7 @@ export async function PATCH(request: Request) {
       cancellation_policy: fields.cancellation_policy ?? null,
       use_property_cancellation_policy: fields.use_property_cancellation_policy ?? true,
       iframe_booking_url: fields.iframe_booking_url || null,
+      airbnb_listing_id: fields.airbnb_listing_id || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)

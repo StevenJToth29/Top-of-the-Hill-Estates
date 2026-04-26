@@ -35,8 +35,8 @@ function isRangeBlocked(checkIn: string, checkOut: string, blocked: Set<string>)
 
 function AirbnbLogoIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 32 32" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M16 2C9.373 2 4 7.373 4 14c0 2.95 1.05 5.66 2.785 7.775L16 30l9.215-8.225C27.05 19.66 28 16.95 28 14c0-6.627-5.373-12-12-12zm0 16a5 5 0 110-10 5 5 0 010 10z" />
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M11.995 0C10.89 0 10 .968 10 2.162c0 .44.12.852.33 1.196C9.124 5.29 7 9.036 7 11.757c0 2.79 2.243 5.052 5.005 5.052C14.757 16.809 17 14.547 17 11.757c0-2.721-2.124-6.467-3.33-8.399.21-.344.33-.756.33-1.196C14 .968 13.11 0 12.005 0h-.01zM12 3.892c1.49 2.463 3 5.31 3 7.865 0 1.658-1.343 3.002-3 3.002S9 13.415 9 11.757c0-2.556 1.51-5.402 3-7.865zM4.5 17c-1.38 0-2.5 1.12-2.5 2.5S3.12 22 4.5 22c.88 0 1.654-.456 2.1-1.147C7.276 21.556 8.574 22 9.974 22h4.052c1.4 0 2.698-.444 3.374-1.147.446.691 1.22 1.147 2.1 1.147C20.88 22 22 20.88 22 19.5S20.88 17 19.5 17c-.88 0-1.654.456-2.1 1.147C16.724 17.444 15.426 17 14.026 17H9.974c-1.4 0-2.698.444-3.374 1.147C6.154 17.456 5.38 17 4.5 17z" />
     </svg>
   )
 }
@@ -388,7 +388,7 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
                   className="flex items-center justify-center gap-2 w-full border border-secondary/50 text-secondary rounded-xl py-2 text-sm font-medium hover:bg-secondary/5 transition-colors"
                 >
                   <AirbnbLogoIcon className="w-4 h-4 text-[#FF5A5F]" />
-                  Compare on Airbnb ↗
+                  See your move-in on Airbnb ↗
                 </a>
               )}
               <div className="flex justify-between pt-2 border-t border-outline-variant">

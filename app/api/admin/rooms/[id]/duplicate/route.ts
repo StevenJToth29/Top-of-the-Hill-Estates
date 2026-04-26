@@ -72,6 +72,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       price_max: source.price_max,
       house_rules: source.house_rules,
       iframe_booking_url: source.iframe_booking_url ?? null,
+      airbnb_listing_id: source.airbnb_listing_id ?? null,
       ical_export_token: randomUUID(),
     })
     .select('id')
