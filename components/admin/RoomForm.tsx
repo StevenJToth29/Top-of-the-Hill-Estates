@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline'
 import type { Room, Property, ICalSource, CancellationPolicy } from '@/types'
 import { DEFAULT_POLICY } from '@/lib/cancellation'
+import { extractAirbnbListingId } from '@/lib/airbnb'
 import { slugify } from '@/lib/slugify'
 import AmenitiesTagInput from './AmenitiesTagInput'
 import ICalSourcesManager from './ICalSourcesManager'
@@ -138,6 +139,8 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
     { label: string; amount: number; calculation_type: 'fixed' | 'per_guest' | 'percent'; booking_type: 'short_term' | 'long_term' | 'both' }[]
   >((room?.fees ?? []).map(({ label, amount, calculation_type, booking_type }) => ({ label, amount, calculation_type: calculation_type ?? 'fixed', booking_type })))
   const [iframeBookingUrl, setIframeBookingUrl] = useState(room?.iframe_booking_url ?? '')
+  const [airbnbInput, setAirbnbInput] = useState(room?.airbnb_listing_id ?? '')
+  const airbnbListingId = extractAirbnbListingId(airbnbInput)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -297,6 +300,7 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
       cancellation_policy: usePropertyCancellationPolicy ? null : JSON.stringify(cancellationPolicy),
       use_property_cancellation_policy: usePropertyCancellationPolicy,
       iframe_booking_url: iframeBookingUrl || null,
+      airbnb_listing_id: airbnbListingId,
     }
 
     startTransition(async () => {
@@ -1062,6 +1066,38 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
                   placeholder="https://booking.hospitable.com/widget/..."
                   className={inputClass}
                 />
+              </div>
+            </SCard>
+
+            <SCard title="Airbnb Comparison" subtitle="Link this unit's Airbnb listing so guests can compare prices">
+              <p className="text-xs text-on-surface-variant/60">
+                Paste the Airbnb listing URL or bare listing ID. The comparison button will appear on the booking widget.
+              </p>
+              <div>
+                <label className={labelClass}>Airbnb Listing URL or ID</label>
+                <input
+                  type="text"
+                  value={airbnbInput}
+                  onChange={(e) => setAirbnbInput(e.target.value)}
+                  placeholder="https://www.airbnb.com/rooms/1234804626518653126 or 1234804626518653126"
+                  className={inputClass}
+                />
+                {airbnbInput && !airbnbListingId && (
+                  <p className="text-xs text-error mt-1">Enter a valid Airbnb listing URL or numeric listing ID.</p>
+                )}
+                {airbnbListingId && (
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    Preview:{' '}
+                    <a
+                      href={`https://www.airbnb.com/rooms/${airbnbListingId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-secondary underline"
+                    >
+                      airbnb.com/rooms/{airbnbListingId}
+                    </a>
+                  </p>
+                )}
               </div>
             </SCard>
           </div>
