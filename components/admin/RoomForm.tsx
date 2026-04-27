@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useRef, useEffect } from 'react'
+import clsx from 'clsx'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/outline'
@@ -19,6 +20,7 @@ interface RoomFormProps {
   properties: Property[]
   icalSources?: ICalSource[]
   roomId?: string
+  defaultPropertyId?: string
 }
 
 type RoomTab = 'info' | 'pricing' | 'amenities' | 'images' | 'ical'
@@ -92,14 +94,14 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   )
 }
 
-export default function RoomForm({ room, properties, icalSources, roomId }: RoomFormProps) {
+export default function RoomForm({ room, properties, icalSources, roomId, defaultPropertyId }: RoomFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [tab, setTab] = useState<RoomTab>('info')
   const [name, setName] = useState(room?.name ?? '')
   const [slug, setSlug] = useState(room?.slug ?? '')
   const [slugManual, setSlugManual] = useState(!!room?.slug)
-  const [propertyId, setPropertyId] = useState(room?.property_id ?? properties[0]?.id ?? '')
+  const [propertyId, setPropertyId] = useState(room?.property_id ?? defaultPropertyId ?? properties[0]?.id ?? '')
   const [shortDescription, setShortDescription] = useState(room?.short_description ?? '')
   const [description, setDescription] = useState(room?.description ?? '')
   const [guestCapacity, setGuestCapacity] = useState(room?.guest_capacity ?? 1)
@@ -141,6 +143,19 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
   const [iframeBookingUrl, setIframeBookingUrl] = useState(room?.iframe_booking_url ?? '')
   const [airbnbInput, setAirbnbInput] = useState(room?.airbnb_listing_id ?? '')
   const airbnbListingId = extractAirbnbListingId(airbnbInput)
+  const [smartPricingEnabled, setSmartPricingEnabled] = useState(room?.smart_pricing_enabled ?? false)
+  const [smartPricingAggressiveness, setSmartPricingAggressiveness] = useState<'conservative' | 'moderate' | 'aggressive'>(
+    room?.smart_pricing_aggressiveness ?? 'moderate',
+  )
+  const [maxAdvanceDays, setMaxAdvanceDays] = useState<number | null>(
+    room?.max_advance_booking_days ?? 182
+  )
+  const [advanceAppliesTo, setAdvanceAppliesTo] = useState<'short_term' | 'long_term' | 'both'>(
+    room?.max_advance_booking_applies_to ?? 'both'
+  )
+  const [advanceCustom, setAdvanceCustom] = useState(false)
+  const [priceMin, setPriceMin] = useState<number | ''>(room?.price_min ?? '')
+  const [priceMax, setPriceMax] = useState<number | ''>(room?.price_max ?? '')
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
@@ -225,6 +240,15 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
     'w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-1 focus:ring-secondary/50'
   const labelClass = 'block text-sm font-medium text-on-surface-variant mb-1.5'
 
+  const WINDOW_PRESETS = [
+    { label: 'All Blocked', days: 0 },
+    { label: '30 days', days: 30 },
+    { label: '60 days', days: 60 },
+    { label: '90 days', days: 90 },
+    { label: '6 months', days: 182 },
+    { label: '1 year', days: 365 },
+  ]
+
   function buildAIContext() {
     const parts: string[] = []
     if (name) parts.push(`Room name: ${name}`)
@@ -301,6 +325,12 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
       use_property_cancellation_policy: usePropertyCancellationPolicy,
       iframe_booking_url: iframeBookingUrl || null,
       airbnb_listing_id: airbnbListingId,
+      smart_pricing_enabled: smartPricingEnabled,
+      smart_pricing_aggressiveness: smartPricingAggressiveness,
+      price_min: priceMin !== '' ? Number(priceMin) : null,
+      price_max: priceMax !== '' ? Number(priceMax) : null,
+      max_advance_booking_days: maxAdvanceDays,
+      max_advance_booking_applies_to: advanceAppliesTo,
     }
 
     startTransition(async () => {
@@ -589,6 +619,80 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
                   </div>
                   <p className="text-xs text-on-surface-variant/60">Per month · long-term tenants</p>
                 </div>
+              </div>
+            </SCard>
+
+            <SCard title="Smart Pricing" subtitle="Automatically adjust nightly rates based on demand signals">
+              <div className="space-y-5">
+                {/* Enable toggle */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-surface-container/40 border border-outline-variant/20">
+                  <div>
+                    <p className="text-sm font-semibold text-on-surface">Enable Smart Pricing</p>
+                    <p className="text-xs text-on-surface-variant/60 mt-0.5">
+                      Dynamically price nights based on day-of-week, lead time, occupancy, and demand trends
+                    </p>
+                  </div>
+                  <Toggle checked={smartPricingEnabled} onChange={setSmartPricingEnabled} label="" />
+                </div>
+
+                {smartPricingEnabled && (
+                  <>
+                    {/* Aggressiveness */}
+                    <div>
+                      <label className="block text-xs font-medium text-on-surface-variant mb-2">Aggressiveness</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(['conservative', 'moderate', 'aggressive'] as const).map((opt) => (
+                          <button
+                            key={opt}
+                            type="button"
+                            onClick={() => setSmartPricingAggressiveness(opt)}
+                            className={`py-2.5 rounded-xl border text-xs font-semibold capitalize transition-colors ${
+                              smartPricingAggressiveness === opt
+                                ? 'border-secondary bg-secondary/10 text-secondary'
+                                : 'border-outline-variant/30 text-on-surface-variant hover:border-outline-variant/60'
+                            }`}
+                          >
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Price floor / ceiling */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-medium text-on-surface-variant mb-1">Price Floor (min/night)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-sm">$</span>
+                          <input
+                            type="number" min={1} step={1}
+                            value={priceMin}
+                            onChange={(e) => setPriceMin(e.target.value === '' ? '' : Number(e.target.value))}
+                            placeholder={String(Math.round(nightlyRate * 0.7) || 0)}
+                            className="w-full bg-surface-highest/40 rounded-xl pl-7 pr-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                          />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-on-surface-variant mb-1">Price Ceiling (max/night)</label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant/60 text-sm">$</span>
+                          <input
+                            type="number" min={1} step={1}
+                            value={priceMax}
+                            onChange={(e) => setPriceMax(e.target.value === '' ? '' : Number(e.target.value))}
+                            placeholder={String(Math.round(nightlyRate * 1.5) || 0)}
+                            className="w-full bg-surface-highest/40 rounded-xl pl-7 pr-3 py-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <p className="text-xs text-on-surface-variant/60 bg-secondary/5 border border-secondary/20 rounded-xl p-3">
+                      ⚡ Prices are updated nightly for the next 120 days. Manual per-night overrides always take priority. Disable to restore base rates.
+                    </p>
+                  </>
+                )}
               </div>
             </SCard>
 
@@ -1098,6 +1202,89 @@ export default function RoomForm({ room, properties, icalSources, roomId }: Room
                     </a>
                   </p>
                 )}
+              </div>
+            </SCard>
+
+            <SCard title="Booking Window" subtitle="Limit how far in advance guests can book this room">
+              <div className="space-y-4">
+                <div>
+                  <label className={labelClass}>Applies to booking type</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {(['both', 'short_term', 'long_term'] as const).map((v) => (
+                      <button
+                        key={v}
+                        type="button"
+                        onClick={() => setAdvanceAppliesTo(v)}
+                        className={clsx(
+                          'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors',
+                          advanceAppliesTo === v
+                            ? 'bg-primary text-on-primary border-primary'
+                            : 'bg-surface-container text-on-surface-variant border-outline/30 hover:border-primary/50'
+                        )}
+                      >
+                        {v === 'both' ? 'Both' : v === 'short_term' ? 'Short-term only' : 'Long-term only'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className={labelClass}>Window (days in advance)</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {WINDOW_PRESETS.map((p) => (
+                      <button
+                        key={p.days}
+                        type="button"
+                        onClick={() => { setMaxAdvanceDays(p.days); setAdvanceCustom(false) }}
+                        className={clsx(
+                          'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors',
+                          !advanceCustom && maxAdvanceDays === p.days
+                            ? 'bg-primary text-on-primary border-primary'
+                            : 'bg-surface-container text-on-surface-variant border-outline/30 hover:border-primary/50'
+                        )}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setAdvanceCustom(true)}
+                      className={clsx(
+                        'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors',
+                        advanceCustom
+                          ? 'bg-primary text-on-primary border-primary'
+                          : 'bg-surface-container text-on-surface-variant border-outline/30 hover:border-primary/50'
+                      )}
+                    >
+                      Custom
+                    </button>
+                  </div>
+                </div>
+
+                {advanceCustom && (
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="number"
+                      min={0}
+                      value={maxAdvanceDays ?? ''}
+                      onChange={(e) => {
+                        const v = parseInt(e.target.value, 10)
+                        setMaxAdvanceDays(isNaN(v) ? null : Math.max(0, v))
+                      }}
+                      className="w-28 rounded-lg border border-outline/30 bg-surface px-3 py-2 text-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      placeholder="Days"
+                    />
+                    <span className="text-sm text-on-surface-variant">days in advance (0 = all blocked)</span>
+                  </div>
+                )}
+
+                <p className="text-xs text-on-surface-variant">
+                  {maxAdvanceDays === 0
+                    ? 'All dates will appear unavailable. The room remains visible on listings.'
+                    : maxAdvanceDays === null
+                    ? 'No limit — all future dates within the platform window are available.'
+                    : `Guests can book up to ${maxAdvanceDays} days in advance${advanceAppliesTo !== 'both' ? ` (${advanceAppliesTo === 'short_term' ? 'short-term only' : 'long-term only'})` : ''}.`}
+                </p>
               </div>
             </SCard>
           </div>
