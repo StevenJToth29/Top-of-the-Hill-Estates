@@ -21,6 +21,8 @@ export interface Property {
   platform_fee_percent?: number
   cancellation_policy?: string | null
   use_global_cancellation_policy?: boolean
+  trends_keyword?: string | null
+  trends_geo?: string | null
   created_at: string
   // joined
   stripe_account?: StripeAccount | null
@@ -62,16 +64,27 @@ export interface Room {
   ical_export_token: string
   iframe_booking_url?: string | null
   airbnb_listing_id?: string | null
+  max_advance_booking_days?: number | null
+  max_advance_booking_applies_to?: 'short_term' | 'long_term' | 'both'
   price_min?: number | null
   price_max?: number | null
+  smart_pricing_enabled?: boolean
+  smart_pricing_aggressiveness?: 'conservative' | 'moderate' | 'aggressive'
   created_at: string
   updated_at: string
   // joined
   property?: Property
 }
 
+export interface GuestInfo {
+  guest_first_name: string
+  guest_last_name: string
+  guest_email: string
+  guest_phone: string
+}
+
 export type BookingType = 'short_term' | 'long_term'
-export type BookingStatus = 'pending' | 'pending_docs' | 'under_review' | 'confirmed' | 'cancelled' | 'completed' | 'expired'
+export type BookingStatus = 'pending_payment' | 'pending' | 'pending_docs' | 'under_review' | 'confirmed' | 'cancelled' | 'completed' | 'expired'
 
 export interface Booking {
   id: string
@@ -443,6 +456,7 @@ export interface DateOverride {
   is_blocked: boolean
   block_reason: string | null
   note: string | null
+  source?: 'manual' | 'smart'
   created_at: string
 }
 
