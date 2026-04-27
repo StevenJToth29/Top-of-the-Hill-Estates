@@ -55,6 +55,12 @@ export async function POST(request: Request) {
       use_property_cancellation_policy: body.use_property_cancellation_policy ?? true,
       iframe_booking_url: body.iframe_booking_url || null,
       airbnb_listing_id: body.airbnb_listing_id || null,
+      smart_pricing_enabled: Boolean(body.smart_pricing_enabled),
+      smart_pricing_aggressiveness: body.smart_pricing_aggressiveness ?? 'moderate',
+      price_min: body.price_min != null ? Number(body.price_min) : null,
+      price_max: body.price_max != null ? Number(body.price_max) : null,
+      max_advance_booking_days: body.max_advance_booking_days != null ? Number(body.max_advance_booking_days) : 182,
+      max_advance_booking_applies_to: body.max_advance_booking_applies_to ?? 'both',
     })
     .select('id')
     .single()
@@ -130,6 +136,12 @@ export async function PATCH(request: Request) {
       use_property_cancellation_policy: fields.use_property_cancellation_policy ?? true,
       iframe_booking_url: fields.iframe_booking_url || null,
       airbnb_listing_id: fields.airbnb_listing_id || null,
+      smart_pricing_enabled: Boolean(fields.smart_pricing_enabled),
+      smart_pricing_aggressiveness: fields.smart_pricing_aggressiveness ?? 'moderate',
+      price_min: fields.price_min != null ? Number(fields.price_min) : null,
+      price_max: fields.price_max != null ? Number(fields.price_max) : null,
+      max_advance_booking_days: fields.max_advance_booking_days != null ? Number(fields.max_advance_booking_days) : 182,
+      max_advance_booking_applies_to: fields.max_advance_booking_applies_to ?? 'both',
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
