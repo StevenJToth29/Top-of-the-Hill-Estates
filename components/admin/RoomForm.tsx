@@ -25,6 +25,15 @@ interface RoomFormProps {
 
 type RoomTab = 'info' | 'pricing' | 'amenities' | 'images' | 'ical'
 
+const WINDOW_PRESETS = [
+  { label: 'All Blocked', days: 0 },
+  { label: '30 days', days: 30 },
+  { label: '60 days', days: 60 },
+  { label: '90 days', days: 90 },
+  { label: '6 months', days: 182 },
+  { label: '1 year', days: 365 },
+] as const
+
 function CompletenessBar({ checks }: { checks: [string, boolean][] }) {
   const done = checks.filter((c) => c[1]).length
   const pct = Math.round((done / checks.length) * 100)
@@ -153,7 +162,10 @@ export default function RoomForm({ room, properties, icalSources, roomId, defaul
   const [advanceAppliesTo, setAdvanceAppliesTo] = useState<'short_term' | 'long_term' | 'both'>(
     room?.max_advance_booking_applies_to ?? 'both'
   )
-  const [advanceCustom, setAdvanceCustom] = useState(false)
+  const [advanceCustom, setAdvanceCustom] = useState(() => {
+    const days = room?.max_advance_booking_days ?? 182
+    return days !== null && ![0, 30, 60, 90, 182, 365].includes(days)
+  })
   const [priceMin, setPriceMin] = useState<number | ''>(room?.price_min ?? '')
   const [priceMax, setPriceMax] = useState<number | ''>(room?.price_max ?? '')
   const [copied, setCopied] = useState(false)
@@ -239,15 +251,6 @@ export default function RoomForm({ room, properties, icalSources, roomId, defaul
   const inputClass =
     'w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:ring-1 focus:ring-secondary/50'
   const labelClass = 'block text-sm font-medium text-on-surface-variant mb-1.5'
-
-  const WINDOW_PRESETS = [
-    { label: 'All Blocked', days: 0 },
-    { label: '30 days', days: 30 },
-    { label: '60 days', days: 60 },
-    { label: '90 days', days: 90 },
-    { label: '6 months', days: 182 },
-    { label: '1 year', days: 365 },
-  ]
 
   function buildAIContext() {
     const parts: string[] = []
@@ -1209,11 +1212,12 @@ export default function RoomForm({ room, properties, icalSources, roomId, defaul
               <div className="space-y-4">
                 <div>
                   <label className={labelClass}>Applies to booking type</label>
-                  <div className="flex gap-2 flex-wrap">
+                  <div role="group" aria-label="Applies to booking type" className="flex gap-2 flex-wrap">
                     {(['both', 'short_term', 'long_term'] as const).map((v) => (
                       <button
                         key={v}
                         type="button"
+                        aria-pressed={advanceAppliesTo === v}
                         onClick={() => setAdvanceAppliesTo(v)}
                         className={clsx(
                           'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors',
@@ -1230,11 +1234,12 @@ export default function RoomForm({ room, properties, icalSources, roomId, defaul
 
                 <div>
                   <label className={labelClass}>Window (days in advance)</label>
-                  <div className="flex gap-2 flex-wrap">
+                  <div role="group" aria-label="Window (days in advance)" className="flex gap-2 flex-wrap">
                     {WINDOW_PRESETS.map((p) => (
                       <button
                         key={p.days}
                         type="button"
+                        aria-pressed={!advanceCustom && maxAdvanceDays === p.days}
                         onClick={() => { setMaxAdvanceDays(p.days); setAdvanceCustom(false) }}
                         className={clsx(
                           'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors',
@@ -1248,6 +1253,7 @@ export default function RoomForm({ room, properties, icalSources, roomId, defaul
                     ))}
                     <button
                       type="button"
+                      aria-pressed={advanceCustom}
                       onClick={() => setAdvanceCustom(true)}
                       className={clsx(
                         'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors',
