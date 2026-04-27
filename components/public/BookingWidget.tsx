@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { format, differenceInDays, parseISO, addDays } from 'date-fns'
+import { format, differenceInDays, parseISO, addDays, startOfDay } from 'date-fns'
 import type { Room, BookingType, RoomFee } from '@/types'
 import DatePicker from './DatePicker'
 import DateRangePicker from './DateRangePicker'
@@ -36,7 +36,7 @@ function isRangeBlocked(checkIn: string, checkOut: string, blocked: Set<string>)
 function AirbnbLogoIcon({ className }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M11.995 0C10.89 0 10 .968 10 2.162c0 .44.12.852.33 1.196C9.124 5.29 7 9.036 7 11.757c0 2.79 2.243 5.052 5.005 5.052C14.757 16.809 17 14.547 17 11.757c0-2.721-2.124-6.467-3.33-8.399.21-.344.33-.756.33-1.196C14 .968 13.11 0 12.005 0h-.01zM12 3.892c1.49 2.463 3 5.31 3 7.865 0 1.658-1.343 3.002-3 3.002S9 13.415 9 11.757c0-2.556 1.51-5.402 3-7.865zM4.5 17c-1.38 0-2.5 1.12-2.5 2.5S3.12 22 4.5 22c.88 0 1.654-.456 2.1-1.147C7.276 21.556 8.574 22 9.974 22h4.052c1.4 0 2.698-.444 3.374-1.147.446.691 1.22 1.147 2.1 1.147C20.88 22 22 20.88 22 19.5S20.88 17 19.5 17c-.88 0-1.654.456-2.1 1.147C16.724 17.444 15.426 17 14.026 17H9.974c-1.4 0-2.698.444-3.374 1.147C6.154 17.456 5.38 17 4.5 17z" />
+      <path d="M12.001 18.275c-1.353-1.697-2.148-3.184-2.413-4.457-.263-1.027-.16-1.848.291-2.465.477-.71 1.188-1.056 2.121-1.056s1.643.345 2.12 1.063c.446.61.558 1.432.286 2.465-.291 1.298-1.085 2.785-2.412 4.458zm9.601 1.14c-.185 1.246-1.034 2.28-2.2 2.783-2.253.98-4.483-.583-6.392-2.704 3.157-3.951 3.74-7.028 2.385-9.018-.795-1.14-1.933-1.695-3.394-1.695-2.944 0-4.563 2.49-3.927 5.382.37 1.565 1.352 3.343 2.917 5.332-.98 1.085-1.91 1.856-2.732 2.333-.636.344-1.245.558-1.828.609-2.679.399-4.778-2.2-3.825-4.88.132-.345.395-.98.845-1.961l.025-.053c1.464-3.178 3.242-6.79 5.285-10.795l.053-.132.58-1.116c.45-.822.635-1.19 1.351-1.643.346-.21.77-.315 1.246-.315.954 0 1.698.558 2.016 1.007.158.239.345.557.582.953l.558 1.089.08.159c2.041 4.004 3.821 7.608 5.279 10.794l.026.025.533 1.22.318.764c.243.613.294 1.222.213 1.858zm1.22-2.39c-.186-.583-.505-1.271-.9-2.094v-.03c-1.889-4.006-3.642-7.608-5.307-10.844l-.111-.163C15.317 1.461 14.468 0 12.001 0c-2.44 0-3.476 1.695-4.535 3.898l-.081.16c-1.669 3.236-3.421 6.843-5.303 10.847v.053l-.559 1.22c-.21.504-.317.768-.345.847C-.172 20.74 2.611 24 5.98 24c.027 0 .132 0 .265-.027h.372c1.75-.213 3.554-1.325 5.384-3.317 1.829 1.989 3.635 3.104 5.382 3.317h.372c.133.027.239.027.265.027 3.37.003 6.152-3.261 4.802-6.975z" />
     </svg>
   )
 }
@@ -65,6 +65,30 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
   const [error, setError] = useState('')
 
   const today = useMemo(() => formatDate(new Date()), [])
+
+  const todayDate = useMemo(() => startOfDay(new Date()), [])
+
+  const shortTermWindowEnd = useMemo(() => {
+    const applies = room.max_advance_booking_applies_to ?? 'both'
+    if (applies === 'long_term') return undefined
+    const days = room.max_advance_booking_days
+    if (days == null) return undefined
+    if (days === 0) return format(addDays(todayDate, -1), 'yyyy-MM-dd')
+    return format(addDays(todayDate, days), 'yyyy-MM-dd')
+  }, [room.max_advance_booking_days, room.max_advance_booking_applies_to, todayDate])
+
+  const longTermWindowEnd = useMemo(() => {
+    const applies = room.max_advance_booking_applies_to ?? 'both'
+    if (applies === 'short_term') return undefined
+    const days = room.max_advance_booking_days
+    if (days == null) return undefined
+    if (days === 0) return format(addDays(todayDate, -1), 'yyyy-MM-dd')
+    return format(addDays(todayDate, days), 'yyyy-MM-dd')
+  }, [room.max_advance_booking_days, room.max_advance_booking_applies_to, todayDate])
+
+  const isShortTermWindowBlocked = shortTermWindowEnd !== undefined && shortTermWindowEnd < today
+  const isLongTermWindowBlocked = longTermWindowEnd !== undefined && longTermWindowEnd < today
+  const currentTypeBlocked = bookingType === 'short_term' ? isShortTermWindowBlocked : isLongTermWindowBlocked
 
   // Keep URL in sync with selected dates so the back button can restore them
   useEffect(() => {
@@ -260,164 +284,175 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
 
       {bookingType === 'short_term' && (
         <div className="space-y-3">
-          <div>
-            <DateRangePicker
-              checkIn={checkIn}
-              checkOut={checkOut}
-              onCheckInChange={(d) => { setCheckIn(d); setCheckOut(''); setError('') }}
-              onCheckOutChange={(d) => { setCheckOut(d); setError('') }}
-              min={today}
-              minNights={room.minimum_nights_short_term}
-              checkOutMax={checkOutMax}
-              blockedDates={blockedDates}
-            />
-          </div>
-
-          {GuestSelector}
-
-
-          {nights > 0 && (
-            <div className="bg-surface-container rounded-xl p-4 space-y-2 text-sm">
-              <div className="flex justify-between text-on-surface-variant">
-                <span>
-                  {nights} night{nights !== 1 ? 's' : ''}
-                  {!hasRateVariation && ` × $${room.nightly_rate.toLocaleString()}`}
-                </span>
-                <span>${subtotal.toLocaleString()}</span>
+          {isShortTermWindowBlocked ? (
+            <p className="text-sm text-on-surface-variant py-4 text-center rounded-xl bg-surface-container/50">
+              This room is not currently accepting short-term reservations.
+            </p>
+          ) : (
+            <>
+              <div>
+                <DateRangePicker
+                  checkIn={checkIn}
+                  checkOut={checkOut}
+                  onCheckInChange={(d) => { setCheckIn(d); setCheckOut(''); setError('') }}
+                  onCheckOutChange={(d) => { setCheckOut(d); setError('') }}
+                  min={today}
+                  max={shortTermWindowEnd}
+                  minNights={room.minimum_nights_short_term}
+                  checkOutMax={checkOutMax}
+                  blockedDates={blockedDates}
+                />
               </div>
-              {cleaningFee > 0 && (
-                <div className="flex justify-between text-on-surface-variant">
-                  <span>Cleaning fee</span>
-                  <span>${cleaningFee.toLocaleString()}</span>
+
+              {GuestSelector}
+
+
+              {nights > 0 && (
+                <div className="bg-surface-container rounded-xl p-4 space-y-2 text-sm">
+                  <div className="flex justify-between text-on-surface-variant">
+                    <span>
+                      {nights} night{nights !== 1 ? 's' : ''}
+                      {!hasRateVariation && ` × $${room.nightly_rate.toLocaleString()}`}
+                    </span>
+                    <span>${subtotal.toLocaleString()}</span>
+                  </div>
+                  {cleaningFee > 0 && (
+                    <div className="flex justify-between text-on-surface-variant">
+                      <span>Cleaning fee</span>
+                      <span>${cleaningFee.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {stExtraGuestTotal > 0 && (
+                    <div className="flex justify-between text-on-surface-variant">
+                      <span>
+                        Extra guests ({extraGuests} × ${extraGuestFee}/night)
+                      </span>
+                      <span>${stExtraGuestTotal.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {stGenericFees.map((f) => (
+                    <div key={f.id} className="flex justify-between text-on-surface-variant">
+                      <span>{f.label}</span>
+                      <span>${f.amount.toLocaleString()}</span>
+                    </div>
+                  ))}
+                  {room.airbnb_listing_id && (
+                    <a
+                      href={buildAirbnbUrl(room.airbnb_listing_id, { checkIn, checkOut, guests })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 w-full border border-secondary/50 text-secondary rounded-xl py-2 text-sm font-medium hover:bg-secondary/5 transition-colors"
+                    >
+                      <AirbnbLogoIcon className="w-4 h-4 text-[#FF5A5F]" />
+                      See these dates on Airbnb ↗
+                    </a>
+                  )}
+                  <div className="flex justify-between pt-2 border-t border-outline-variant">
+                    <span className="text-on-surface font-medium">Due today</span>
+                    <span className="text-primary font-bold text-lg">${stTotal.toLocaleString()}</span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant/60 italic">Processing fee added at checkout</p>
                 </div>
               )}
-              {stExtraGuestTotal > 0 && (
-                <div className="flex justify-between text-on-surface-variant">
-                  <span>
-                    Extra guests ({extraGuests} × ${extraGuestFee}/night)
-                  </span>
-                  <span>${stExtraGuestTotal.toLocaleString()}</span>
-                </div>
-              )}
-              {stGenericFees.map((f) => (
-                <div key={f.id} className="flex justify-between text-on-surface-variant">
-                  <span>{f.label}</span>
-                  <span>${f.amount.toLocaleString()}</span>
-                </div>
-              ))}
-              {room.airbnb_listing_id && (
-                <a
-                  href={buildAirbnbUrl(room.airbnb_listing_id, { checkIn, checkOut, guests })}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full border border-secondary/50 text-secondary rounded-xl py-2 text-sm font-medium hover:bg-secondary/5 transition-colors"
-                >
-                  <AirbnbLogoIcon className="w-4 h-4 text-[#FF5A5F]" />
-                  See these dates on Airbnb ↗
-                </a>
-              )}
-              <div className="flex justify-between pt-2 border-t border-outline-variant">
-                <span className="text-on-surface font-medium">Due today</span>
-                <span className="text-primary font-bold text-lg">${stTotal.toLocaleString()}</span>
-              </div>
-              <p className="text-xs text-on-surface-variant/60 italic">Processing fee added at checkout</p>
-            </div>
+
+              <p className="text-xs text-on-surface-variant">
+                Min. {room.minimum_nights_short_term} night{room.minimum_nights_short_term !== 1 ? 's' : ''}
+              </p>
+            </>
           )}
-
-          <p className="text-xs text-on-surface-variant">
-            Min. {room.minimum_nights_short_term} night{room.minimum_nights_short_term !== 1 ? 's' : ''}
-          </p>
         </div>
       )}
 
       {bookingType === 'long_term' && (
         <div className="space-y-3">
-          <div className="bg-surface-highest/40 rounded-xl px-3 py-2.5">
-            <DatePicker
-              label="Move-in Date"
-              value={moveIn}
-              onChange={(d) => {
-                setMoveIn(d)
-                setError('')
-              }}
-              min={minMoveIn && minMoveIn > today ? minMoveIn : today}
-              placeholder="Add date"
-              blockedDates={blockedDates}
-            />
-          </div>
-          {minMoveIn && minMoveIn > today && (
-            <p className="text-xs text-on-surface-variant">
-              Earliest available:{' '}
-              {format(parseISO(minMoveIn), 'MMMM d, yyyy')}
+          {isLongTermWindowBlocked ? (
+            <p className="text-sm text-on-surface-variant py-4 text-center rounded-xl bg-surface-container/50">
+              This room is not currently accepting long-term reservations.
             </p>
-          )}
-
-          {GuestSelector}
-
-          {moveIn && (
-            <div className="bg-surface-container rounded-xl p-4 space-y-2 text-sm">
-              <div className="flex justify-between text-on-surface-variant">
-                <span>First month</span>
-                <span>${room.monthly_rate.toLocaleString()}</span>
+          ) : (
+            <>
+              <div className="bg-surface-highest/40 rounded-xl px-3 py-2.5">
+                <DatePicker
+                  label="Move-in Date"
+                  value={moveIn}
+                  onChange={(d) => {
+                    setMoveIn(d)
+                    setError('')
+                  }}
+                  min={minMoveIn && minMoveIn > today ? minMoveIn : today}
+                  max={longTermWindowEnd}
+                  placeholder="Add date"
+                  blockedDates={blockedDates}
+                />
               </div>
-              {securityDeposit > 0 && (
-                <div className="flex justify-between text-on-surface-variant">
-                  <span>Security deposit</span>
-                  <span>${securityDeposit.toLocaleString()}</span>
-                </div>
+              {minMoveIn && minMoveIn > today && (
+                <p className="text-xs text-on-surface-variant">
+                  Earliest available:{' '}
+                  {format(parseISO(minMoveIn), 'MMMM d, yyyy')}
+                </p>
               )}
-              {ltExtraGuestTotal > 0 && (
-                <div className="flex justify-between text-on-surface-variant">
-                  <span>
-                    Extra guests ({extraGuests} × ${extraGuestFee}/month)
-                  </span>
-                  <span>${ltExtraGuestTotal.toLocaleString()}</span>
-                </div>
-              )}
-              {ltGenericFees.map((f) => (
-                <div key={f.id} className="flex justify-between text-on-surface-variant">
-                  <span>{f.label}</span>
-                  <span>${f.amount.toLocaleString()}</span>
-                </div>
-              ))}
-              {room.airbnb_listing_id && (
-                <a
-                  href={buildAirbnbUrl(room.airbnb_listing_id, { checkIn: moveIn, guests })}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-2 w-full border border-secondary/50 text-secondary rounded-xl py-2 text-sm font-medium hover:bg-secondary/5 transition-colors"
-                >
-                  <AirbnbLogoIcon className="w-4 h-4 text-[#FF5A5F]" />
-                  See your move-in on Airbnb ↗
-                </a>
-              )}
-              <div className="flex justify-between pt-2 border-t border-outline-variant">
-                <span className="text-on-surface font-medium">Due today</span>
-                <span className="text-primary font-bold text-2xl">${ltTotal.toLocaleString()}</span>
-              </div>
-              <p className="text-xs text-on-surface-variant/60 italic">Processing fee added at checkout</p>
-            </div>
-          )}
 
-          <p className="text-xs text-on-surface-variant">
-            Min. {room.minimum_nights_long_term} days. Deposit is non-refundable.
-          </p>
+              {GuestSelector}
+
+              {moveIn && (
+                <div className="bg-surface-container rounded-xl p-4 space-y-2 text-sm">
+                  <div className="flex justify-between text-on-surface-variant">
+                    <span>First month</span>
+                    <span>${room.monthly_rate.toLocaleString()}</span>
+                  </div>
+                  {securityDeposit > 0 && (
+                    <div className="flex justify-between text-on-surface-variant">
+                      <span>Security deposit</span>
+                      <span>${securityDeposit.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {ltExtraGuestTotal > 0 && (
+                    <div className="flex justify-between text-on-surface-variant">
+                      <span>
+                        Extra guests ({extraGuests} × ${extraGuestFee}/month)
+                      </span>
+                      <span>${ltExtraGuestTotal.toLocaleString()}</span>
+                    </div>
+                  )}
+                  {ltGenericFees.map((f) => (
+                    <div key={f.id} className="flex justify-between text-on-surface-variant">
+                      <span>{f.label}</span>
+                      <span>${f.amount.toLocaleString()}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between pt-2 border-t border-outline-variant">
+                    <span className="text-on-surface font-medium">Due today</span>
+                    <span className="text-primary font-bold text-2xl">${ltTotal.toLocaleString()}</span>
+                  </div>
+                  <p className="text-xs text-on-surface-variant/60 italic">Processing fee added at checkout</p>
+                </div>
+              )}
+
+              <p className="text-xs text-on-surface-variant">
+                Min. {room.minimum_nights_long_term} days. Deposit is non-refundable.
+              </p>
+            </>
+          )}
         </div>
       )}
 
-      {error && (
+      {!currentTypeBlocked && error && (
         <p className="text-sm text-error bg-error-container/30 rounded-xl px-4 py-2">{error}</p>
       )}
 
-      <button
-        onClick={handleBook}
-        className="w-full bg-gradient-to-r from-primary to-secondary text-background font-display font-semibold py-3 rounded-2xl shadow-[0_0_10px_rgba(45,212,191,0.30)] hover:opacity-90 transition-opacity duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-      >
-        {bookingType === 'long_term' ? 'Apply Now' : 'Book Now'}
-      </button>
-      <p className="text-center text-xs text-on-surface-variant mt-2">
-        Bookings require admin approval. You will not be charged until approved.
-      </p>
+      {!currentTypeBlocked && (
+        <>
+          <button
+            onClick={handleBook}
+            className="w-full bg-gradient-to-r from-primary to-secondary text-background font-display font-semibold py-3 rounded-2xl shadow-[0_0_10px_rgba(45,212,191,0.30)] hover:opacity-90 transition-opacity duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            {bookingType === 'long_term' ? 'Apply Now' : 'Book Now'}
+          </button>
+          <p className="text-center text-xs text-on-surface-variant mt-2">
+            Bookings require admin approval. You will not be charged until approved.
+          </p>
+        </>
+      )}
       {room.airbnb_listing_id && (
         <a
           href={buildAirbnbUrl(
