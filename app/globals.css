@@ -32,3 +32,57 @@ body {
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+/* ─── Rich text (TipTap WYSIWYG output) ───────────────────────── */
+.rich-text h2 {
+  font-family: var(--font-manrope), sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: rgb(var(--color-primary));
+  margin-top: 2rem;
+  margin-bottom: 0.75rem;
+}
+.rich-text h3 {
+  font-family: var(--font-manrope), sans-serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: rgb(var(--color-on-surface));
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+.rich-text p {
+  margin-bottom: 0.75rem;
+}
+.rich-text ul {
+  list-style-type: disc;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.rich-text ol {
+  list-style-type: decimal;
+  padding-left: 1.5rem;
+  margin-top: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.rich-text li {
+  margin-bottom: 0.4rem;
+  line-height: 1.6;
+}
+.rich-text strong {
+  font-weight: 600;
+  color: rgb(var(--color-on-surface));
+}
+.rich-text em {
+  font-style: italic;
+}
+.rich-text u {
+  text-decoration: underline;
+}
+.rich-text a {
+  color: rgb(var(--color-secondary));
+  text-decoration: none;
+}
+.rich-text a:hover {
+  text-decoration: underline;
+}

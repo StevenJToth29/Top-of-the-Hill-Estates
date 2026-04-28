@@ -166,7 +166,7 @@ export default function LegalDocEditor({ value, onChange, placeholder }: LegalDo
         )}
         <EditorContent
           editor={editor}
-          className="prose prose-sm max-w-none text-on-surface px-4 py-4 min-h-[160px] focus:outline-none [&_.ProseMirror]:outline-none"
+          className="rich-text max-w-none text-on-surface px-4 py-4 min-h-[160px] focus:outline-none [&_.ProseMirror]:outline-none"
         />
       </div>
     </div>
