@@ -309,6 +309,9 @@ export interface SiteSettings {
   stripe_fee_flat?: number
   cancellation_policy?: string | null  // JSON-encoded CancellationPolicy
   ai_prompts?: string | null  // JSON-encoded AiPrompts
+  privacy_policy_html?: string | null
+  terms_of_service_html?: string | null
+  legal_last_updated?: string | null
   updated_at: string
 }
 

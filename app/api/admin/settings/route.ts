@@ -33,6 +33,11 @@ export async function PATCH(request: Request) {
   if (body.stripe_fee_flat !== undefined) fields.stripe_fee_flat = body.stripe_fee_flat
   if (body.cancellation_policy !== undefined) fields.cancellation_policy = body.cancellation_policy
   if (body.ai_prompts !== undefined) fields.ai_prompts = body.ai_prompts
+  if (body.privacy_policy_html !== undefined) fields.privacy_policy_html = body.privacy_policy_html
+  if (body.terms_of_service_html !== undefined) fields.terms_of_service_html = body.terms_of_service_html
+  if (body.privacy_policy_html !== undefined || body.terms_of_service_html !== undefined) {
+    fields.legal_last_updated = new Date().toISOString()
+  }
 
   let error
   if (body.id) {
