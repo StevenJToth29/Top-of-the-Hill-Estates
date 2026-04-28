@@ -2,7 +2,7 @@
 'use client'
 
 import React, { useRef, useCallback, useMemo, useEffect } from 'react'
-import { format, isToday, getDay } from 'date-fns'
+import { format, isToday, getDay, startOfToday } from 'date-fns'
 import { clsx } from 'clsx'
 import { HomeIcon } from '@heroicons/react/16/solid'
 import type { Room, Booking, ICalBlock, CalendarTask } from '@/types'
@@ -32,6 +32,8 @@ interface CalendarGridProps {
   onTaskClick: (task: CalendarTask) => void
   onAddTask: (roomId: string | null, date: string) => void
   onAddPropertyTask: (propertyId: string, date: string) => void
+  onSmartPricingClick?: (roomId: string) => void
+  viewMode?: 'bookings' | 'tasks'
 }
 
 type CellStatus = 'available' | 'booked-first' | 'booked-cont' | 'blocked' | 'ical' | 'selected'
@@ -160,6 +162,8 @@ export function CalendarGrid({
   onTaskClick,
   onAddTask,
   onAddPropertyTask,
+  onSmartPricingClick,
+  viewMode = 'bookings',
 }: CalendarGridProps) {
   const dragging = useRef(false)
   const dragStartDate = useRef<string | null>(null)
@@ -231,6 +235,7 @@ export function CalendarGrid({
   }, [rooms])
 
   const occupancyByDate = useMemo(() => {
+    if (viewMode === 'tasks') return {} as Record<string, number>
     const map: Record<string, number> = {}
     for (const day of days) {
       const ds = format(day, 'yyyy-MM-dd')
@@ -242,7 +247,7 @@ export function CalendarGrid({
       map[ds] = count
     }
     return map
-  }, [days, rooms, bookings, icalBlocks, overrideMap])
+  }, [days, rooms, bookings, icalBlocks, overrideMap, viewMode])
 
   const monthGroups = useMemo(() => {
     const groups: { yearMonth: string; count: number }[] = []
@@ -258,6 +263,7 @@ export function CalendarGrid({
     return groups
   }, [days])
 
+  const todayStr = format(startOfToday(), 'yyyy-MM-dd')
   const tableWidth = LABEL_COL_WIDTH + days.length * DAY_COL_WIDTH
 
   return (
@@ -282,7 +288,7 @@ export function CalendarGrid({
             <th
               key={yearMonth}
               colSpan={count}
-              className="border-b border-l-2 border-slate-300 bg-slate-50 text-left text-[11px] font-semibold text-slate-500 px-2 py-1 whitespace-nowrap overflow-hidden"
+              className="border-b border-l border-slate-200 bg-slate-50 text-left text-[11px] font-semibold text-slate-500 px-2 py-1 whitespace-nowrap overflow-hidden"
               style={{ position: 'sticky', left: LABEL_COL_WIDTH, zIndex: 19 }}
             >
               {format(new Date(yearMonth + '-01T00:00:00'), 'MMMM yyyy')}
@@ -290,11 +296,14 @@ export function CalendarGrid({
           ))}
         </tr>
 
-        {/* Occupancy heatbar */}
+        {/* Occupancy heatbar — hidden in task view */}
         <tr>
           <td style={{ width: LABEL_COL_WIDTH, height: 4, padding: 0 }} />
           {days.map((day) => {
             const ds = format(day, 'yyyy-MM-dd')
+            if (viewMode === 'tasks') {
+              return <td key={ds} style={{ height: 4, padding: 0 }} />
+            }
             const occ = rooms.length > 0 ? (occupancyByDate[ds] ?? 0) / rooms.length : 0
             let bg = 'rgba(45,212,191,0.25)'
             if (occ >= 0.8) bg = '#EF4444'
@@ -327,7 +336,7 @@ export function CalendarGrid({
                 key={ds}
                 className={clsx(
                   'border-b border-slate-200 text-center',
-                  isSun && 'border-l-2 border-slate-300',
+                  isSun && 'border-l border-slate-200',
                   isFriSat && 'bg-amber-50',
                   todayDay && 'bg-teal-100',
                 )}
@@ -371,7 +380,7 @@ export function CalendarGrid({
 
               return (
                 <React.Fragment key={room.id}>
-                  <tr className="border-b border-slate-200 group">
+                  <tr className="border-b border-slate-100 group">
                     <td
                       className="sticky left-0 z-10 bg-white border-r border-slate-200 px-2 py-1"
                       style={{ width: LABEL_COL_WIDTH }}
@@ -382,13 +391,28 @@ export function CalendarGrid({
                       >
                         <HomeIcon className="shrink-0 w-3 h-3" />
                         {room.name}
+                        {room.smart_pricing_enabled && (
+                          <span title="Smart Pricing enabled" className="text-amber-500 shrink-0">⚡</span>
+                        )}
                       </span>
                       <span className="text-[10px] text-slate-400 block truncate">
                         {room.property?.name ?? ''}
                       </span>
-                      <span className="text-[10px] text-slate-400">
-                        ${room.nightly_rate}/night
-                      </span>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] text-slate-400">
+                          ${room.nightly_rate}/night
+                        </span>
+                        {onSmartPricingClick && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); onSmartPricingClick(room.id) }}
+                            className="text-[10px] text-teal-500 hover:text-teal-700 font-medium transition-colors"
+                            title="Smart Pricing settings"
+                          >
+                            ⚡ Pricing
+                          </button>
+                        )}
+                      </div>
                     </td>
 
                     {(() => {
@@ -400,13 +424,19 @@ export function CalendarGrid({
                         const isFriSat = getDay(day) === 5 || getDay(day) === 6
                         const isSun = getDay(day) === 0
                         const todayCell = isToday(day)
+                        const isPastDate = ds < todayStr
                         const status = getCellStatus(room.id, ds, bookings, icalBlocks, overrideMap, selection)
 
-                        if (status === 'booked-first') {
+                        if (
+                          status === 'booked-first' ||
+                          (status === 'booked-cont' && i === 0)
+                        ) {
                           const booking = bookings.find(
                             (b) =>
                               b.room_id === room.id &&
-                              b.check_in === ds &&
+                              (status === 'booked-first'
+                                ? b.check_in === ds
+                                : ds >= b.check_in && ds < b.check_out) &&
                               (b.status === 'confirmed' || b.status === 'pending'),
                           )
                           if (booking) {
@@ -415,25 +445,149 @@ export function CalendarGrid({
                               if (format(days[j], 'yyyy-MM-dd') < booking.check_out) span++
                               else break
                             }
+                            const isPending = booking.status === 'pending'
+                            const pillBg = isPastDate
+                              ? 'linear-gradient(135deg, #94A3B8 0%, #64748B 100%)'
+                              : isPending
+                                ? 'linear-gradient(135deg, #FCD34D 0%, #F59E0B 100%)'
+                                : 'linear-gradient(135deg, #2DD4BF 0%, #14B8A6 50%, #0F766E 100%)'
+                            const pillShadow = isPastDate
+                              ? 'none'
+                              : isPending
+                                ? '0 2px 8px rgba(245,158,11,0.45), 0 1px 3px rgba(0,0,0,0.1)'
+                                : '0 2px 8px rgba(45,212,191,0.5), 0 1px 3px rgba(0,0,0,0.1)'
+                            const labelColor = isPastDate || isPending ? '#1E293B' : '#fff'
                             cells.push(
                               <td
                                 key={ds}
                                 colSpan={span}
                                 onClick={() => onBookingClick(booking)}
                                 className={clsx(
-                                  'cursor-pointer transition-colors overflow-hidden',
-                                  isSun && 'border-l-2 border-slate-300',
+                                  'cursor-pointer',
+                                  isSun && 'border-l border-slate-200',
                                 )}
                                 style={{
                                   height: 36,
                                   verticalAlign: 'middle',
-                                  background: 'rgba(45,212,191,0.14)',
-                                  borderTop: '2px solid #2DD4BF',
+                                  position: 'relative',
+                                  overflow: 'clip',
+                                  background: 'transparent',
+                                  padding: 0,
                                 }}
                               >
-                                <div className="flex items-center h-full px-1.5 overflow-hidden">
-                                  <span className="text-[10px] font-semibold truncate" style={{ color: '#0F766E' }}>
+                                {/* Pill background */}
+                                <div style={{
+                                  position: 'absolute',
+                                  inset: '4px 2px',
+                                  borderRadius: 9999,
+                                  background: pillBg,
+                                  boxShadow: pillShadow,
+                                  pointerEvents: 'none',
+                                }} />
+                                {/* Sticky name */}
+                                <div style={{
+                                  position: 'sticky',
+                                  left: LABEL_COL_WIDTH + 6,
+                                  width: 'max-content',
+                                  maxWidth: 180,
+                                  height: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  paddingLeft: 6,
+                                  zIndex: 2,
+                                  pointerEvents: 'none',
+                                }}>
+                                  <span style={{
+                                    color: labelColor,
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    fontFamily: 'var(--font-manrope, sans-serif)',
+                                    maxWidth: 160,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    display: 'block',
+                                    textShadow: isPastDate || isPending ? 'none' : '0 1px 2px rgba(0,0,0,0.15)',
+                                  }}>
                                     {booking.guest_first_name} {booking.guest_last_name}
+                                  </span>
+                                </div>
+                              </td>,
+                            )
+                            i += span
+                            continue
+                          }
+                        }
+
+                        if (status === 'ical') {
+                          const block = icalBlocks.find(
+                            (b) => b.room_id === room.id && b.start_date === ds,
+                          )
+                          if (block) {
+                            let span = 0
+                            for (let j = i; j < days.length; j++) {
+                              if (format(days[j], 'yyyy-MM-dd') < block.end_date) span++
+                              else break
+                            }
+                            const icalPillBg = isPastDate
+                              ? 'linear-gradient(135deg, #CBD5E1 0%, #94A3B8 100%)'
+                              : 'linear-gradient(135deg, #A5B4FC 0%, #6366F1 100%)'
+                            const icalShadow = isPastDate
+                              ? 'none'
+                              : '0 2px 8px rgba(99,102,241,0.4), 0 1px 3px rgba(0,0,0,0.1)'
+                            const icalLabelColor = isPastDate ? '#475569' : '#fff'
+                            cells.push(
+                              <td
+                                key={ds}
+                                colSpan={span}
+                                className={clsx(
+                                  isSun && 'border-l border-slate-200',
+                                )}
+                                style={{
+                                  height: 36,
+                                  verticalAlign: 'middle',
+                                  position: 'relative',
+                                  overflow: 'clip',
+                                  background: 'transparent',
+                                  padding: 0,
+                                }}
+                              >
+                                {/* Pill background */}
+                                <div style={{
+                                  position: 'absolute',
+                                  inset: '4px 2px',
+                                  borderRadius: 9999,
+                                  background: icalPillBg,
+                                  boxShadow: icalShadow,
+                                  pointerEvents: 'none',
+                                }} />
+                                {/* Label */}
+                                <div style={{
+                                  position: 'sticky',
+                                  left: LABEL_COL_WIDTH + 6,
+                                  width: 'max-content',
+                                  maxWidth: 180,
+                                  height: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  paddingLeft: 6,
+                                  gap: 4,
+                                  zIndex: 2,
+                                  pointerEvents: 'none',
+                                }}>
+                                  <span style={{
+                                    color: icalLabelColor,
+                                    fontSize: 10,
+                                    fontWeight: 700,
+                                    fontFamily: 'var(--font-manrope, sans-serif)',
+                                    maxWidth: 160,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    display: 'block',
+                                    textShadow: isPastDate ? 'none' : '0 1px 2px rgba(0,0,0,0.15)',
+                                  }}>
+                                    {block.summary || block.platform}
                                   </span>
                                 </div>
                               </td>,
@@ -451,15 +605,18 @@ export function CalendarGrid({
                             onMouseEnter={() => handleMouseEnter(room.id, ds)}
                             onMouseUp={() => handleMouseUp(room.id, ds)}
                             className={clsx(
-                              'border-slate-200 text-center cursor-pointer transition-colors',
+                              'border-r border-slate-100 text-center cursor-pointer transition-colors',
                               isFriSat && status === 'available' && 'bg-amber-50/40',
-                              isSun && 'border-l-2 border-slate-300',
+                              isSun && 'border-l border-slate-200',
                               todayCell && status === 'available' && 'bg-teal-100/60',
                             )}
                             style={{
                               height: 36,
                               verticalAlign: 'middle',
                               ...cellStyle,
+                              ...(isPastDate && status === 'available'
+                                ? { background: 'rgba(203,213,225,0.25)' }
+                                : {}),
                             }}
                           >
                             <div className="flex items-center justify-center h-full">
