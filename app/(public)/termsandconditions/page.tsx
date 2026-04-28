@@ -33,7 +33,7 @@ export default async function TermsAndConditionsPage() {
 
         {html ? (
           <div
-            className="font-body text-on-surface-variant leading-relaxed [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-primary [&_p]:mb-3 [&_ul]:list-disc [&_ul]:list-inside [&_strong]:text-on-surface [&_a]:text-secondary [&_a]:hover:underline"
+            className="font-body text-on-surface-variant leading-relaxed [&_h2]:font-display [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-primary [&_h3]:font-display [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-primary [&_p]:mb-3 [&_ul]:list-disc [&_ul]:list-inside [&_ol]:list-decimal [&_ol]:list-inside [&_strong]:text-on-surface [&_a]:text-secondary [&_a]:hover:underline"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         ) : (
