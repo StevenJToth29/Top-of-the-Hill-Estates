@@ -2,7 +2,7 @@
 'use client'
 
 import React, { useRef, useCallback, useMemo, useEffect } from 'react'
-import { format, isToday, getDay, startOfToday } from 'date-fns'
+import { format, getDay } from 'date-fns'
 import { clsx } from 'clsx'
 import { HomeIcon } from '@heroicons/react/16/solid'
 import type { Room, Booking, ICalBlock, CalendarTask } from '@/types'
@@ -34,6 +34,7 @@ interface CalendarGridProps {
   onAddPropertyTask: (propertyId: string, date: string) => void
   onSmartPricingClick?: (roomId: string) => void
   viewMode?: 'bookings' | 'tasks'
+  today: string
 }
 
 type CellStatus = 'available' | 'booked-first' | 'booked-cont' | 'blocked' | 'ical' | 'selected'
@@ -164,6 +165,7 @@ export function CalendarGrid({
   onAddPropertyTask,
   onSmartPricingClick,
   viewMode = 'bookings',
+  today,
 }: CalendarGridProps) {
   const dragging = useRef(false)
   const dragStartDate = useRef<string | null>(null)
@@ -263,7 +265,7 @@ export function CalendarGrid({
     return groups
   }, [days])
 
-  const todayStr = format(startOfToday(), 'yyyy-MM-dd')
+  const todayStr = today
   const tableWidth = LABEL_COL_WIDTH + days.length * DAY_COL_WIDTH
 
   return (
@@ -302,7 +304,7 @@ export function CalendarGrid({
           {days.map((day) => {
             const ds = format(day, 'yyyy-MM-dd')
             if (viewMode === 'tasks') {
-              return <td key={ds} style={{ height: 4, padding: 0 }} />
+              return <td key={ds} style={{ height: 4, padding: 0, background: 'white' }} />
             }
             const occ = rooms.length > 0 ? (occupancyByDate[ds] ?? 0) / rooms.length : 0
             let bg = 'rgba(45,212,191,0.25)'
@@ -330,13 +332,14 @@ export function CalendarGrid({
             const ds = format(day, 'yyyy-MM-dd')
             const isSun = getDay(day) === 0
             const isFriSat = getDay(day) === 5 || getDay(day) === 6
-            const todayDay = isToday(day)
+            const todayDay = ds === todayStr
             return (
               <th
                 key={ds}
                 className={clsx(
                   'border-b border-slate-200 text-center',
                   isSun && 'border-l border-slate-200',
+                  !isFriSat && !todayDay && 'bg-white',
                   isFriSat && 'bg-amber-50',
                   todayDay && 'bg-teal-100',
                 )}
@@ -365,10 +368,10 @@ export function CalendarGrid({
       <tbody>
         {propertiesWithRooms.map(({ id: propId, name: propName, rooms: propRooms }) => (
           <React.Fragment key={propId}>
-            {/* Property-level task row */}
+            {/* Property header row — always visible */}
             <CalendarTaskRow
               label={`🏠 ${propName}`}
-              tasks={tasks.filter((t) => t.property_id === propId && !t.room_id)}
+              tasks={viewMode === 'tasks' ? tasks.filter((t) => t.property_id === propId && !t.room_id) : []}
               days={days}
               onTaskClick={onTaskClick}
               onAddClick={(date) => onAddPropertyTask(propId, date)}
@@ -381,9 +384,10 @@ export function CalendarGrid({
               return (
                 <React.Fragment key={room.id}>
                   <tr className="border-b border-slate-100 group">
+                    {/* Label cell */}
                     <td
-                      className="sticky left-0 z-10 bg-white border-r border-slate-200 px-2 py-1"
-                      style={{ width: LABEL_COL_WIDTH }}
+                      className="sticky left-0 z-20 border-r border-slate-200 px-2 py-1"
+                      style={{ width: LABEL_COL_WIDTH, background: '#ffffff' }}
                     >
                       <span
                         className="flex items-center gap-1 text-xs font-semibold truncate w-full text-left"
@@ -398,24 +402,101 @@ export function CalendarGrid({
                       <span className="text-[10px] text-slate-400 block truncate">
                         {room.property?.name ?? ''}
                       </span>
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] text-slate-400">
-                          ${room.nightly_rate}/night
-                        </span>
-                        {onSmartPricingClick && (
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); onSmartPricingClick(room.id) }}
-                            className="text-[10px] text-teal-500 hover:text-teal-700 font-medium transition-colors"
-                            title="Smart Pricing settings"
-                          >
-                            ⚡ Pricing
-                          </button>
-                        )}
-                      </div>
+                      {viewMode === 'bookings' && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] text-slate-400">
+                            ${room.nightly_rate}/night
+                          </span>
+                          {onSmartPricingClick && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); onSmartPricingClick(room.id) }}
+                              className="text-[10px] text-teal-500 hover:text-teal-700 font-medium transition-colors"
+                              title="Smart Pricing settings"
+                            >
+                              ⚡ Pricing
+                            </button>
+                          )}
+                        </div>
+                      )}
                     </td>
 
-                    {(() => {
+                    {/* Task view cells */}
+                    {viewMode === 'tasks' && days.map((day) => {
+                      const ds = format(day, 'yyyy-MM-dd')
+                      const isSun = getDay(day) === 0
+                      const todayCell = ds === todayStr
+                      const dayTasks = roomTasks.filter((t) => t.due_date === ds)
+
+                      if (dayTasks.length > 0) {
+                        const firstTask = dayTasks[0]
+                        const taskColor = firstTask.color ?? '#6366F1'
+                        return (
+                          <td
+                            key={ds}
+                            onClick={() => onTaskClick(firstTask)}
+                            className={clsx(
+                              'group/cell relative cursor-pointer',
+                              isSun && 'border-l border-slate-200',
+                            )}
+                            title={dayTasks.map((t) => t.title).join(', ')}
+                            style={{
+                              height: 36,
+                              verticalAlign: 'middle',
+                              background: `${taskColor}22`,
+                              borderTop: `2px solid ${taskColor}`,
+                              padding: 0,
+                            }}
+                          >
+                            <div
+                              className="absolute inset-0 opacity-0 group-hover/cell:opacity-100 transition-opacity duration-100 pointer-events-none"
+                              style={{ background: 'rgba(45,212,191,0.18)' }}
+                            />
+                            <div className="relative z-10 flex flex-col items-center justify-center h-full gap-0.5 px-0.5">
+                              {dayTasks.length === 1 ? (
+                                <span className="block w-2 h-2 rounded-full" style={{ background: taskColor }} />
+                              ) : dayTasks.length === 2 ? (
+                                <>
+                                  <span className="block w-2 h-2 rounded-full" style={{ background: dayTasks[0].color ?? '#6366F1' }} />
+                                  <span className="block w-2 h-2 rounded-full" style={{ background: dayTasks[1].color ?? '#6366F1' }} />
+                                </>
+                              ) : (
+                                <>
+                                  <span className="block w-2 h-2 rounded-full" style={{ background: taskColor }} />
+                                  <span className="text-[8px] font-bold leading-none" style={{ color: taskColor }}>
+                                    +{dayTasks.length - 1}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </td>
+                        )
+                      }
+
+                      return (
+                        <td
+                          key={ds}
+                          onClick={() => onAddTask(room.id, ds)}
+                          className={clsx(
+                            'group/cell relative cursor-cell',
+                            isSun && 'border-l border-slate-200',
+                            todayCell && 'bg-teal-100',
+                          )}
+                          style={{ height: 36, verticalAlign: 'middle' }}
+                        >
+                          <div
+                            className="absolute inset-0 opacity-0 group-hover/cell:opacity-100 transition-opacity duration-100 pointer-events-none"
+                            style={{ background: 'rgba(45,212,191,0.18)' }}
+                          />
+                          <div className="relative z-10 flex items-center justify-center h-full opacity-0 group-hover/cell:opacity-100 transition-opacity duration-100">
+                            <span className="text-[13px] text-slate-400 font-light leading-none">+</span>
+                          </div>
+                        </td>
+                      )
+                    })}
+
+                    {/* Booking view cells */}
+                    {viewMode === 'bookings' && (() => {
                       const cells: React.ReactNode[] = []
                       let i = 0
                       while (i < days.length) {
@@ -423,7 +504,7 @@ export function CalendarGrid({
                         const ds = format(day, 'yyyy-MM-dd')
                         const isFriSat = getDay(day) === 5 || getDay(day) === 6
                         const isSun = getDay(day) === 0
-                        const todayCell = isToday(day)
+                        const todayCell = ds === todayStr
                         const isPastDate = ds < todayStr
                         const status = getCellStatus(room.id, ds, bookings, icalBlocks, overrideMap, selection)
 
@@ -463,14 +544,14 @@ export function CalendarGrid({
                                 colSpan={span}
                                 onClick={() => onBookingClick(booking)}
                                 className={clsx(
-                                  'cursor-pointer',
+                                  'group/pill cursor-pointer',
                                   isSun && 'border-l border-slate-200',
                                 )}
                                 style={{
                                   height: 36,
                                   verticalAlign: 'middle',
                                   position: 'relative',
-                                  overflow: 'clip',
+                                  clipPath: 'inset(0)',
                                   background: 'transparent',
                                   padding: 0,
                                 }}
@@ -483,7 +564,13 @@ export function CalendarGrid({
                                   background: pillBg,
                                   boxShadow: pillShadow,
                                   pointerEvents: 'none',
-                                }} />
+                                  transition: 'filter 120ms ease',
+                                }} className="group-hover/pill:brightness-110" />
+                                {/* Hover sheen */}
+                                <div
+                                  className="absolute opacity-0 group-hover/pill:opacity-100 transition-opacity duration-100 pointer-events-none"
+                                  style={{ inset: '4px 2px', borderRadius: 9999, background: 'rgba(255,255,255,0.14)' }}
+                                />
                                 {/* Sticky name */}
                                 <div style={{
                                   position: 'sticky',
@@ -521,7 +608,9 @@ export function CalendarGrid({
 
                         if (status === 'ical') {
                           const block = icalBlocks.find(
-                            (b) => b.room_id === room.id && b.start_date === ds,
+                            (b) =>
+                              b.room_id === room.id &&
+                              (b.start_date === ds || (i === 0 && ds >= b.start_date && ds < b.end_date)),
                           )
                           if (block) {
                             let span = 0
@@ -541,13 +630,14 @@ export function CalendarGrid({
                                 key={ds}
                                 colSpan={span}
                                 className={clsx(
+                                  'group/pill',
                                   isSun && 'border-l border-slate-200',
                                 )}
                                 style={{
                                   height: 36,
                                   verticalAlign: 'middle',
                                   position: 'relative',
-                                  overflow: 'clip',
+                                  clipPath: 'inset(0)',
                                   background: 'transparent',
                                   padding: 0,
                                 }}
@@ -560,7 +650,13 @@ export function CalendarGrid({
                                   background: icalPillBg,
                                   boxShadow: icalShadow,
                                   pointerEvents: 'none',
-                                }} />
+                                  transition: 'filter 120ms ease',
+                                }} className="group-hover/pill:brightness-110" />
+                                {/* Hover sheen */}
+                                <div
+                                  className="absolute opacity-0 group-hover/pill:opacity-100 transition-opacity duration-100 pointer-events-none"
+                                  style={{ inset: '4px 2px', borderRadius: 9999, background: 'rgba(255,255,255,0.14)' }}
+                                />
                                 {/* Label */}
                                 <div style={{
                                   position: 'sticky',
@@ -605,10 +701,10 @@ export function CalendarGrid({
                             onMouseEnter={() => handleMouseEnter(room.id, ds)}
                             onMouseUp={() => handleMouseUp(room.id, ds)}
                             className={clsx(
-                              'border-r border-slate-100 text-center cursor-pointer transition-colors',
+                              'group/cell relative border-r border-slate-100 text-center cursor-pointer transition-colors',
                               isFriSat && status === 'available' && 'bg-amber-50/40',
                               isSun && 'border-l border-slate-200',
-                              todayCell && status === 'available' && 'bg-teal-100/60',
+                              todayCell && status === 'available' && 'bg-teal-100',
                             )}
                             style={{
                               height: 36,
@@ -619,7 +715,12 @@ export function CalendarGrid({
                                 : {}),
                             }}
                           >
-                            <div className="flex items-center justify-center h-full">
+                            {/* Full-cell teal overlay on hover */}
+                            <div
+                              className="absolute inset-0 opacity-0 group-hover/cell:opacity-100 transition-opacity duration-100 pointer-events-none"
+                              style={{ background: 'rgba(45,212,191,0.18)' }}
+                            />
+                            <div className="relative z-10 flex items-center justify-center h-full">
                               <CellContent
                                 status={status}
                                 roomId={room.id}
@@ -637,13 +738,7 @@ export function CalendarGrid({
                     })()}
                   </tr>
 
-                  <CalendarTaskRow
-                    label={`${room.name} Tasks`}
-                    tasks={roomTasks}
-                    days={days}
-                    onTaskClick={onTaskClick}
-                    onAddClick={(date) => onAddTask(room.id, date)}
-                  />
+                  {/* Room task sub-row removed — task view shows chips in main row; booking view shows no tasks */}
                 </React.Fragment>
               )
             })}

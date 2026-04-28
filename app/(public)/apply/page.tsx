@@ -2,7 +2,9 @@ export const dynamic = 'force-dynamic'
 
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
+import { format, addMonths } from 'date-fns'
 import { createServerSupabaseClient } from '@/lib/supabase'
+import { getBlockedDatesForRoom, getLatestCheckoutForRoom } from '@/lib/availability'
 import LongTermInquiryForm from '@/components/public/LongTermInquiryForm'
 
 interface Props {
@@ -14,16 +16,28 @@ export default async function ApplyPage({ searchParams }: Props) {
   if (!slug) redirect('/')
 
   const supabase = await createServerSupabaseClient()
+  const today = new Date().toISOString().slice(0, 10)
+
   const { data: rawRoom } = await supabase
     .from('rooms')
-    .select('name, slug, guest_capacity, property:properties(name)')
+    .select('id, name, slug, guest_capacity, property:properties(name)')
     .eq('slug', slug)
     .eq('is_active', true)
     .single()
 
   if (!rawRoom) redirect('/')
 
+  const sixMonthsOut = format(addMonths(new Date(), 6), 'yyyy-MM-dd')
+
+  const [latestCheckout, blockedDates] = await Promise.all([
+    getLatestCheckoutForRoom(rawRoom.id, today),
+    getBlockedDatesForRoom(rawRoom.id, today, sixMonthsOut),
+  ])
+
+  const minMoveIn = latestCheckout && latestCheckout > today ? latestCheckout : today
+
   const room = rawRoom as unknown as {
+    id: string
     name: string
     slug: string
     guest_capacity: number
@@ -34,9 +48,10 @@ export default async function ApplyPage({ searchParams }: Props) {
   const propertyName = room.property?.name ?? ''
   const moveIn = searchParams.move_in ?? ''
   const parsedOccupants = parseInt(searchParams.occupants ?? '', 10)
-  const occupants = Number.isFinite(parsedOccupants) && parsedOccupants >= 1
-    ? Math.min(parsedOccupants, maxOccupants)
-    : 1
+  const occupants =
+    Number.isFinite(parsedOccupants) && parsedOccupants >= 1
+      ? Math.min(parsedOccupants, maxOccupants)
+      : 1
 
   return (
     <main className="min-h-screen bg-background">
@@ -77,6 +92,8 @@ export default async function ApplyPage({ searchParams }: Props) {
             initialMoveIn={moveIn}
             initialOccupants={occupants}
             maxOccupants={maxOccupants}
+            minMoveIn={minMoveIn}
+            blockedDates={blockedDates}
           />
         </div>
       </div>

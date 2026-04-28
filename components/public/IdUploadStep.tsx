@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { GuestIdDocument } from '@/types'
+import PlacesAddressInput from '@/components/admin/PlacesAddressInput'
 
 interface IdUploadStepProps {
   bookingId: string
@@ -12,7 +13,10 @@ interface IdUploadStepProps {
 
 interface GuestDraftState {
   name: string
-  address: string
+  addressStreet: string
+  addressCity: string
+  addressState: string
+  addressZip: string
   file: File | null
   uploading: boolean
   doc: GuestIdDocument | null
@@ -24,7 +28,10 @@ export default function IdUploadStep({ bookingId, guestCount, savedDocs, onAllPa
     const saved = savedDocs.find((d) => d.guest_index === i + 1) ?? null
     return {
       name: saved?.guest_name ?? '',
-      address: saved?.current_address ?? '',
+      addressStreet: '',
+      addressCity: '',
+      addressState: '',
+      addressZip: '',
       file: null,
       uploading: false,
       doc: saved,
@@ -32,6 +39,8 @@ export default function IdUploadStep({ bookingId, guestCount, savedDocs, onAllPa
     }
   })
   const [drafts, setDrafts] = useState<GuestDraftState[]>(initialDrafts)
+  const draftsRef = useRef(drafts)
+  useEffect(() => { draftsRef.current = drafts }, [drafts])
   const fileRefs = useRef<(HTMLInputElement | null)[]>([])
 
   function updateDraft(idx: number, patch: Partial<GuestDraftState>) {
@@ -42,7 +51,19 @@ export default function IdUploadStep({ bookingId, guestCount, savedDocs, onAllPa
     })
   }
 
-  async function handleUpload(idx: number, file: File, name: string, address: string) {
+  async function saveAddress(idx: number) {
+    const draft = draftsRef.current[idx]
+    if (!draft.doc) return
+    const current_address = [draft.addressStreet, draft.addressCity, draft.addressState, draft.addressZip]
+      .filter(Boolean).join(', ')
+    await fetch(`/api/bookings/${bookingId}/validate-id`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ guest_index: idx + 1, guest_name: draft.name, current_address }),
+    })
+  }
+
+  async function handleUpload(idx: number, file: File) {
     updateDraft(idx, { uploading: true, error: null, file })
 
     const buffer = await file.arrayBuffer()
@@ -59,8 +80,8 @@ export default function IdUploadStep({ bookingId, guestCount, savedDocs, onAllPa
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         guest_index: idx + 1,
-        guest_name: name,
-        current_address: address,
+        guest_name: '',
+        current_address: '',
         id_photo_url: storageKey,
         image_base64: base64,
         image_mime_type: file.type,
@@ -81,7 +102,16 @@ export default function IdUploadStep({ bookingId, guestCount, savedDocs, onAllPa
       return
     }
 
-    updateDraft(idx, { doc: data.document, error: null })
+    const ext = data.extracted ?? {}
+    updateDraft(idx, {
+      doc: data.document,
+      error: null,
+      name: ext.name || '',
+      addressStreet: ext.address_street || '',
+      addressCity: ext.address_city || '',
+      addressState: ext.address_state || '',
+      addressZip: ext.address_zip || '',
+    })
 
     setDrafts((prev) => {
       const allDocs = prev.map((d, i) => (i === idx ? data.document : d.doc)).filter(Boolean) as GuestIdDocument[]
@@ -99,7 +129,7 @@ export default function IdUploadStep({ bookingId, guestCount, savedDocs, onAllPa
       <div>
         <h2 className="font-display text-xl font-semibold text-on-surface mb-1">Guest Identification</h2>
         <p className="text-on-surface-variant text-sm">
-          Upload a clear, full photo of a valid government-issued ID for each guest.
+          Upload a clear, full photo of a valid government-issued ID for each guest. We&apos;ll read the name and address directly from the ID.
         </p>
       </div>
 
@@ -129,33 +159,7 @@ export default function IdUploadStep({ bookingId, guestCount, savedDocs, onAllPa
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label htmlFor={`guest-${idx}-name`} className="block text-on-surface-variant text-xs mb-1">Full Name</label>
-                <input
-                  id={`guest-${idx}-name`}
-                  type="text"
-                  value={draft.name}
-                  onChange={(e) => updateDraft(idx, { name: e.target.value })}
-                  disabled={passed}
-                  placeholder="As shown on ID"
-                  className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50 disabled:opacity-60"
-                />
-              </div>
-              <div>
-                <label htmlFor={`guest-${idx}-address`} className="block text-on-surface-variant text-xs mb-1">Current Address</label>
-                <input
-                  id={`guest-${idx}-address`}
-                  type="text"
-                  value={draft.address}
-                  onChange={(e) => updateDraft(idx, { address: e.target.value })}
-                  disabled={passed}
-                  placeholder="Street, City, State ZIP"
-                  className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50 disabled:opacity-60"
-                />
-              </div>
-            </div>
-
+            {/* Photo ID upload — always first */}
             <div>
               <label className="block text-on-surface-variant text-xs mb-1">Photo ID</label>
               {passed ? (
@@ -169,18 +173,15 @@ export default function IdUploadStep({ bookingId, guestCount, savedDocs, onAllPa
                     type="file"
                     accept="image/jpeg,image/png,image/webp,image/heic"
                     aria-label={`Upload photo ID for Guest ${idx + 1}`}
-                    disabled={draft.uploading || !draft.name.trim() || !draft.address.trim()}
+                    disabled={draft.uploading}
                     onChange={(e) => {
                       const file = e.target.files?.[0]
-                      if (file) handleUpload(idx, file, draft.name, draft.address)
+                      if (file) handleUpload(idx, file)
                     }}
                     className="block w-full text-sm text-on-surface-variant file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-secondary/10 file:text-secondary hover:file:bg-secondary/20 disabled:opacity-50"
                   />
-                  {(!draft.name.trim() || !draft.address.trim()) && (
-                    <p className="text-xs text-on-surface-variant mt-1">Enter name and address above before uploading</p>
-                  )}
                   {draft.uploading && (
-                    <p className="text-xs text-on-surface-variant mt-1">Checking ID quality…</p>
+                    <p className="text-xs text-on-surface-variant mt-1">Reading ID and checking quality…</p>
                   )}
                   {draft.error && (
                     <p className="text-xs text-error mt-1">{draft.error}</p>
@@ -188,6 +189,73 @@ export default function IdUploadStep({ bookingId, guestCount, savedDocs, onAllPa
                 </>
               )}
             </div>
+
+            {/* Extracted info — shown after a successful upload */}
+            {passed && (
+              <div className="space-y-3 pt-1">
+                <p className="text-on-surface-variant text-xs font-medium uppercase tracking-wide">Information read from ID</p>
+
+                <div>
+                  <label htmlFor={`guest-${idx}-name`} className="block text-on-surface-variant text-xs mb-1">Full Name</label>
+                  <input
+                    id={`guest-${idx}-name`}
+                    type="text"
+                    value={draft.name}
+                    onChange={(e) => updateDraft(idx, { name: e.target.value })}
+                    onBlur={() => saveAddress(idx)}
+                    placeholder="As shown on ID"
+                    className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-on-surface-variant text-xs">Current Address</label>
+                  <PlacesAddressInput
+                    value={draft.addressStreet}
+                    onChange={(val) => updateDraft(idx, { addressStreet: val })}
+                    onCityChange={(city) => updateDraft(idx, { addressCity: city })}
+                    onStateChange={(state) => updateDraft(idx, { addressState: state })}
+                    onZipChange={(zip) => updateDraft(idx, { addressZip: zip })}
+                    onBlur={() => saveAddress(idx)}
+                    placeholder="Street address"
+                    className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input
+                      id={`guest-${idx}-city`}
+                      type="text"
+                      autoComplete="address-level2"
+                      value={draft.addressCity}
+                      onChange={(e) => updateDraft(idx, { addressCity: e.target.value })}
+                      onBlur={() => saveAddress(idx)}
+                      placeholder="City"
+                      className="col-span-1 w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                    />
+                    <input
+                      id={`guest-${idx}-state`}
+                      type="text"
+                      autoComplete="address-level1"
+                      value={draft.addressState}
+                      onChange={(e) => updateDraft(idx, { addressState: e.target.value.toUpperCase().slice(0, 2) })}
+                      onBlur={() => saveAddress(idx)}
+                      placeholder="ST"
+                      maxLength={2}
+                      className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                    />
+                    <input
+                      id={`guest-${idx}-zip`}
+                      type="text"
+                      autoComplete="postal-code"
+                      value={draft.addressZip}
+                      onChange={(e) => updateDraft(idx, { addressZip: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                      onBlur={() => saveAddress(idx)}
+                      placeholder="ZIP"
+                      className="w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )
       })}

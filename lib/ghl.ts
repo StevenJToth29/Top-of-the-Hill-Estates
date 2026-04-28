@@ -61,7 +61,39 @@ export async function createOrUpdateGHLContact(data: {
 }
 
 /**
+ * Adds a GHL contact to a workflow using the v2 API directly.
+ */
+export async function addContactToWorkflow(
+  contactId: string,
+  workflowId: string,
+): Promise<void> {
+  const apiKey = process.env.GHL_API_KEY ?? ''
+  if (!apiKey || !contactId || !workflowId) return
+
+  try {
+    const response = await fetch(
+      `${GHL_BASE_URL}/contacts/${contactId}/workflow/${workflowId}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          Version: GHL_VERSION,
+        },
+      },
+    )
+
+    if (!response.ok) {
+      console.error('GHL workflow trigger failed:', response.status, await response.text())
+    }
+  } catch (error) {
+    console.error('GHL workflow error:', error)
+  }
+}
+
+/**
  * Triggers a GoHighLevel automation workflow via webhook.
+ * @deprecated Prefer addContactToWorkflow for direct API integration.
  */
 export async function triggerGHLWorkflow(
   webhookUrl: string,
@@ -122,13 +154,12 @@ export async function syncToGHL(booking: Booking): Promise<void> {
   })
 
   if (ghlContactId) {
+    const workflowId = process.env.GHL_BOOKING_WORKFLOW_ID ?? ''
     await Promise.all([
       supabase.from('bookings').update({ ghl_contact_id: ghlContactId }).eq('id', booking.id),
-      triggerGHLWorkflow(process.env.GHL_BOOKING_WEBHOOK_URL ?? '', {
-        bookingId: booking.id,
-        contactId: ghlContactId,
-        ...booking,
-      }),
+      workflowId
+        ? addContactToWorkflow(ghlContactId, workflowId)
+        : Promise.resolve(),
     ])
   }
 }
@@ -202,29 +233,35 @@ export async function notifyGHLBookingConfirmed(booking: Booking): Promise<void>
   }
 
   const typedRoom = room as Room
+  const contactId = booking.ghl_contact_id
+  const workflowId = process.env.GHL_BOOKING_CONFIRMED_WORKFLOW_ID ?? webhookUrl
 
-  await triggerGHLWorkflow(webhookUrl, {
-    bookingId: booking.id,
-    contactId: booking.ghl_contact_id,
-    status: 'confirmed',
-    guestFirstName: booking.guest_first_name,
-    guestLastName: booking.guest_last_name,
-    guestEmail: booking.guest_email,
-    guestPhone: booking.guest_phone,
-    checkIn: booking.check_in,
-    checkOut: booking.check_out,
-    totalNights: booking.total_nights,
-    totalAmount: booking.total_amount,
-    amountPaid: booking.amount_paid,
-    amountDueAtCheckin: booking.amount_due_at_checkin,
-    bookingType: booking.booking_type,
-    roomName: typedRoom.name,
-    roomSlug: typedRoom.slug,
-    propertyName: typedRoom.property?.name ?? '',
-    propertyAddress: typedRoom.property?.address ?? '',
-    propertyCity: typedRoom.property?.city ?? '',
-    propertyState: typedRoom.property?.state ?? '',
-  })
+  if (contactId && workflowId && !workflowId.startsWith('http')) {
+    await addContactToWorkflow(contactId, workflowId)
+  } else {
+    await triggerGHLWorkflow(webhookUrl, {
+      bookingId: booking.id,
+      contactId,
+      status: 'confirmed',
+      guestFirstName: booking.guest_first_name,
+      guestLastName: booking.guest_last_name,
+      guestEmail: booking.guest_email,
+      guestPhone: booking.guest_phone,
+      checkIn: booking.check_in,
+      checkOut: booking.check_out,
+      totalNights: booking.total_nights,
+      totalAmount: booking.total_amount,
+      amountPaid: booking.amount_paid,
+      amountDueAtCheckin: booking.amount_due_at_checkin,
+      bookingType: booking.booking_type,
+      roomName: typedRoom.name,
+      roomSlug: typedRoom.slug,
+      propertyName: typedRoom.property?.name ?? '',
+      propertyAddress: typedRoom.property?.address ?? '',
+      propertyCity: typedRoom.property?.city ?? '',
+      propertyState: typedRoom.property?.state ?? '',
+    })
+  }
 }
 
 /**

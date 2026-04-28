@@ -3,6 +3,14 @@
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?project_ref=ajfmqjpczpghxwhazfgk&features=docs%2Caccount%2Cdatabase%2Cdebugging%2Cdevelopment%2Cfunctions%2Cbranching%2Cstorage"
+    },
+    "ghl": {
+      "type": "http",
+      "url": "https://services.leadconnectorhq.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer pit-cc203b75-dbe1-4c5c-8bb8-74ef1b9d6046",
+        "locationId": "aPDe54u7wjwtWW2y9QWn"
+      }
     }
   }
 }

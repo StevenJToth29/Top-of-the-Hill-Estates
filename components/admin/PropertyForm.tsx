@@ -98,6 +98,8 @@ export default function PropertyForm({
   const [images, setImages] = useState<PropertyImage[]>(property?.images ?? [])
   const [stripeAccountId, setStripeAccountId] = useState<string>(property?.stripe_account_id ?? '')
   const [platformFeePercent, setPlatformFeePercent] = useState<number>(property?.platform_fee_percent ?? 0)
+  const [trendsKeyword, setTrendsKeyword] = useState(property?.trends_keyword ?? '')
+  const [trendsGeo, setTrendsGeo] = useState(property?.trends_geo ?? '')
   const [error, setError] = useState<string | null>(null)
 
   const isNew = !property
@@ -164,6 +166,8 @@ export default function PropertyForm({
       images,
       stripe_account_id: stripeAccountId || null,
       platform_fee_percent: stripeAccountId ? platformFeePercent : 0,
+      trends_keyword: trendsKeyword.trim() || null,
+      trends_geo: trendsGeo.trim() || null,
     }
 
     startTransition(async () => {
@@ -333,6 +337,33 @@ export default function PropertyForm({
                     step={0.5}
                     className={inputClass}
                   />
+                </div>
+              </div>
+            </SCard>
+
+            <SCard title="Demand Signals" subtitle="Google Trends configuration for Smart Pricing — leave blank to auto-derive from city and state">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className={labelClass}>Google Trends Keyword</label>
+                  <input
+                    type="text"
+                    value={trendsKeyword}
+                    onChange={(e) => setTrendsKeyword(e.target.value)}
+                    placeholder="Nashville vacation rental"
+                    className={inputClass}
+                  />
+                  <p className="text-xs text-on-surface-variant/50 mt-1">Auto: &quot;[city] vacation rental&quot; if blank</p>
+                </div>
+                <div>
+                  <label className={labelClass}>Google Trends Geo</label>
+                  <input
+                    type="text"
+                    value={trendsGeo}
+                    onChange={(e) => setTrendsGeo(e.target.value)}
+                    placeholder="US-TN or US-TN-659"
+                    className={inputClass}
+                  />
+                  <p className="text-xs text-on-surface-variant/50 mt-1">Country (US), state (US-TN), or metro DMA (US-TN-659). Auto: US-[STATE] if blank</p>
                 </div>
               </div>
             </SCard>

@@ -4,10 +4,12 @@ import { createClient } from '@/lib/supabase-browser'
 import { useSearchParams } from 'next/navigation'
 import { useState, Suspense } from 'react'
 import Image from 'next/image'
+import { usePostHog } from 'posthog-js/react'
 
 function LoginForm() {
   const searchParams = useSearchParams()
   const supabase = createClient()
+  const ph = usePostHog()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -18,12 +20,15 @@ function LoginForm() {
     setLoading(true)
     setError('')
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
       setError(error.message)
       setLoading(false)
     } else {
+      if (data.user) {
+        ph?.identify(data.user.id, { email: data.user.email, role: 'admin' })
+      }
       const raw = searchParams.get('redirectTo') ?? '/admin'
       const redirectTo = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/admin'
       window.location.href = redirectTo

@@ -58,7 +58,8 @@ export default async function AdminDashboardPage() {
       .select('id, room_id, check_in, check_out, amount_paid, total_amount, processing_fee, created_at')
       .eq('status', 'confirmed')
       .gte('check_out', format(sevenMonthsAgo, 'yyyy-MM-dd'))
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(1000),
 
     supabase
       .from('bookings')
@@ -91,7 +92,7 @@ export default async function AdminDashboardPage() {
       .in('status', ['confirmed', 'pending'])
       .gte('check_out', today)
       .order('check_in')
-      .limit(500),
+      .limit(50),
   ])
 
   const rooms = (roomsData ?? []) as unknown as RoomRow[]

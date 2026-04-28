@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
+import { isRoomAvailableExcluding } from '@/lib/availability'
 import { evaluateAndQueueEmails } from '@/lib/email-queue'
 import type { Booking } from '@/types'
 
@@ -13,7 +14,7 @@ export async function POST(
 
     const { data: booking, error: fetchError } = await supabase
       .from('bookings')
-      .select('id, status, stripe_payment_intent_id')
+      .select('id, status, stripe_payment_intent_id, room_id, check_in, check_out')
       .eq('id', params.id)
       .single()
 
@@ -25,7 +26,7 @@ export async function POST(
       return NextResponse.json({ status: 'pending_docs' })
     }
 
-    if (booking.status !== 'pending') {
+    if (booking.status !== 'pending' && booking.status !== 'pending_payment') {
       return NextResponse.json({ error: 'Booking cannot be confirmed' }, { status: 400 })
     }
 
@@ -48,6 +49,27 @@ export async function POST(
       )
     }
 
+    // Re-check availability before locking the dates — another booking may have been confirmed
+    // while this one was in pending_payment state (name entered, payment not yet submitted).
+    const available = await isRoomAvailableExcluding(
+      booking.room_id,
+      booking.check_in,
+      booking.check_out,
+      booking.id,
+    )
+    if (!available) {
+      // Dates are no longer free — void the payment so the customer isn't charged.
+      try {
+        if (['requires_capture', 'requires_payment_method', 'requires_confirmation', 'requires_action'].includes(paymentIntent.status)) {
+          await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id)
+        }
+      } catch (cancelErr) {
+        console.error('Failed to cancel payment intent after availability conflict:', cancelErr)
+      }
+      await supabase.from('bookings').update({ status: 'cancelled', cancellation_reason: 'dates_unavailable' }).eq('id', params.id)
+      return NextResponse.json({ error: 'These dates are no longer available. Your payment has been voided.' }, { status: 409 })
+    }
+
     const { data: confirmed, error: updateError } = await supabase
       .from('bookings')
       .update({
@@ -55,7 +77,7 @@ export async function POST(
         amount_paid: (paymentIntent.amount_received ?? paymentIntent.amount) / 100,
       })
       .eq('id', params.id)
-      .eq('status', 'pending')
+      .in('status', ['pending', 'pending_payment'])
       .select()
       .single()
 

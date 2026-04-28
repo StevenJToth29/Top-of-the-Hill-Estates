@@ -80,6 +80,13 @@ export function buildBookingVariables(
     application_deadline_hours: booking.application_deadline
       ? String(Math.max(0, Math.round((new Date(booking.application_deadline).getTime() - Date.now()) / 3600000)))
       : '',
+    application_link: (() => {
+      const base = process.env.NEXT_PUBLIC_SITE_URL
+        ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : '')
+      return base
+        ? `${base}/booking/apply/${booking.id}?email=${encodeURIComponent(booking.guest_email)}`
+        : ''
+    })(),
   }
 }
 

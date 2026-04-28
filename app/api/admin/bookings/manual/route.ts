@@ -31,6 +31,7 @@ function computeNightlySubtotal(
 }
 
 export async function POST(request: Request) {
+  try {
   const serverClient = await createServerSupabaseClient()
   const { data: { user }, error: authError } = await serverClient.auth.getUser()
   if (authError || !user) {
@@ -79,6 +80,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Missing required field: check_out' }, { status: 400 })
   }
 
+  const checkIn = body.check_in as string
+  if (checkOut !== OPEN_ENDED_DATE && checkOut <= checkIn) {
+    return NextResponse.json({ error: 'Check-out must be after check-in' }, { status: 400 })
+  }
+
   const supabase = createServiceRoleClient()
 
   // Fetch authoritative room rates — never trust client-supplied prices
@@ -97,7 +103,7 @@ export async function POST(request: Request) {
   if (checkOut !== OPEN_ENDED_DATE) {
     const available = await isRoomAvailable(
       body.room_id as string,
-      body.check_in as string,
+      checkIn,
       checkOut,
     )
     if (!available) {
@@ -223,4 +229,8 @@ export async function POST(request: Request) {
   })
 
   return NextResponse.json({ success: true, booking: data }, { status: 201 })
+  } catch (err) {
+    console.error('POST /api/admin/bookings/manual error:', err)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
 }

@@ -6,7 +6,7 @@ import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supab
 import RoomForm from '@/components/admin/RoomForm'
 import type { Property } from '@/types'
 
-export default async function NewRoomPage() {
+export default async function NewRoomPage({ searchParams }: { searchParams: { property_id?: string } }) {
   const serverClient = await createServerSupabaseClient()
   const { data: { user } } = await serverClient.auth.getUser()
   if (!user) redirect('/admin/login')
@@ -37,7 +37,7 @@ export default async function NewRoomPage() {
 
   return (
     <div className="-m-8 bg-background">
-      <RoomForm properties={typedProperties} />
+      <RoomForm properties={typedProperties} defaultPropertyId={searchParams.property_id} />
     </div>
   )
 }

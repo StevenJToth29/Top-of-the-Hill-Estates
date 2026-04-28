@@ -75,8 +75,17 @@ export default function CheckoutPageInner({
 
   const roomName = getParam('room_name') || bookingParams.room_slug || 'Your Room'
   const propertyName = getParam('property_name') || 'Top of the Hill Estates'
+  const initialFirstName = getParam('first_name')
 
-  const [processingFee, setProcessingFee] = useState(0)
+  const [processingFee, setProcessingFee] = useState(() => {
+    const first = availablePaymentMethods[0]
+    if (!first || (first.fee_percent === 0 && first.fee_flat === 0)) return 0
+    const base = bookingParams.amount_to_pay
+    const rate = first.fee_percent / 100
+    const flat = first.fee_flat
+    const grandTotalCents = Math.round((base + flat) / (1 - rate) * 100)
+    return (grandTotalCents - Math.round(base * 100)) / 100
+  })
 
   const paramError = (() => {
     if (!bookingParams.room_id) return 'Missing room information. Please start your booking from the room page.'
@@ -111,15 +120,26 @@ export default function CheckoutPageInner({
     <main className="min-h-screen bg-background py-12 px-4">
       <div className="max-w-5xl mx-auto">
         <a
-          href={bookingParams.room_slug ? `/rooms/${bookingParams.room_slug}` : '/rooms'}
+          href={(() => {
+            if (!bookingParams.room_slug) return '/rooms'
+            const p = new URLSearchParams()
+            if (bookingParams.check_in) p.set('checkin', bookingParams.check_in)
+            if (bookingParams.check_out) p.set('checkout', bookingParams.check_out)
+            if (bookingParams.guests) p.set('guests', String(bookingParams.guests))
+            const qs = p.toString()
+            return `/rooms/${bookingParams.room_slug}${qs ? `?${qs}` : ''}`
+          })()}
           className="inline-flex items-center gap-2 text-sm text-on-surface-variant hover:text-on-surface transition-colors mb-6"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
           Back to room
         </a>
-        <h1 className="font-display text-3xl font-bold text-on-surface mb-8">
+        <h1 className="font-display text-3xl font-bold text-on-surface mb-4">
           Complete Your Booking
         </h1>
+        <div className="bg-surface-highest/40 rounded-xl px-4 py-3 text-sm text-on-surface-variant border border-outline/50 mb-8">
+          <span className="font-semibold text-on-surface">Approval required</span> — your card will be authorized but not charged until your booking application is reviewed and approved.
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 items-start">
           <div className="lg:col-span-3 bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(45,212,191,0.06)] rounded-2xl p-6 lg:p-8">
@@ -127,6 +147,7 @@ export default function CheckoutPageInner({
               bookingParams={bookingParams}
               onProcessingFeeSet={setProcessingFee}
               availablePaymentMethods={availablePaymentMethods}
+              initialFirstName={initialFirstName}
             />
           </div>
 
@@ -138,6 +159,7 @@ export default function CheckoutPageInner({
               checkinTime={checkinTime}
               checkoutTime={checkoutTime}
               processingFee={processingFee}
+              availablePaymentMethods={availablePaymentMethods}
             />
           </div>
         </div>

@@ -5,7 +5,7 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { format, addMonths } from 'date-fns'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
-import { getBlockedDatesForRoom } from '@/lib/availability'
+import { getBlockedDatesForRoom, getLatestCheckoutForRoom } from '@/lib/availability'
 import { resolvePolicy } from '@/lib/cancellation'
 import type { Room, PropertyImage } from '@/types'
 import dynamicImport from 'next/dynamic'
@@ -127,7 +127,9 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
         .join(', ')
     : null
 
-  const [{ data: roomFees, error: feesError }, blockedDates, { data: rawOverrides }, mapCoords] = await Promise.all([
+  const todayStr = format(today, 'yyyy-MM-dd')
+
+  const [{ data: roomFees, error: feesError }, blockedDates, { data: rawOverrides }, mapCoords, latestCheckout] = await Promise.all([
     supabase
       .from('room_fees')
       .select('*')
@@ -135,20 +137,23 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
       .order('created_at'),
     getBlockedDatesForRoom(
       rawRoom.id,
-      format(today, 'yyyy-MM-dd'),
+      todayStr,
       format(sixMonthsOut, 'yyyy-MM-dd'),
     ),
     serviceSupabase
       .from('date_overrides')
       .select('date, price_override')
       .eq('room_id', rawRoom.id)
-      .gte('date', format(today, 'yyyy-MM-dd'))
+      .gte('date', todayStr)
       .lt('date', format(sixMonthsOut, 'yyyy-MM-dd'))
       .not('price_override', 'is', null),
     mapAddress && process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY
       ? geocodeAddress(mapAddress)
       : Promise.resolve(null),
+    getLatestCheckoutForRoom(rawRoom.id, todayStr),
   ])
+
+  const minMoveIn = latestCheckout && latestCheckout > todayStr ? latestCheckout : todayStr
 
   const dateOverrides: Record<string, number> = {}
   for (const o of rawOverrides ?? []) {
@@ -201,7 +206,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
                 sandbox="allow-top-navigation allow-scripts allow-same-origin"
                 style={{ width: '100%', height: '900px', display: 'block' }}
                 frameBorder={0}
-                src={room.iframe_booking_url}
+                src={room.iframe_booking_url ?? undefined}
               />
             ) : (
               /* Native booking widget — card wrapper, auto-expands with content */
@@ -216,6 +221,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
                     initialGuests={searchParams.guests ? parseInt(searchParams.guests, 10) : undefined}
                     stripeFeePercent={stripeFeePercent}
                     stripeFeeFlat={stripeFeeFlat}
+                    minMoveIn={minMoveIn}
                   />
                 </div>
               </div>

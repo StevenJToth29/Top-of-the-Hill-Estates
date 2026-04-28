@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { differenceInDays } from 'date-fns'
 import { ModalShell } from './ModalShell'
+import DatePicker from '@/components/public/DatePicker'
 import type { Room, BookingType } from '@/types'
 
 const SOURCES = ['direct', 'airbnb', 'vrbo', 'booking.com', 'other'] as const
@@ -113,15 +114,23 @@ export function AddBookingModal({
         </div>
 
         <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Check-in</label>
-            <input type="date" value={checkIn} onChange={(e) => setCheckIn(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          <div className="rounded-lg border border-slate-200 px-3 py-2">
+            <DatePicker
+              label="Check-in"
+              value={checkIn}
+              onChange={setCheckIn}
+              max={checkOut || undefined}
+              placeholder="Select date"
+            />
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Check-out</label>
-            <input type="date" value={checkOut} onChange={(e) => setCheckOut(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          <div className="rounded-lg border border-slate-200 px-3 py-2">
+            <DatePicker
+              label="Check-out"
+              value={checkOut}
+              onChange={setCheckOut}
+              min={checkIn || undefined}
+              placeholder="Select date"
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Guests</label>

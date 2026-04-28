@@ -37,12 +37,15 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 })
     }
 
-    if (booking.status !== 'confirmed' && booking.status !== 'pending') {
+    const cancellableStatuses = ['confirmed', 'pending', 'pending_docs', 'under_review']
+    if (!cancellableStatuses.includes(booking.status)) {
       return NextResponse.json(
         { error: 'Booking cannot be cancelled in its current state' },
         { status: 400 },
       )
     }
+
+    const isPendingApproval = booking.status === 'pending_docs' || booking.status === 'under_review'
 
     const { data: room } = await supabase
       .from('rooms')
@@ -66,7 +69,7 @@ export async function POST(
 
     const policy = resolvePolicy(room ?? {}, property ?? {}, siteSettings)
     const now = new Date()
-    const refund = calculateRefund(booking as Booking, now, policy)
+    const refund = isPendingApproval ? { refund_amount: 0 } : calculateRefund(booking as Booking, now, policy)
 
     const { data: updated, error: updateError } = await supabase
       .from('bookings')
@@ -77,7 +80,7 @@ export async function POST(
         refund_amount: refund.refund_amount,
       })
       .eq('id', params.id)
-      .in('status', ['confirmed', 'pending'])
+      .in('status', ['confirmed', 'pending', 'pending_docs', 'under_review'])
       .select()
       .single()
 
@@ -98,7 +101,7 @@ export async function POST(
           amount: Math.round(refund.refund_amount * 100),
           reverse_transfer: true,
         })
-      } else if (booking.status === 'pending') {
+      } else if (['pending', 'pending_docs', 'under_review'].includes(booking.status)) {
         try {
           await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id)
         } catch (stripeErr: unknown) {

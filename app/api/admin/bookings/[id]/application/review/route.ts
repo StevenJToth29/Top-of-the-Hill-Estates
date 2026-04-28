@@ -7,12 +7,7 @@ interface RouteContext { params: Promise<{ id: string }> }
 interface ReviewBody { decision: 'approved' | 'declined'; decline_reason?: string }
 
 export async function PATCH(req: Request, { params }: RouteContext) {
-  const serverClient = await createServerSupabaseClient()
-  const { data: { user } } = await serverClient.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const { id: bookingId } = await params
-  const body = (await req.json()) as ReviewBody
+  const [{ id: bookingId }, body] = await Promise.all([params, req.json() as Promise<ReviewBody>])
 
   if (body.decision !== 'approved' && body.decision !== 'declined') {
     return NextResponse.json({ error: 'decision must be "approved" or "declined"' }, { status: 400 })
@@ -20,12 +15,17 @@ export async function PATCH(req: Request, { params }: RouteContext) {
 
   const supabase = createServiceRoleClient()
 
-  const { data: booking } = await supabase
-    .from('bookings')
-    .select('*, room:rooms(*, property:properties(*))')
-    .eq('id', bookingId)
-    .maybeSingle()
+  // Run auth check and booking fetch in parallel
+  const [{ data: { user } }, { data: booking }] = await Promise.all([
+    createServerSupabaseClient().then(c => c.auth.getUser()),
+    supabase
+      .from('bookings')
+      .select('id, status, stripe_payment_intent_id, total_amount')
+      .eq('id', bookingId)
+      .maybeSingle(),
+  ])
 
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   if (!booking) return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
   if (booking.status !== 'under_review') {
     return NextResponse.json({ error: 'Booking is not under review' }, { status: 409 })
@@ -45,15 +45,17 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       return NextResponse.json({ error: 'Payment capture failed' }, { status: 502 })
     }
 
-    await supabase
-      .from('bookings')
-      .update({ status: 'confirmed', amount_paid: booking.total_amount, updated_at: now })
-      .eq('id', bookingId)
-
-    await supabase
-      .from('booking_applications')
-      .update({ decision: 'approved', reviewed_at: now, reviewed_by: user.id })
-      .eq('booking_id', bookingId)
+    // Update booking and application in parallel now that payment is captured
+    await Promise.all([
+      supabase
+        .from('bookings')
+        .update({ status: 'confirmed', amount_paid: booking.total_amount, updated_at: now })
+        .eq('id', bookingId),
+      supabase
+        .from('booking_applications')
+        .update({ decision: 'approved', reviewed_at: now, reviewed_by: user.id })
+        .eq('booking_id', bookingId),
+    ])
 
     evaluateAndQueueEmails('booking_approved', { type: 'booking', bookingId }).catch(
       (err) => { console.error('email queue error on booking_approved:', err) }
@@ -65,34 +67,40 @@ export async function PATCH(req: Request, { params }: RouteContext) {
       (err) => { console.error('seedReminderEmails error:', err) }
     )
   } else {
-    try {
-      if (booking.stripe_payment_intent_id) {
-        const pi = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id)
-        if (['requires_capture', 'requires_payment_method', 'requires_confirmation', 'requires_action'].includes(pi.status)) {
-          await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id)
-        }
-      }
-    } catch (err) {
-      console.error('review: failed to cancel payment intent:', err)
-    }
+    // For decline: attempt PI cancel and DB updates in parallel.
+    // capturePaymentIntent_unexpected_state means the PI is already in processing/succeeded
+    // (e.g. ACH already settled) — we log it but still cancel the booking in the DB.
+    const stripeCancel = booking.stripe_payment_intent_id
+      ? stripe.paymentIntents.cancel(booking.stripe_payment_intent_id).catch((err: unknown) => {
+          const code = (err as { code?: string }).code
+          if (code === 'payment_intent_unexpected_state') {
+            // PI is in processing or already succeeded — cannot cancel, log for manual review
+            console.warn('review: PI not cancellable (likely ACH in processing):', booking.stripe_payment_intent_id)
+          } else {
+            console.error('review: failed to cancel payment intent:', err)
+          }
+        })
+      : Promise.resolve()
 
-    await supabase
-      .from('bookings')
-      .update({ status: 'cancelled', updated_at: now })
-      .eq('id', bookingId)
+    await Promise.all([
+      stripeCancel,
+      supabase
+        .from('bookings')
+        .update({ status: 'cancelled', updated_at: now })
+        .eq('id', bookingId),
+      supabase
+        .from('booking_applications')
+        .update({
+          decision: 'declined',
+          decline_reason: body.decline_reason ?? null,
+          reviewed_at: now,
+          reviewed_by: user.id,
+        })
+        .eq('booking_id', bookingId),
+    ])
 
-    await supabase
-      .from('booking_applications')
-      .update({
-        decision: 'declined',
-        decline_reason: body.decline_reason ?? null,
-        reviewed_at: now,
-        reviewed_by: user.id,
-      })
-      .eq('booking_id', bookingId)
-
-    await cancelBookingEmails(bookingId).catch((err) => console.error('cancelBookingEmails error:', err))
-
+    // Fire-and-forget — no need to block the response on email queue updates
+    cancelBookingEmails(bookingId).catch((err) => console.error('cancelBookingEmails error:', err))
     evaluateAndQueueEmails('booking_declined', { type: 'booking', bookingId }).catch(
       (err) => { console.error('email queue error on booking_declined:', err) }
     )

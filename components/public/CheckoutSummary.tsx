@@ -1,5 +1,6 @@
-import type { BookingParams, RoomFee } from '@/types'
+import type { BookingParams, PaymentMethodConfig, RoomFee } from '@/types'
 import { format, parseISO } from 'date-fns'
+import PaymentMethodFeeInfo from './PaymentMethodFeeInfo'
 
 interface CheckoutSummaryProps {
   params: BookingParams
@@ -8,6 +9,7 @@ interface CheckoutSummaryProps {
   checkinTime?: string   // 24-hour "HH:mm"
   checkoutTime?: string  // 24-hour "HH:mm"
   processingFee?: number
+  availablePaymentMethods?: PaymentMethodConfig[]
 }
 
 function fmt12(time: string): string {
@@ -33,7 +35,7 @@ function formatCurrency(amount: number): string {
   return `$${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
-export default function CheckoutSummary({ params, roomName, propertyName, checkinTime, checkoutTime, processingFee = 0 }: CheckoutSummaryProps) {
+export default function CheckoutSummary({ params, roomName, propertyName, checkinTime, checkoutTime, processingFee = 0, availablePaymentMethods = [] }: CheckoutSummaryProps) {
   const isLongTerm = params.booking_type === 'long_term'
   const extraGuests = Math.max(0, params.guests - 1)
   const fees: RoomFee[] = params.fees ?? []
@@ -195,6 +197,8 @@ export default function CheckoutSummary({ params, roomName, propertyName, checki
             : 'Full refund if cancelled 7+ days before check-in. 50% refund 3–6 days before. No refund within 48 hours.'}
         </p>
       </div>
+
+      <PaymentMethodFeeInfo methods={availablePaymentMethods} />
     </div>
   )
 }

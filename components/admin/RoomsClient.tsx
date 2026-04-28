@@ -3,6 +3,8 @@
 import { useState, useEffect, useLayoutEffect, useMemo } from 'react'
 
 const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
+
+const PAGE_SIZE = 10
 import Link from 'next/link'
 import { PlusIcon, MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import RoomCardWithIcal from '@/app/admin/(protected)/rooms/RoomCardWithIcal'
@@ -50,14 +52,21 @@ export default function RoomsClient({ rooms, properties, siteUrl }: Props) {
   useIsomorphicLayoutEffect(() => {
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY)
-      if (raw) setFilters({ ...DEFAULT_FILTERS, ...JSON.parse(raw) })
+      if (raw) {
+        const stored = JSON.parse(raw)
+        // Never restore the propertyId filter — it hides entire property sections
+        // and is easy to miss after navigating away and back.
+        setFilters({ ...DEFAULT_FILTERS, ...stored, propertyId: 'all' })
+      }
     } catch {}
     setHydrated(true)
   }, [])
 
   useEffect(() => {
     if (!hydrated) return
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(filters))
+    // Don't persist propertyId — see above comment.
+    const { propertyId: _pid, ...persistable } = filters
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(persistable))
   }, [filters, hydrated])
 
   function set<K extends keyof Filters>(key: K, value: Filters[K]) {
@@ -89,6 +98,47 @@ export default function RoomsClient({ rooms, properties, siteUrl }: Props) {
     [filtered],
   )
 
+  // Count of all rooms per property regardless of filters — used to tell apart
+  // "this property is empty" from "rooms exist but are hidden by the current filter."
+  const totalByProperty = useMemo(
+    () => rooms.reduce<Record<string, number>>((acc, r) => { acc[r.property_id] = (acc[r.property_id] ?? 0) + 1; return acc }, {}),
+    [rooms],
+  )
+
+  const filteredProperties = useMemo(
+    () => properties.filter((p) => filters.propertyId === 'all' || filters.propertyId === p.id),
+    [properties, filters.propertyId],
+  )
+
+  // Pack filteredProperties into pages so each page holds ~PAGE_SIZE rooms.
+  // A property is never split across pages.
+  const propertyPageGroups = useMemo(() => {
+    if (filtered.length <= PAGE_SIZE) return [filteredProperties]
+    const pages: PropertySummary[][] = []
+    let current: PropertySummary[] = []
+    let count = 0
+    for (const p of filteredProperties) {
+      const n = Math.max(grouped[p.id]?.rooms.length ?? 0, 1)
+      if (count + n > PAGE_SIZE && current.length > 0) {
+        pages.push(current)
+        current = []
+        count = 0
+      }
+      current.push(p)
+      count += n
+    }
+    if (current.length > 0) pages.push(current)
+    return pages
+  }, [filteredProperties, grouped, filtered.length])
+
+  const [page, setPage] = useState(1)
+
+  useEffect(() => { setPage(1) }, [filtered])
+
+  const totalPages = propertyPageGroups.length
+
+  const pagedProperties = propertyPageGroups[page - 1] ?? []
+
   const hasProperties = properties.length > 0
   const activeFilters = [
     filters.search !== '',
@@ -110,7 +160,10 @@ export default function RoomsClient({ rooms, properties, siteUrl }: Props) {
             {filtered.length !== rooms.length
               ? `${filtered.length} of ${rooms.length} unit${rooms.length !== 1 ? 's' : ''}`
               : `${rooms.length} unit${rooms.length !== 1 ? 's' : ''}`}{' '}
-            across {Object.keys(grouped).length} propert{Object.keys(grouped).length === 1 ? 'y' : 'ies'}
+            across {filteredProperties.length} propert{filteredProperties.length === 1 ? 'y' : 'ies'}
+            {totalPages > 1 && (
+              <span className="text-on-surface-variant/50"> · page {page} of {totalPages}</span>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -251,10 +304,9 @@ export default function RoomsClient({ rooms, properties, siteUrl }: Props) {
           </button>
         </div>
       ) : (
-        <div className="space-y-8">
-          {properties
-            .filter((p) => filters.propertyId === 'all' || filters.propertyId === p.id)
-            .map((p) => {
+        <>
+          <div className="space-y-8">
+            {pagedProperties.map((p) => {
               const propRooms = grouped[p.id]?.rooms ?? []
               return (
                 <div key={p.id}>
@@ -267,7 +319,7 @@ export default function RoomsClient({ rooms, properties, siteUrl }: Props) {
                     </div>
                     <div className="flex-1 h-px bg-outline-variant/30" />
                     <Link
-                      href="/admin/rooms/new"
+                      href={`/admin/rooms/new?property_id=${p.id}`}
                       className="flex items-center gap-1.5 text-xs font-semibold text-secondary border border-dashed border-secondary/40 rounded-xl px-3 py-1.5 hover:bg-secondary/5 transition-colors"
                     >
                       + Add Unit
@@ -279,13 +331,88 @@ export default function RoomsClient({ rooms, properties, siteUrl }: Props) {
                         <RoomCardWithIcal key={room.id} room={room} siteUrl={siteUrl} />
                       ))}
                     </div>
+                  ) : totalByProperty[p.id] ? (
+                    <p className="text-sm text-on-surface-variant/50 pl-1">
+                      {totalByProperty[p.id]} unit{totalByProperty[p.id] !== 1 ? 's' : ''} hidden by active filters.{' '}
+                      <button
+                        type="button"
+                        onClick={() => setFilters(DEFAULT_FILTERS)}
+                        className="text-secondary hover:underline"
+                      >
+                        Clear filters
+                      </button>
+                    </p>
                   ) : (
                     <p className="text-sm text-on-surface-variant/50 pl-1">No units yet.</p>
                   )}
                 </div>
               )
             })}
-        </div>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-center gap-2 pt-4 flex-wrap">
+              {/* First / Prev */}
+              {(['«', '‹'] as const).map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setPage(label === '«' ? 1 : (p) => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className={`px-2.5 py-1.5 text-sm font-bold rounded-lg border transition-colors ${page === 1 ? 'border-outline-variant/20 text-on-surface-variant/25 cursor-default' : 'border-outline-variant/30 text-on-surface-variant hover:bg-surface-container cursor-pointer'}`}
+                >
+                  {label}
+                </button>
+              ))}
+
+              {/* Page select */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-medium text-on-surface-variant">Page</span>
+                <select
+                  value={page}
+                  onChange={(e) => setPage(Number(e.target.value))}
+                  className="py-1.5 px-2 text-sm font-semibold rounded-lg border border-outline-variant/30 bg-surface-highest/40 text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50 cursor-pointer"
+                >
+                  {Array.from({ length: totalPages }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>{i + 1}</option>
+                  ))}
+                </select>
+                <span className="text-xs text-on-surface-variant/50">of {totalPages}</span>
+              </div>
+
+              {/* Go-to number input */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-medium text-on-surface-variant">Go to</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={totalPages}
+                  placeholder="–"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const v = Number((e.target as HTMLInputElement).value)
+                      if (v >= 1 && v <= totalPages) { setPage(v); (e.target as HTMLInputElement).value = '' }
+                    }
+                  }}
+                  className="w-14 py-1.5 px-2 text-sm font-semibold text-center rounded-lg border border-outline-variant/30 bg-surface-highest/40 text-on-surface focus:outline-none focus:ring-1 focus:ring-secondary/50"
+                />
+              </div>
+
+              {/* Next / Last */}
+              {(['›', '»'] as const).map((label) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setPage(label === '»' ? totalPages : (p) => Math.min(totalPages, p + 1))}
+                  disabled={page === totalPages}
+                  className={`px-2.5 py-1.5 text-sm font-bold rounded-lg border transition-colors ${page === totalPages ? 'border-outline-variant/20 text-on-surface-variant/25 cursor-default' : 'border-outline-variant/30 text-on-surface-variant hover:bg-surface-container cursor-pointer'}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </>
   )

@@ -2,6 +2,10 @@
 const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['node-ical'],
+    staleTimes: {
+      dynamic: 0,
+    },
+    instrumentationHook: true,
   },
   images: {
     remotePatterns: [

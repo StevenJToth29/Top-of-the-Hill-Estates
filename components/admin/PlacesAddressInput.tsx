@@ -16,6 +16,7 @@ export interface PlacesAddressInputProps {
   onCityChange: (city: string) => void
   onStateChange: (state: string) => void
   onZipChange?: (zip: string) => void
+  onBlur?: () => void
   className?: string
   placeholder?: string
   required?: boolean
@@ -61,6 +62,7 @@ export default function PlacesAddressInput({
   onCityChange,
   onStateChange,
   onZipChange,
+  onBlur,
   className,
   placeholder,
   required,
@@ -122,6 +124,7 @@ export default function PlacesAddressInput({
       type="text"
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
       placeholder={placeholder}
       className={className}
       required={required}

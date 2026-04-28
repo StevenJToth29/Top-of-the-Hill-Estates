@@ -1,15 +1,17 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import type { ApplicationRow } from '@/types'
 
 interface Props {
   application: ApplicationRow
   onBack: () => void
-  onDecision: () => void
+  onDecision: (decidedId: string) => void
 }
 
 export default function ApplicationReviewPanel({ application, onBack, onDecision }: Props) {
+  const router = useRouter()
   const [declining, setDeclining] = useState(false)
   const [declineReason, setDeclineReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -30,7 +32,8 @@ export default function ApplicationReviewPanel({ application, onBack, onDecision
       })
       const data = await res.json()
       if (!res.ok) { setError(data.error ?? 'Request failed'); return }
-      onDecision()
+      router.refresh()
+      onDecision(application.id)
     } catch {
       setError('Network error. Please try again.')
     } finally {
@@ -62,8 +65,22 @@ export default function ApplicationReviewPanel({ application, onBack, onDecision
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-sm mb-3">
-                  <div><div className="text-on-surface-variant text-xs mb-1">Name</div><div className="text-on-surface">{doc.guest_name ?? '—'}</div></div>
-                  <div><div className="text-on-surface-variant text-xs mb-1">Address</div><div className="text-on-surface">{doc.current_address ?? '—'}</div></div>
+                  <div><div className="text-on-surface-variant text-xs mb-1">Name</div><div className="text-on-surface">{doc.guest_name || '—'}</div></div>
+                  <div><div className="text-on-surface-variant text-xs mb-1">Address</div><div className="text-on-surface">{doc.current_address || '—'}</div></div>
+                </div>
+                <div className="mb-3">
+                  <div className="text-on-surface-variant text-xs mb-1">ID Photo</div>
+                  {doc.id_photo_signed_url ? (
+                    <img
+                      src={doc.id_photo_signed_url}
+                      alt={`Guest ${doc.guest_index} ID`}
+                      className="w-full max-h-64 object-contain rounded-lg border border-outline bg-black/20"
+                    />
+                  ) : (
+                    <div className="rounded-lg border border-outline/50 bg-surface-highest/30 px-3 py-3 text-xs text-on-surface-variant italic">
+                      {doc.id_photo_url ? 'Photo unavailable — guest must re-upload ID' : 'No photo uploaded'}
+                    </div>
+                  )}
                 </div>
                 {doc.ai_validation_notes && (
                   <div className={`text-xs rounded-lg px-3 py-2 ${doc.ai_authenticity_flag === 'clear' ? 'bg-secondary/10 text-secondary' : 'bg-warning/10 text-warning'}`}>

@@ -30,7 +30,13 @@ export async function POST(request: NextRequest) {
 
     const events = await parseICalUrl(source.ical_url)
     const syncedAt = new Date().toISOString()
-    const validEvents = events.filter((e) => e.uid && e.start && e.end)
+    const validEvents = events.filter((e) => {
+      if (!e.uid || !e.start || !e.end) return false
+      // Airbnb uses "Airbnb (Not Available)" for owner-blocked dates — skip these,
+      // they are not real guest reservations and would create redundant blocks.
+      if (source.platform === 'airbnb' && /not available/i.test(e.summary)) return false
+      return true
+    })
 
     if (validEvents.length > 0) {
       const { error: upsertError } = await supabase.from('ical_blocks').upsert(

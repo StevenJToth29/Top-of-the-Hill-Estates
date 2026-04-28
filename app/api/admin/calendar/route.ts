@@ -29,20 +29,20 @@ export async function GET(request: NextRequest) {
 
     supabase
       .from('bookings')
-      .select('*')
+      .select('id, room_id, status, check_in, check_out, guest_first_name, guest_last_name, guest_email, guest_phone, booking_type, total_nights, total_amount, guest_count, source, notes')
       .in('status', ['confirmed', 'pending'])
       .lt('check_in', to)
       .gte('check_out', from),
 
     supabase
       .from('ical_blocks')
-      .select('*')
+      .select('id, room_id, platform, start_date, end_date, last_synced_at')
       .lt('start_date', to)
       .gte('end_date', from),
 
     supabase
       .from('date_overrides')
-      .select('*')
+      .select('id, room_id, date, price_override, is_blocked, block_reason, note, created_at')
       .gte('date', from)
       .lte('date', to),
 

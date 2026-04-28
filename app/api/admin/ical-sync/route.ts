@@ -24,7 +24,11 @@ export async function POST(request: Request) {
 
   const results = await Promise.allSettled(
     sources.map(async (source) => {
-      const events = await parseICalUrl(source.ical_url)
+      const rawEvents = await parseICalUrl(source.ical_url)
+      const events = rawEvents.filter((e) => {
+        if (source.platform === 'airbnb' && /not available/i.test(e.summary)) return false
+        return true
+      })
 
       if (events.length > 0) {
         await supabase.from('ical_blocks').upsert(

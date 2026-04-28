@@ -22,9 +22,11 @@ export const stripe = new Proxy({} as Stripe, {
 })
 
 export async function capturePaymentIntent(paymentIntentId: string): Promise<void> {
-  const pi = await stripe.paymentIntents.retrieve(paymentIntentId)
-  if (pi.status === 'requires_capture') {
+  try {
     await stripe.paymentIntents.capture(paymentIntentId)
+  } catch (err: unknown) {
+    // payment_intent_unexpected_state = already captured or auto-captures (ACH in processing) — nothing to do
+    if ((err as { code?: string }).code === 'payment_intent_unexpected_state') return
+    throw err
   }
-  // ACH/bank payments in 'processing' or 'succeeded' capture automatically — no action needed
 }

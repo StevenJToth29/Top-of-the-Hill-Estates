@@ -89,7 +89,27 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: 'Application already submitted or expired' }, { status: 400 })
   }
 
-  const body = await req.json() as Partial<BookingApplication> & { submit?: boolean }
+  const body = await req.json() as Partial<BookingApplication> & {
+    submit?: boolean
+    guest_address_street?: string
+    guest_address_city?: string
+    guest_address_state?: string
+    guest_address_zip?: string
+  }
+
+  // Save address fields directly to the booking record
+  const addressUpdate: Record<string, unknown> = {}
+  if (body.guest_address_street !== undefined) addressUpdate.guest_address_street = body.guest_address_street
+  if (body.guest_address_city !== undefined) addressUpdate.guest_address_city = body.guest_address_city
+  if (body.guest_address_state !== undefined) addressUpdate.guest_address_state = body.guest_address_state
+  if (body.guest_address_zip !== undefined) addressUpdate.guest_address_zip = body.guest_address_zip
+
+  if (Object.keys(addressUpdate).length > 0) {
+    await supabase
+      .from('bookings')
+      .update({ ...addressUpdate, updated_at: new Date().toISOString() })
+      .eq('id', bookingId)
+  }
 
   const updateFields: Record<string, unknown> = { updated_at: new Date().toISOString() }
   if (body.purpose_of_stay !== undefined) updateFields.purpose_of_stay = body.purpose_of_stay

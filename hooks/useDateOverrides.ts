@@ -62,5 +62,12 @@ export function useDateOverrides(initial: DateOverride[]) {
     [],
   )
 
-  return { overrides, overrideMap, getOverride, applyOverrides, removeBlock, resetOverrides }
+  const removeOverride = useCallback(
+    (roomId: string, date: string) => {
+      setOverrides((prev) => prev.filter((o) => !(o.room_id === roomId && o.date === date)))
+    },
+    [],
+  )
+
+  return { overrides, overrideMap, getOverride, applyOverrides, removeBlock, removeOverride, resetOverrides }
 }

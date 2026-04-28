@@ -2,6 +2,8 @@
 
 import { FormEvent, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { usePostHog } from 'posthog-js/react'
+import DatePicker from './DatePicker'
 
 interface Props {
   roomSlug: string
@@ -10,6 +12,8 @@ interface Props {
   initialMoveIn?: string
   initialOccupants?: number
   maxOccupants?: number
+  minMoveIn?: string
+  blockedDates?: string[]
 }
 
 interface FieldErrors {
@@ -22,13 +26,10 @@ interface FieldErrors {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-function validate(fields: {
-  first_name: string
-  last_name: string
-  email: string
-  phone: string
-  move_in: string
-}): FieldErrors {
+function validate(
+  fields: { first_name: string; last_name: string; email: string; phone: string; move_in: string },
+  minMoveIn: string,
+): FieldErrors {
   const errors: FieldErrors = {}
   if (!fields.first_name.trim()) errors.first_name = 'First name is required.'
   if (!fields.last_name.trim()) errors.last_name = 'Last name is required.'
@@ -38,6 +39,8 @@ function validate(fields: {
   if (!fields.phone.trim()) errors.phone = 'Phone number is required.'
   else if (digits.length < 10) errors.phone = 'Please enter a valid phone number (at least 10 digits).'
   if (!fields.move_in) errors.move_in = 'Move-in date is required.'
+  else if (fields.move_in < minMoveIn)
+    errors.move_in = `Move-in date must be on or after ${new Date(minMoveIn + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.`
   return errors
 }
 
@@ -48,8 +51,13 @@ export default function LongTermInquiryForm({
   initialMoveIn = '',
   initialOccupants = 1,
   maxOccupants = 1,
+  minMoveIn,
+  blockedDates,
 }: Props) {
+  const today = new Date().toISOString().slice(0, 10)
+  const effectiveMin = minMoveIn && minMoveIn > today ? minMoveIn : today
   const router = useRouter()
+  const ph = usePostHog()
   const [fields, setFields] = useState({
     first_name: '',
     last_name: '',
@@ -73,7 +81,7 @@ export default function LongTermInquiryForm({
     e.preventDefault()
     setError(null)
 
-    const errors = validate(fields)
+    const errors = validate(fields, effectiveMin)
     if (Object.keys(errors).length > 0) {
       setFieldErrors(errors)
       return
@@ -104,7 +112,8 @@ export default function LongTermInquiryForm({
         return
       }
       router.push('/apply/confirmation')
-    } catch {
+    } catch (err) {
+      ph?.captureException(err instanceof Error ? err : new Error(String(err)), { action: 'submit_inquiry', room_slug: roomSlug })
       setError('Network error. Please check your connection and try again.')
     } finally {
       setIsSubmitting(false)
@@ -198,17 +207,34 @@ export default function LongTermInquiryForm({
         </div>
 
         <div className="sm:col-span-2">
-          <label className="block text-on-surface-variant text-sm mb-1" htmlFor="move_in">
+          <label className="block text-on-surface-variant text-sm mb-1">
             Desired Move-in Date <span className="text-error">*</span>
           </label>
-          <input
-            id="move_in"
-            type="date"
-            value={fields.move_in}
-            min={new Date().toISOString().slice(0, 10)}
-            onChange={(e) => updateField('move_in', e.target.value)}
-            className={inputClass('move_in')}
-          />
+          <div
+            className={[
+              'bg-surface-highest/40 rounded-xl px-4 py-3',
+              fieldErrors.move_in ? 'ring-1 ring-error/60' : '',
+            ].join(' ')}
+          >
+            <DatePicker
+              label=""
+              value={fields.move_in}
+              onChange={(d) => updateField('move_in', d)}
+              min={effectiveMin}
+              placeholder="Select move-in date"
+              blockedDates={blockedDates}
+            />
+          </div>
+          {effectiveMin > today && !fieldErrors.move_in && (
+            <p className="text-on-surface-variant text-xs mt-1">
+              Earliest available:{' '}
+              {new Date(effectiveMin + 'T00:00:00').toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric',
+              })}
+            </p>
+          )}
           {fieldErrors.move_in && (
             <p className="text-error text-xs mt-1">{fieldErrors.move_in}</p>
           )}

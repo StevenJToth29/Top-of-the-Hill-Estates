@@ -3,8 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { MagnifyingGlassIcon } from '@heroicons/react/24/outline'
-import { format, addDays, parseISO } from 'date-fns'
-import DatePicker from './DatePicker'
+import { format } from 'date-fns'
+import DateRangePicker from './DateRangePicker'
 
 export default function HeroSearch() {
   const router = useRouter()
@@ -28,31 +28,14 @@ export default function HeroSearch() {
       onSubmit={handleSearch}
       className="w-full bg-background rounded-2xl shadow-[0_8px_40px_rgba(0,0,0,0.18)] p-2 flex flex-col md:flex-row items-stretch md:items-center gap-1"
     >
-      {/* Check In */}
-      <div className="flex-1 px-4 py-3 min-w-0">
-        <DatePicker
-          label="Check In"
-          value={checkIn}
-          onChange={(d) => {
-            setCheckIn(d)
-            // Clear check-out if it's now before check-in
-            if (checkOut && d && checkOut <= d) setCheckOut('')
-          }}
+      {/* Date Range */}
+      <div className="flex-[2] min-w-0 px-2 py-2">
+        <DateRangePicker
+          checkIn={checkIn}
+          checkOut={checkOut}
+          onCheckInChange={(d) => { setCheckIn(d); if (checkOut && d && checkOut <= d) setCheckOut('') }}
+          onCheckOutChange={setCheckOut}
           min={today}
-          placeholder="Add date"
-        />
-      </div>
-
-      <div className="hidden md:block w-px bg-surface self-stretch my-2" />
-
-      {/* Check Out */}
-      <div className="flex-1 px-4 py-3 min-w-0">
-        <DatePicker
-          label="Check Out"
-          value={checkOut}
-          onChange={setCheckOut}
-          min={checkIn ? format(addDays(parseISO(checkIn), 1), 'yyyy-MM-dd') : today}
-          placeholder="Add date"
         />
       </div>
 

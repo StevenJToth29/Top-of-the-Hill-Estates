@@ -14,6 +14,7 @@ const config = {
     '<rootDir>/.next/',
     '<rootDir>/.claude/',
     '<rootDir>/.worktrees/',
+    '<rootDir>/e2e/',
   ],
   watchPathIgnorePatterns: ['<rootDir>/.claude/', '<rootDir>/.worktrees/'],
 }

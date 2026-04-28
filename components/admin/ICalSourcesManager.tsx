@@ -47,7 +47,7 @@ export default function ICalSourcesManager({ roomId, sources: initialSources }: 
   async function deleteSource(id: string) {
     setError(null)
     try {
-      const res = await fetch(`/api/admin/ical-sources?id=${id}`, { method: 'DELETE' })
+      const res = await fetch(`/api/admin/ical-sources/${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error(await res.text())
       setSources((prev) => prev.filter((s) => s.id !== id))
     } catch (err) {

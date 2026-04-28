@@ -66,6 +66,7 @@ export function TaskModal({
   const [color, setColor] = useState(task?.color ?? PRESET_COLORS[0])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const effectiveRRule = recurrencePreset === 'custom' ? customRRule : recurrencePreset
 
@@ -111,11 +112,13 @@ export function TaskModal({
 
   async function handleDelete() {
     if (!task || !onDelete) return
-    if (!confirm(`Delete task "${task.title}"?`)) return
     setSaving(true)
     try {
       const res = await fetch(`/api/admin/calendar-tasks/${task.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error('Failed to delete task')
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `Failed to delete task (${res.status})`)
+      }
       onDelete(task.id)
       onClose()
     } catch (err) {
@@ -225,27 +228,46 @@ export function TaskModal({
 
         {error && <p className="text-xs text-red-500">{error}</p>}
 
-        <div className="flex justify-between gap-3 pt-2">
-          <div>
-            {isEdit && onDelete && (
-              <button type="button" onClick={handleDelete} disabled={saving}
-                className="px-3 py-2 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50">
-                Delete
+        {confirmDelete ? (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 space-y-3">
+            <p className="text-sm font-semibold text-red-700">Delete this task?</p>
+            <p className="text-xs text-red-500">
+              &ldquo;{task?.title}&rdquo; will be permanently removed. This cannot be undone.
+            </p>
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setConfirmDelete(false)}
+                className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors">
+                Cancel
               </button>
-            )}
+              <button type="button" onClick={handleDelete} disabled={saving}
+                className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50">
+                {saving ? 'Deleting…' : 'Yes, Delete'}
+              </button>
+            </div>
           </div>
-          <div className="flex gap-3">
-            <button type="button" onClick={onClose}
-              className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">
-              Cancel
-            </button>
-            <button type="submit" disabled={saving}
-              className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors disabled:opacity-50"
-              style={{ background: '#2DD4BF' }}>
-              {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Task'}
-            </button>
+        ) : (
+          <div className="flex justify-between gap-3 pt-2">
+            <div>
+              {isEdit && onDelete && (
+                <button type="button" onClick={() => setConfirmDelete(true)} disabled={saving}
+                  className="px-3 py-2 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors disabled:opacity-50">
+                  Delete
+                </button>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button type="button" onClick={onClose}
+                className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                Cancel
+              </button>
+              <button type="submit" disabled={saving}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors disabled:opacity-50"
+                style={{ background: '#2DD4BF' }}>
+                {saving ? 'Saving…' : isEdit ? 'Save Changes' : 'Add Task'}
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </form>
     </ModalShell>
   )

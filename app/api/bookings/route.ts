@@ -80,7 +80,7 @@ export async function POST(request: Request) {
     // Fetch authoritative room rates and fees — never trust client-supplied prices
     const { data: room, error: roomError } = await supabase
       .from('rooms')
-      .select('nightly_rate, monthly_rate, cleaning_fee, security_deposit, extra_guest_fee, property:properties(platform_fee_percent, stripe_account:stripe_accounts(stripe_account_id))')
+      .select('nightly_rate, monthly_rate, cleaning_fee, security_deposit, extra_guest_fee, max_advance_booking_days, max_advance_booking_applies_to, property:properties(platform_fee_percent, stripe_account:stripe_accounts(stripe_account_id))')
       .eq('id', room_id)
       .eq('is_active', true)
       .single()
@@ -93,6 +93,22 @@ export async function POST(request: Request) {
     const nightCount = differenceInCalendarDays(new Date(check_out), new Date(check_in))
     if (nightCount > 365) {
       return NextResponse.json({ error: 'Booking duration exceeds maximum allowed' }, { status: 400 })
+    }
+
+    // Enforce advance booking window
+    const advanceDays = room.max_advance_booking_days
+    const advanceAppliesTo = room.max_advance_booking_applies_to ?? 'both'
+    const windowApplies = advanceAppliesTo === 'both' || advanceAppliesTo === booking_type
+    if (advanceDays != null && windowApplies) {
+      const todayUtc = new Date(new Date().toISOString().slice(0, 10))
+      const checkInDate = new Date(check_in)
+      const daysAhead = differenceInCalendarDays(checkInDate, todayUtc)
+      if (daysAhead < 0 || daysAhead > advanceDays) {
+        return NextResponse.json(
+          { error: 'Check-in date is outside the allowed booking window for this room' },
+          { status: 400 },
+        )
+      }
     }
 
     const available = await isRoomAvailable(room_id, check_in, check_out)
@@ -194,22 +210,19 @@ export async function POST(request: Request) {
       {
         amount: Math.round(total_amount * 100),
         currency: 'usd',
-        payment_method_types: enabledMethods
-          .map((m) => m.method_key)
-          .filter((key) => key !== 'us_bank_account'),
-        capture_method: 'manual',
+        payment_method_types: enabledMethods.map((m) => m.method_key),
         metadata: { room_id, booking_type, guest_email },
         payment_method_options: {
-          us_bank_account: {
-            verification_method: 'instant',
-          },
+          card: { capture_method: 'manual' },
+          cashapp: { capture_method: 'manual' },
+          us_bank_account: { verification_method: 'instant' },
         },
         ...(connectedAccountId && {
           transfer_data: { destination: connectedAccountId },
           application_fee_amount: Math.round(total_amount * (platformFeePercent / 100) * 100),
         }),
       },
-      { idempotencyKey: `booking-${room_id}-${guest_email}-${check_in}-${check_out}` },
+      { idempotencyKey: `booking-v2-${room_id}-${guest_email}-${check_in}-${check_out}` },
     )
 
     const { data: booking, error } = await supabase
@@ -235,7 +248,7 @@ export async function POST(request: Request) {
         amount_paid: 0,
         amount_due_at_checkin,
         stripe_payment_intent_id: paymentIntent.id,
-        status: 'pending_docs',
+        status: 'pending_payment',
         sms_consent,
         marketing_consent,
       })
@@ -269,6 +282,9 @@ export async function POST(request: Request) {
 
     evaluateAndQueueEmails('booking_pending', { type: 'booking', bookingId: booking.id }).catch(
       (err) => { console.error('email queue error on booking_pending:', err) },
+    )
+    evaluateAndQueueEmails('application_needed', { type: 'booking', bookingId: booking.id }).catch(
+      (err) => { console.error('email queue error on application_needed:', err) },
     )
 
     return NextResponse.json({

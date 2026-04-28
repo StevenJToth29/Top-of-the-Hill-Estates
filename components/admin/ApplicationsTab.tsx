@@ -29,7 +29,11 @@ function Countdown({ deadline }: { deadline: string | null }) {
   return <span className={cls}>{remaining}</span>
 }
 
-export default function ApplicationsTab() {
+interface Props {
+  onDecision?: () => void
+}
+
+export default function ApplicationsTab({ onDecision }: Props) {
   const [applications, setApplications] = useState<ApplicationRow[]>([])
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<ApplicationRow | null>(null)
@@ -62,7 +66,14 @@ export default function ApplicationsTab() {
       <ApplicationReviewPanel
         application={selected}
         onBack={() => setSelected(null)}
-        onDecision={() => { setSelected(null); load() }}
+        onDecision={(decidedId) => {
+          // Optimistic: close and remove from list immediately — don't wait for load()
+          setSelected(null)
+          setApplications((prev) => prev.filter((a) => a.id !== decidedId))
+          // Background sync so the list stays accurate
+          load()
+          onDecision?.()
+        }}
       />
     )
   }

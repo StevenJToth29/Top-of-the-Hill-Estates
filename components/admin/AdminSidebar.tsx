@@ -13,6 +13,7 @@ import {
   EnvelopeIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
+import { useEffect, useRef } from 'react'
 
 function BedIcon({ className }: { className?: string }) {
   return (
@@ -24,6 +25,29 @@ function BedIcon({ className }: { className?: string }) {
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState } from 'react'
+
+function usePendingApplicationCount() {
+  const [count, setCount] = useState(0)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  useEffect(() => {
+    async function fetchCount() {
+      try {
+        const res = await fetch('/api/admin/applications')
+        if (!res.ok) return
+        const data = await res.json()
+        setCount((data.applications ?? []).length)
+      } catch {
+        // silently ignore network errors
+      }
+    }
+    fetchCount()
+    intervalRef.current = setInterval(fetchCount, 60_000)
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
+  }, [])
+
+  return count
+}
 
 export const NAV_ITEMS = [
   { label: 'Dashboard', href: '/admin', icon: ChartBarIcon },
@@ -48,6 +72,7 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const pendingApplicationCount = usePendingApplicationCount()
 
   async function handleSignOut() {
     await supabase.auth.signOut()
@@ -60,7 +85,7 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
 
   function navButton(
     { label, href, icon: Icon }: (typeof NAV_ITEMS)[number],
-    opts: { iconOnly: boolean; onNavigate?: () => void },
+    opts: { iconOnly: boolean; onNavigate?: () => void; badge?: number },
   ) {
     return (
       <button
@@ -79,7 +104,14 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
             : 'text-on-surface-variant hover:bg-surface-high hover:text-on-surface',
         ].join(' ')}
       >
-        <Icon className="h-5 w-5 shrink-0" />
+        <span className="relative shrink-0">
+          <Icon className="h-5 w-5" />
+          {!!opts.badge && (
+            <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-600 px-0.5 text-[10px] font-bold leading-none text-white">
+              {opts.badge > 99 ? '99+' : opts.badge}
+            </span>
+          )}
+        </span>
         {!opts.iconOnly && label}
       </button>
     )
@@ -106,7 +138,11 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
 
       <nav className="flex-1 space-y-1 px-3">
         {NAV_ITEMS.map((item) =>
-          navButton(item, { iconOnly: false, onNavigate: () => setOpen(false) }),
+          navButton(item, {
+            iconOnly: false,
+            onNavigate: () => setOpen(false),
+            badge: item.href === '/admin/bookings' ? pendingApplicationCount : undefined,
+          }),
         )}
       </nav>
 
@@ -156,7 +192,12 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
           <div className="mx-4 mb-3 h-px bg-surface-high" />
 
           <nav className="flex-1 space-y-1 px-2">
-            {NAV_ITEMS.map((item) => navButton(item, { iconOnly: collapsed }))}
+            {NAV_ITEMS.map((item) =>
+              navButton(item, {
+                iconOnly: collapsed,
+                badge: item.href === '/admin/bookings' ? pendingApplicationCount : undefined,
+              }),
+            )}
           </nav>
 
           {/* Sign out */}

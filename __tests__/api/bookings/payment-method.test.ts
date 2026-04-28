@@ -135,10 +135,10 @@ describe('PATCH /api/bookings/[id]/payment-method – fee calculation', () => {
 
     expect(res.status).toBe(200)
     const body = await res.json()
-    // base=500, fee = 500 * 2.9% + $0.30 = $14.50 + $0.30 = $14.80
-    expect(body.processing_fee).toBe(14.80)
-    expect(body.grand_total).toBe(514.80)
-    expect(mockStripeUpdate).toHaveBeenCalledWith('pi_test_123', { amount: 51480 })
+    // base=500, gross-up: (500+0.30)/(1-0.029) = 515.24 → fee = 15.24
+    expect(body.processing_fee).toBe(15.24)
+    expect(body.grand_total).toBe(515.24)
+    expect(mockStripeUpdate).toHaveBeenCalledWith('pi_test_123', { amount: 51524 })
   })
 
   test('rounds grand_total correctly to avoid float drift', async () => {
@@ -152,12 +152,10 @@ describe('PATCH /api/bookings/[id]/payment-method – fee calculation', () => {
 
     expect(res.status).toBe(200)
     const body = await res.json()
-    // 1234.56 * 2.9% + $0.30 = 35.80224 + 0.30 = 36.10224 → rounds to 36.10
-    // grand_total = 1234.56 + 36.10 = 1270.66
-    expect(body.processing_fee).toBe(36.10)
-    expect(body.grand_total).toBe(1270.66)
-    // Stripe gets 127066 cents (not 127065 or 127067)
-    expect(mockStripeUpdate).toHaveBeenCalledWith('pi_test_123', { amount: 127066 })
+    // base=1234.56, gross-up: (1234.56+0.30)/(1-0.029) = 1271.74 → fee = 37.18
+    expect(body.processing_fee).toBe(37.18)
+    expect(body.grand_total).toBe(1271.74)
+    expect(mockStripeUpdate).toHaveBeenCalledWith('pi_test_123', { amount: 127174 })
   })
 
   test('calculates zero fee correctly', async () => {
@@ -194,10 +192,9 @@ describe('PATCH /api/bookings/[id]/payment-method – fee calculation', () => {
 
   test('sets application_fee_amount to (base × platform_fee_percent) + processing_fee when connected account exists', async () => {
     // $450 base, 20% platform fee, card method (2.9% + $0.30)
-    // processing_fee = 450 * 2.9% + 0.30 = 13.05 + 0.30 = 13.35
-    // grand_total = 463.35
-    // application_fee_amount = round(450 * 0.20 * 100) + round(13.35 * 100) = 9000 + 1335 = 10335
-    // connected account receives: 46335 - 10335 = 36000 cents = $360 = base × 80%
+    // gross-up: (450+0.30)/(1-0.029) = 463.75 → processing_fee = 13.75
+    // application_fee_amount = round(450 * 0.20 * 100) + round(13.75 * 100) = 9000 + 1375 = 10375
+    // connected account receives: 46375 - 10375 = 36000 cents = $360 = base × 80%
     const bookingWithProperty = {
       ...defaultBooking,
       total_amount: 450,
@@ -216,8 +213,8 @@ describe('PATCH /api/bookings/[id]/payment-method – fee calculation', () => {
 
     expect(res.status).toBe(200)
     expect(mockStripeUpdate).toHaveBeenCalledWith('pi_test_123', {
-      amount: 46335,
-      application_fee_amount: 10335,
+      amount: 46375,
+      application_fee_amount: 10375,
     })
   })
 
@@ -233,7 +230,7 @@ describe('PATCH /api/bookings/[id]/payment-method – fee calculation', () => {
 
     await PATCH(makeRequest({ method_key: 'card' }), routeParams)
 
-    expect(mockStripeUpdate).toHaveBeenCalledWith('pi_test_123', { amount: 46335 })
+    expect(mockStripeUpdate).toHaveBeenCalledWith('pi_test_123', { amount: 46375 })
   })
 
   test('updates booking processing_fee and total_amount', async () => {
@@ -243,7 +240,7 @@ describe('PATCH /api/bookings/[id]/payment-method – fee calculation', () => {
     await PATCH(makeRequest({ method_key: 'card' }), routeParams)
 
     expect(db.update).toHaveBeenCalledWith(
-      expect.objectContaining({ processing_fee: 14.80, total_amount: 514.80 })
+      expect.objectContaining({ processing_fee: 15.24, total_amount: 515.24 })
     )
     expect(db.updateEq).toHaveBeenCalledWith('id', 'booking-1')
   })

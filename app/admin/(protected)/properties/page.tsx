@@ -211,7 +211,7 @@ export default async function AdminPropertiesPage({
                       visibleCount={4}
                     />
                     <Link
-                      href="/admin/rooms/new"
+                      href={`/admin/rooms/new?property_id=${property.id}`}
                       className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-dashed border-secondary/30 text-xs font-medium text-secondary hover:bg-secondary/5 transition-colors"
                     >
                       + Add Unit

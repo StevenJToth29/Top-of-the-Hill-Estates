@@ -53,6 +53,7 @@ const ALLOWED_PROPERTY_FIELDS = new Set([
   'use_global_house_rules', 'images', 'stripe_account_id',
   'platform_fee_percent', 'cancellation_policy',
   'use_global_cancellation_policy',
+  'trends_keyword', 'trends_geo',
 ])
 
 export async function PATCH(request: NextRequest) {

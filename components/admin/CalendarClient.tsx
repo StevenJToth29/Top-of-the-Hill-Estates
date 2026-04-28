@@ -1,9 +1,10 @@
 // components/admin/CalendarClient.tsx
 'use client'
 
-import { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
 import { format, addDays, subDays, eachDayOfInterval } from 'date-fns'
 import { useRouter } from 'next/navigation'
+import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/react/24/outline'
 import { CalendarGrid, DAY_COL_WIDTH, LABEL_COL_WIDTH, type DragSelection } from './CalendarGrid'
 import { CalendarLegend } from './CalendarLegend'
 import { SelectionBar } from './SelectionBar'
@@ -13,6 +14,7 @@ import { BlockDatesModal } from './calendar/BlockDatesModal'
 import { SetPriceModal } from './calendar/SetPriceModal'
 import { AddBookingModal } from './calendar/AddBookingModal'
 import { BookingDetailModal } from './calendar/BookingDetailModal'
+import { SmartPricingModal } from './calendar/SmartPricingModal'
 import { useDateOverrides } from '@/hooks/useDateOverrides'
 import type {
   Booking,
@@ -58,6 +60,7 @@ type ModalState =
   | { type: 'setPrice'; roomId: string; from: string; to: string }
   | { type: 'addBooking'; roomId: string; checkIn: string; checkOut: string }
   | { type: 'bookingDetail'; booking: Booking }
+  | { type: 'smartPricing'; roomId: string }
 
 interface CalendarClientProps {
   initialData: CalendarData
@@ -72,6 +75,8 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
   const [loadingFuture, setLoadingFuture] = useState(false)
   const [selection, setSelection] = useState<DragSelection | null>(null)
   const [modal, setModal] = useState<ModalState>({ type: 'none' })
+  const [roomSearch, setRoomSearch] = useState('')
+  const [viewMode, setViewMode] = useState<'bookings' | 'tasks'>('bookings')
 
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const daysRef = useRef(days)
@@ -81,7 +86,7 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
 
   useEffect(() => { daysRef.current = days }, [days])
 
-  const { overrideMap, getOverride, applyOverrides, removeBlock } = useDateOverrides(
+  const { overrideMap, getOverride, applyOverrides, removeBlock, removeOverride } = useDateOverrides(
     data.dateOverrides,
   )
 
@@ -233,6 +238,16 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
     return 'available'
   }
 
+  const filteredRooms = useMemo(() => {
+    const q = roomSearch.trim().toLowerCase()
+    if (!q) return data.rooms
+    return data.rooms.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.property?.name?.toLowerCase().includes(q),
+    )
+  }, [data.rooms, roomSearch])
+
   const selectionRoom = selection
     ? data.rooms.find((r) => r.id === selection.roomId)
     : null
@@ -264,18 +279,74 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Toolbar */}
-      <div className="flex items-center gap-4 shrink-0 px-4 py-2 border-b border-slate-200 bg-white">
-        <span className="text-sm font-semibold text-slate-700">Calendar</span>
+      <div className="flex items-center gap-3 shrink-0 px-4 py-2 border-b border-slate-200 bg-white">
+        <span className="text-sm font-semibold text-slate-700 shrink-0">Calendar</span>
         <button
           type="button"
           onClick={scrollToToday}
-          className="text-xs font-medium rounded-lg border border-slate-200 px-3 py-1.5 text-slate-600 hover:bg-slate-50 transition-colors"
+          className="text-xs font-medium rounded-lg border border-slate-200 px-3 py-1.5 text-slate-600 hover:bg-slate-50 transition-colors shrink-0"
         >
           Today
         </button>
-        {(loadingPast || loadingFuture) && (
-          <span className="text-xs text-slate-400 animate-pulse">Loading…</span>
+
+        {/* Unit search */}
+        <div className="relative flex-1 max-w-64">
+          <MagnifyingGlassIcon className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={roomSearch}
+            onChange={(e) => setRoomSearch(e.target.value)}
+            placeholder="Filter units…"
+            className="w-full pl-8 pr-7 py-1.5 text-xs rounded-lg border border-slate-200 bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-teal-400"
+          />
+          {roomSearch && (
+            <button
+              type="button"
+              onClick={() => setRoomSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+            >
+              <XMarkIcon className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {roomSearch && (
+          <span className="text-xs text-slate-400 shrink-0">
+            {filteredRooms.length} of {data.rooms.length} unit{data.rooms.length !== 1 ? 's' : ''}
+          </span>
         )}
+
+        {(loadingPast || loadingFuture) && (
+          <span className="text-xs text-slate-400 animate-pulse shrink-0">Loading…</span>
+        )}
+
+        <div className="flex-1" />
+
+        {/* View mode toggle */}
+        <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden shrink-0">
+          <button
+            type="button"
+            onClick={() => setViewMode('bookings')}
+            className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+              viewMode === 'bookings'
+                ? 'bg-teal-500 text-white'
+                : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            Bookings
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('tasks')}
+            className={`px-3 py-1.5 text-xs font-medium transition-colors border-l border-slate-200 ${
+              viewMode === 'tasks'
+                ? 'bg-teal-500 text-white'
+                : 'bg-white text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            Tasks
+          </button>
+        </div>
       </div>
 
       {/* Scrollable grid container — no scrollbars */}
@@ -285,7 +356,7 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
         onScroll={handleScroll}
       >
         <CalendarGrid
-          rooms={data.rooms}
+          rooms={filteredRooms}
           days={days}
           bookings={data.bookings}
           icalBlocks={data.icalBlocks}
@@ -298,6 +369,9 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
           onTaskClick={(task) => setModal({ type: 'task', task })}
           onAddTask={(roomId, date) => setModal({ type: 'task', roomId, date })}
           onAddPropertyTask={(propertyId, date) => setModal({ type: 'task', propertyId, date })}
+          onSmartPricingClick={(roomId) => setModal({ type: 'smartPricing', roomId })}
+          viewMode={viewMode}
+          today={today}
         />
       </div>
 
@@ -336,11 +410,13 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
           onClose={closeModal}
           onBook={() => {
             closeModal()
+            const nextDay = new Date(modal.date + 'T00:00:00')
+            nextDay.setDate(nextDay.getDate() + 1)
             setModal({
               type: 'addBooking',
               roomId: modal.roomId,
               checkIn: modal.date,
-              checkOut: modal.date,
+              checkOut: format(nextDay, 'yyyy-MM-dd'),
             })
           }}
           onBlock={() => {
@@ -394,15 +470,16 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
             closeModal()
           }}
           onSaveRate={async (roomId, date, price, note) => {
+            const originalOverride = getOverride(roomId, date)
             const optimisticRow = {
-              id: `${roomId}-${date}`,
+              id: originalOverride?.id ?? `${roomId}-${date}`,
               room_id: roomId,
               date,
               price_override: price,
               is_blocked: false,
               block_reason: null,
               note: note || null,
-              created_at: new Date().toISOString(),
+              created_at: originalOverride?.created_at ?? new Date().toISOString(),
             }
             applyOverrides([optimisticRow])
             try {
@@ -412,10 +489,12 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
                 body: JSON.stringify({ room_id: roomId, dates: [date], price_override: price, note }),
               })
               if (!res.ok) {
-                applyOverrides([{ ...optimisticRow, price_override: null }])
+                if (originalOverride) applyOverrides([originalOverride])
+                else removeOverride(roomId, date)
               }
             } catch {
-              applyOverrides([{ ...optimisticRow, price_override: null }])
+              if (originalOverride) applyOverrides([originalOverride])
+              else removeOverride(roomId, date)
             }
           }}
         />
@@ -536,6 +615,35 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
           }}
         />
       )}
+
+      {/* Smart pricing modal */}
+      {modal.type === 'smartPricing' && (() => {
+        const room = data.rooms.find((r) => r.id === modal.roomId)
+        if (!room) return null
+        return (
+          <SmartPricingModal
+            room={room}
+            onClose={closeModal}
+            onSuccess={async (roomId, updates) => {
+              setData((prev) => ({
+                ...prev,
+                rooms: prev.rooms.map((r) => r.id === roomId ? { ...r, ...updates } : r),
+              }))
+              // Refresh overrides — prices are already written by the time onSuccess fires
+              try {
+                const from = format(daysRef.current[0], 'yyyy-MM-dd')
+                const to = format(daysRef.current[daysRef.current.length - 1], 'yyyy-MM-dd')
+                const res = await fetch(`/api/admin/calendar?from=${from}&to=${to}`)
+                if (res.ok) {
+                  const refreshed: CalendarData = await res.json()
+                  setData((prev) => ({ ...prev, dateOverrides: refreshed.dateOverrides }))
+                  applyOverrides(refreshed.dateOverrides)
+                }
+              } catch { /* silent */ }
+            }}
+          />
+        )
+      })()}
 
     </div>
   )

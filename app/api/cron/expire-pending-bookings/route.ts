@@ -14,6 +14,35 @@ async function handler(request: NextRequest) {
   const supabase = createServiceRoleClient()
   const cutoff = new Date(Date.now() - EXPIRY_MINUTES * 60 * 1000).toISOString()
 
+  // Sweep 0: expire pending_payment bookings (name entered, no card submitted) older than 30 min.
+  // These never block dates, so expiry is just cleanup — cancel the PI only if it hasn't been touched.
+  const { data: stalePendingPayment } = await supabase
+    .from('bookings')
+    .select('id, stripe_payment_intent_id')
+    .eq('status', 'pending_payment')
+    .lt('created_at', cutoff)
+
+  const sweep0SuccessIds: string[] = []
+  await Promise.all(
+    (stalePendingPayment ?? []).map(async (booking) => {
+      try {
+        if (booking.stripe_payment_intent_id) {
+          const pi = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id)
+          if (['requires_payment_method', 'requires_confirmation', 'requires_action'].includes(pi.status)) {
+            await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id)
+          }
+        }
+        sweep0SuccessIds.push(booking.id)
+      } catch (err) {
+        console.error(`expire-pending-payment: failed to expire booking ${booking.id}:`, err)
+      }
+    }),
+  )
+  if (sweep0SuccessIds.length > 0) {
+    await supabase.from('bookings').update({ status: 'expired' }).in('id', sweep0SuccessIds)
+  }
+
+  // Sweep 1: expire pending bookings older than 30 min.
   const { data: stale, error } = await supabase
     .from('bookings')
     .select('id, stripe_payment_intent_id')
@@ -25,7 +54,8 @@ async function handler(request: NextRequest) {
     return NextResponse.json({ error: 'Failed to fetch bookings' }, { status: 500 })
   }
 
-  const results = await Promise.all(
+  const sweep1SuccessIds: string[] = []
+  await Promise.all(
     (stale ?? []).map(async (booking) => {
       try {
         if (booking.stripe_payment_intent_id) {
@@ -34,14 +64,15 @@ async function handler(request: NextRequest) {
             await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id)
           }
         }
-        await supabase.from('bookings').update({ status: 'expired' }).eq('id', booking.id)
-        return true
+        sweep1SuccessIds.push(booking.id)
       } catch (err) {
         console.error(`expire-pending-bookings: failed to expire booking ${booking.id}:`, err)
-        return false
       }
     }),
   )
+  if (sweep1SuccessIds.length > 0) {
+    await supabase.from('bookings').update({ status: 'expired' }).in('id', sweep1SuccessIds)
+  }
 
   // Sweep 2: expire pending_docs bookings older than 48 hours
   const docsCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
@@ -51,7 +82,8 @@ async function handler(request: NextRequest) {
     .eq('status', 'pending_docs')
     .lt('created_at', docsCutoff)
 
-  const docsResults = await Promise.all(
+  const sweep2SuccessIds: string[] = []
+  await Promise.all(
     (staleDocs ?? []).map(async (booking) => {
       try {
         if (booking.stripe_payment_intent_id) {
@@ -60,15 +92,19 @@ async function handler(request: NextRequest) {
             await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id)
           }
         }
-        await supabase.from('bookings').update({ status: 'expired' }).eq('id', booking.id)
-        evaluateAndQueueEmails('application_expired', { type: 'booking', bookingId: booking.id }).catch(console.error)
-        return true
+        sweep2SuccessIds.push(booking.id)
       } catch (err) {
         console.error(`expire-pending-docs: failed to expire booking ${booking.id}:`, err)
-        return false
       }
     }),
   )
+  if (sweep2SuccessIds.length > 0) {
+    await supabase.from('bookings').update({ status: 'expired' }).in('id', sweep2SuccessIds)
+  }
+  // evaluateAndQueueEmails is fire-and-forget per booking — keep per-booking
+  for (const id of sweep2SuccessIds) {
+    evaluateAndQueueEmails('application_expired', { type: 'booking', bookingId: id }).catch(console.error)
+  }
 
   // Sweep 3: auto-decline under_review bookings past their application_deadline
   const { data: overdueReviews } = await supabase
@@ -77,7 +113,8 @@ async function handler(request: NextRequest) {
     .eq('status', 'under_review')
     .lt('application_deadline', new Date().toISOString())
 
-  const reviewResults = await Promise.all(
+  const sweep3SuccessIds: string[] = []
+  await Promise.all(
     (overdueReviews ?? []).map(async (booking) => {
       try {
         if (booking.stripe_payment_intent_id) {
@@ -90,27 +127,31 @@ async function handler(request: NextRequest) {
             await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id)
           }
         }
-        await supabase.from('bookings').update({ status: 'cancelled' }).eq('id', booking.id)
-        const { error: appErr } = await supabase
-          .from('booking_applications')
-          .update({ decision: 'declined', decline_reason: 'Automatically declined — review deadline passed' })
-          .eq('booking_id', booking.id)
-        if (appErr) console.error(`auto-decline-review: failed to update application for booking ${booking.id}:`, appErr)
-        evaluateAndQueueEmails('booking_auto_declined', { type: 'booking', bookingId: booking.id }).catch(console.error)
-        evaluateAndQueueEmails('admin_missed_deadline', { type: 'booking', bookingId: booking.id }).catch(console.error)
-        return true
+        sweep3SuccessIds.push(booking.id)
       } catch (err) {
         console.error(`auto-decline-review: failed to decline booking ${booking.id}:`, err)
-        return false
       }
     }),
   )
+  if (sweep3SuccessIds.length > 0) {
+    await supabase.from('bookings').update({ status: 'cancelled' }).in('id', sweep3SuccessIds)
+    const { error: appErr } = await supabase
+      .from('booking_applications')
+      .update({ decision: 'declined', decline_reason: 'Automatically declined — review deadline passed' })
+      .in('booking_id', sweep3SuccessIds)
+    if (appErr) console.error('auto-decline-review: failed to batch-update booking_applications:', appErr)
+  }
+  // evaluateAndQueueEmails is fire-and-forget per booking — keep per-booking
+  for (const id of sweep3SuccessIds) {
+    evaluateAndQueueEmails('booking_auto_declined', { type: 'booking', bookingId: id }).catch(console.error)
+    evaluateAndQueueEmails('admin_missed_deadline', { type: 'booking', bookingId: id }).catch(console.error)
+  }
 
   return NextResponse.json({
-    expired: results.filter(Boolean).length,
-    failed: results.filter((r) => !r).length,
-    docs_expired: docsResults.filter(Boolean).length,
-    reviews_auto_declined: reviewResults.filter(Boolean).length,
+    expired: sweep1SuccessIds.length,
+    failed: (stale ?? []).length - sweep1SuccessIds.length,
+    docs_expired: sweep2SuccessIds.length,
+    reviews_auto_declined: sweep3SuccessIds.length,
   })
 }
 

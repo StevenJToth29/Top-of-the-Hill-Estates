@@ -1,10 +1,14 @@
+import { unstable_noStore as noStore } from 'next/cache'
 import { format, subDays, addDays } from 'date-fns'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
 import { CalendarClient } from '@/components/admin/CalendarClient'
 import type { CalendarData } from '@/types'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AdminCalendarPage() {
+  noStore()
   const serverClient = await createServerSupabaseClient()
   const { data: { user }, error: authError } = await serverClient.auth.getUser()
   if (authError || !user) redirect('/admin/login')

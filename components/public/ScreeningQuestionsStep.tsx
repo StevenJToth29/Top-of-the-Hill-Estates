@@ -39,6 +39,27 @@ export default function ScreeningQuestionsStep({
     }, 800)
   }
 
+  const WORD_LIMIT = 150
+
+  function wordCount(text: string) {
+    return text.trim() === '' ? 0 : text.trim().split(/\s+/).length
+  }
+
+  function limitWords(text: string) {
+    const words = text.split(/\s+/)
+    return words.length > WORD_LIMIT ? words.slice(0, WORD_LIMIT).join(' ') : text
+  }
+
+  function WordCounter({ value }: { value: string }) {
+    const count = wordCount(value)
+    const over = count >= WORD_LIMIT
+    return (
+      <p className={`text-xs mt-1 text-right ${over ? 'text-error font-semibold' : 'text-on-surface-variant'}`}>
+        {count} / {WORD_LIMIT} words
+      </p>
+    )
+  }
+
   const ta = 'w-full bg-surface-highest/40 rounded-xl px-4 py-3 text-on-surface text-sm focus:outline-none focus:ring-1 focus:ring-secondary/50 resize-none min-h-[80px]'
 
   return (
@@ -55,7 +76,8 @@ export default function ScreeningQuestionsStep({
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-secondary text-white text-xs font-bold mr-2">1</span>
           What is the purpose of your stay?
         </label>
-        <textarea className={ta} value={fields.purpose_of_stay} onChange={(e) => update({ purpose_of_stay: e.target.value })} placeholder="e.g. visiting family, business trip, short vacation…" />
+        <textarea className={ta} value={fields.purpose_of_stay} onChange={(e) => update({ purpose_of_stay: limitWords(e.target.value) })} placeholder="e.g. visiting family, business trip, short vacation…" />
+        <WordCounter value={fields.purpose_of_stay} />
       </div>
 
       <div>
@@ -63,7 +85,8 @@ export default function ScreeningQuestionsStep({
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-secondary text-white text-xs font-bold mr-2">2</span>
           Where are you traveling from?
         </label>
-        <textarea className={ta} value={fields.traveling_from} onChange={(e) => update({ traveling_from: e.target.value })} placeholder="City and state, or country if international" />
+        <textarea className={ta} value={fields.traveling_from} onChange={(e) => update({ traveling_from: limitWords(e.target.value) })} placeholder="City and state, or country if international" />
+        <WordCounter value={fields.traveling_from} />
       </div>
 
       <div>
@@ -71,7 +94,8 @@ export default function ScreeningQuestionsStep({
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-secondary text-white text-xs font-bold mr-2">3</span>
           This is a room rental inside a shared house. Do you have experience sharing common living spaces with other individuals?
         </label>
-        <textarea className={ta} value={fields.shared_living_exp} onChange={(e) => update({ shared_living_exp: e.target.value })} placeholder="Please describe your experience with shared living arrangements" />
+        <textarea className={ta} value={fields.shared_living_exp} onChange={(e) => update({ shared_living_exp: limitWords(e.target.value) })} placeholder="Please describe your experience with shared living arrangements" />
+        <WordCounter value={fields.shared_living_exp} />
       </div>
 
       <div>
@@ -95,7 +119,8 @@ export default function ScreeningQuestionsStep({
           <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-secondary text-white text-xs font-bold mr-2">5</span>
           Additional Information <span className="font-normal text-on-surface-variant">(optional)</span>
         </label>
-        <textarea className={ta} value={fields.additional_info ?? ''} onChange={(e) => update({ additional_info: e.target.value })} placeholder="Anything else you'd like us to know about your stay…" />
+        <textarea className={ta} value={fields.additional_info ?? ''} onChange={(e) => update({ additional_info: limitWords(e.target.value) })} placeholder="Anything else you'd like us to know about your stay…" />
+        <WordCounter value={fields.additional_info ?? ''} />
       </div>
     </div>
   )

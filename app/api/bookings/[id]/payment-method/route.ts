@@ -46,7 +46,7 @@ export async function PATCH(
 
     const typedBooking = booking as unknown as BookingRow
 
-    if (typedBooking.status !== 'pending' && typedBooking.status !== 'pending_docs') {
+    if (!['pending', 'pending_payment', 'pending_docs'].includes(typedBooking.status)) {
       return NextResponse.json({ error: 'Booking is not in pending status' }, { status: 400 })
     }
 
@@ -74,10 +74,17 @@ export async function PATCH(
     const base_amount = Math.round((Number(typedBooking.total_amount) - Number(typedBooking.processing_fee ?? 0)) * 100) / 100
     const rate = Number(methodConfig.fee_percent) / 100
     const flat = Number(methodConfig.fee_flat)
-    const processing_fee = Math.round(
-      (base_amount * rate + flat) * 100
-    ) / 100
-    const grand_total = Math.round((base_amount + processing_fee) * 100) / 100
+
+    // Gross-up: solve for the total such that the collected fee exactly covers
+    // what Stripe charges on the total (not just the base).
+    // total = (base + flat) / (1 − rate)  →  Stripe's cut = total × rate + flat = total − base
+    const grand_total_cents = (rate > 0 || flat > 0)
+      ? Math.round((base_amount + flat) / (1 - rate) * 100)
+      : Math.round(base_amount * 100)
+    const base_cents = Math.round(base_amount * 100)
+    const processing_fee_cents = grand_total_cents - base_cents
+    const grand_total = grand_total_cents / 100
+    const processing_fee = processing_fee_cents / 100
 
     // application_fee_amount = (base × platform_fee_percent) + full processing_fee
     // This keeps the entire customer-facing processing fee on the platform account,

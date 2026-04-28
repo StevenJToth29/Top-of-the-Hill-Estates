@@ -32,6 +32,7 @@ export const VARIABLE_GROUPS: VariableGroup[] = [
       { key: 'booking_type', label: 'Booking type' },
       { key: 'decline_reason', label: 'Decline reason' },
       { key: 'application_deadline_hours', label: 'Hours until application deadline' },
+      { key: 'application_link', label: 'Application link (URL)' },
     ],
   },
   {
@@ -89,6 +90,7 @@ export const SAMPLE_VARIABLES: Record<string, string> = {
   contact_message: "I'm interested in booking for a family visit next month.",
   decline_reason: 'We are unable to accommodate your request at this time.',
   application_deadline_hours: '24',
+  application_link: 'https://example.com/booking/apply/BK-2024-001?email=jane.smith%40example.com',
 }
 
 export function resolveVariables(

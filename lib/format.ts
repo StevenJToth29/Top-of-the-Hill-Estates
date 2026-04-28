@@ -32,6 +32,7 @@ export function formatDateTime(iso: string): string {
 }
 
 export const STATUS_BADGE: Record<BookingStatus, string> = {
+  pending_payment: 'bg-surface-container text-on-surface-variant',
   pending: 'bg-surface-container text-on-surface-variant',
   pending_docs: 'bg-warning/20 text-warning',
   under_review: 'bg-tertiary/20 text-tertiary',

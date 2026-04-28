@@ -70,6 +70,69 @@ describe('POST /api/admin/rooms', () => {
     expect(insertArg.extra_guest_fee).toBe(15)
   })
 
+  it('persists max_advance_booking_days and max_advance_booking_applies_to when provided', async () => {
+    mockAuthed()
+    const { roomsInsert } = createDbMocks()
+
+    const req = new Request('http://localhost/api/admin/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        property_id: 'prop-1',
+        name: 'Suite 1',
+        slug: 'suite-1',
+        max_advance_booking_days: 90,
+        max_advance_booking_applies_to: 'short_term',
+        fees: [],
+      }),
+    })
+
+    await POST(req)
+
+    const insertArg = roomsInsert.mock.calls[0][0]
+    expect(insertArg.max_advance_booking_days).toBe(90)
+    expect(insertArg.max_advance_booking_applies_to).toBe('short_term')
+  })
+
+  it('defaults max_advance_booking_days to 182 and applies_to to "both" when omitted', async () => {
+    mockAuthed()
+    const { roomsInsert } = createDbMocks()
+
+    const req = new Request('http://localhost/api/admin/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ property_id: 'prop-1', name: 'Suite 1', slug: 'suite-1', fees: [] }),
+    })
+
+    await POST(req)
+
+    const insertArg = roomsInsert.mock.calls[0][0]
+    expect(insertArg.max_advance_booking_days).toBe(182)
+    expect(insertArg.max_advance_booking_applies_to).toBe('both')
+  })
+
+  it('persists max_advance_booking_days of 0 (blocks all advance bookings)', async () => {
+    mockAuthed()
+    const { roomsInsert } = createDbMocks()
+
+    const req = new Request('http://localhost/api/admin/rooms', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        property_id: 'prop-1',
+        name: 'Suite 1',
+        slug: 'suite-1',
+        max_advance_booking_days: 0,
+        fees: [],
+      }),
+    })
+
+    await POST(req)
+
+    const insertArg = roomsInsert.mock.calls[0][0]
+    expect(insertArg.max_advance_booking_days).toBe(0)
+  })
+
   it('inserts room_fees rows after creating room', async () => {
     mockAuthed()
     const { roomFeesInsert } = createDbMocks()
@@ -135,6 +198,45 @@ describe('PATCH /api/admin/rooms', () => {
     expect(updateArg.cleaning_fee).toBe(100)
     expect(updateArg.security_deposit).toBe(300)
     expect(updateArg.extra_guest_fee).toBe(20)
+  })
+
+  it('updates max_advance_booking_days and max_advance_booking_applies_to when provided', async () => {
+    mockAuthed()
+    const { roomsUpdate } = createDbMocks()
+
+    const req = new Request('http://localhost/api/admin/rooms', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: 'room-1',
+        max_advance_booking_days: 60,
+        max_advance_booking_applies_to: 'long_term',
+        fees: [],
+      }),
+    })
+
+    await PATCH(req)
+
+    const updateArg = roomsUpdate.mock.calls[0][0]
+    expect(updateArg.max_advance_booking_days).toBe(60)
+    expect(updateArg.max_advance_booking_applies_to).toBe('long_term')
+  })
+
+  it('defaults max_advance_booking_days to 182 and applies_to to "both" in PATCH when omitted', async () => {
+    mockAuthed()
+    const { roomsUpdate } = createDbMocks()
+
+    const req = new Request('http://localhost/api/admin/rooms', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: 'room-1', fees: [] }),
+    })
+
+    await PATCH(req)
+
+    const updateArg = roomsUpdate.mock.calls[0][0]
+    expect(updateArg.max_advance_booking_days).toBe(182)
+    expect(updateArg.max_advance_booking_applies_to).toBe('both')
   })
 
   it('deletes existing room_fees before inserting new ones (atomic replace)', async () => {

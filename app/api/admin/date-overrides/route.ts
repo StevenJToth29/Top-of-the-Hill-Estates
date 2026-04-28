@@ -15,7 +15,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
   }
 
-  const { room_id, dates, price_override, is_blocked, block_reason, note } = body
+  const { room_id, dates, price_override, is_blocked, block_reason, note, source } = body
 
   if (!room_id || typeof room_id !== 'string') {
     return NextResponse.json({ error: 'Missing room_id' }, { status: 400 })
@@ -29,6 +29,7 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'dates must be in YYYY-MM-DD format' }, { status: 400 })
   }
 
+  const resolvedSource = source === 'smart' ? 'smart' : 'manual'
   const rows = (dates as string[]).map((date) => ({
     room_id,
     date,
@@ -36,6 +37,7 @@ export async function PUT(request: NextRequest) {
     is_blocked: is_blocked === true,
     block_reason: typeof block_reason === 'string' ? block_reason : null,
     note: typeof note === 'string' ? note : null,
+    source: resolvedSource,
   }))
 
   const supabase = createServiceRoleClient()

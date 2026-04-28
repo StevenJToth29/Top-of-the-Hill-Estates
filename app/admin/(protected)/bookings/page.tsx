@@ -18,8 +18,14 @@ export default async function AdminBookingsPage({
 
   const { data: bookings } = await supabase
     .from('bookings')
-    .select('*, room:rooms(*, property:properties(*))')
+    .select(
+      `id, status, booking_type, check_in, check_out,
+       guest_first_name, guest_last_name, guest_email,
+       total_amount, amount_paid, processing_fee, source, created_at,
+       room:rooms(name, property:properties(name))`,
+    )
     .order('created_at', { ascending: false })
+    .limit(200)
 
   let selectedBooking: (Booking & { room: Room & { property: Property } }) | null = null
   let selectedBookingModRequests: BookingModificationRequest[] = []
@@ -58,7 +64,7 @@ export default async function AdminBookingsPage({
       <BookingsPageTabs
         bookingsContent={
           <BookingsClient
-            bookings={(bookings ?? []) as Array<Booking & { room: Room & { property: Property } }>}
+            bookings={(bookings ?? []) as unknown as Array<Booking & { room: Room & { property: Property } }>}
             selectedId={searchParams.id}
           />
         }

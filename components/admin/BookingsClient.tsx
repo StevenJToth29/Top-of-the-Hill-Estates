@@ -1,12 +1,14 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { formatCurrency, formatDate, OPEN_ENDED_DATE } from '@/lib/format'
 import type { Booking, Room, Property } from '@/types'
 import NewManualBookingButton from './NewManualBookingButton'
 import CancelBookingModal from './CancelBookingModal'
 import { DEFAULT_POLICY } from '@/lib/cancellation'
+
+const PAGE_SIZE = 10
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -264,6 +266,18 @@ export default function BookingsClient({
     })
   }, [filtered, sortKey, sortDir])
 
+  // ── Pagination ─────────────────────────────────────────────────────────────
+
+  const [page, setPage] = useState(1)
+
+  useEffect(() => { setPage(1) }, [sorted])
+
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE)
+  const paginated = useMemo(
+    () => sorted.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [sorted, page],
+  )
+
   // ── Helpers ────────────────────────────────────────────────────────────────
 
   const hasFilters = !!(statusFilter !== 'all' || typeFilter !== 'all' || search || fromDate || toDate)
@@ -307,7 +321,7 @@ export default function BookingsClient({
 
   function toggleAll(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.checked) {
-      setSelectedRows(new Set(sorted.map((b) => b.id)))
+      setSelectedRows(new Set(paginated.map((b) => b.id)))
     } else {
       setSelectedRows(new Set())
     }
@@ -339,8 +353,8 @@ export default function BookingsClient({
 
   // ── Pill button style helper ───────────────────────────────────────────────
 
-  const allSelected = sorted.length > 0 && sorted.every((b) => selectedRows.has(b.id))
-  const someSelected = sorted.some((b) => selectedRows.has(b.id)) && !allSelected
+  const allSelected = paginated.length > 0 && paginated.every((b) => selectedRows.has(b.id))
+  const someSelected = paginated.some((b) => selectedRows.has(b.id)) && !allSelected
 
   return (
     <div className="space-y-4">
@@ -641,6 +655,11 @@ export default function BookingsClient({
         >
           <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748B' }}>
             {sorted.length} booking{sorted.length !== 1 ? 's' : ''}
+            {totalPages > 1 && (
+              <span style={{ fontWeight: 400, color: '#94A3B8' }}>
+                {' '}· page {page} of {totalPages}
+              </span>
+            )}
             {statusFilter !== 'all' && (
               <span style={{ color: getStatus(statusFilter).color }}>
                 {' '}· {getStatus(statusFilter).label}
@@ -734,7 +753,7 @@ export default function BookingsClient({
                   </td>
                 </tr>
               )}
-              {sorted.map((b, idx) => {
+              {paginated.map((b, idx) => {
                 const isSelected = selectedRows.has(b.id)
                 const isActive = selectedId === b.id
                 const statusCfg = getStatus(b.status)
@@ -1047,6 +1066,85 @@ export default function BookingsClient({
           </table>
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', paddingTop: '12px', flexWrap: 'wrap' }}>
+          {/* First / Prev */}
+          {(['«', '‹'] as const).map((label) => (
+            <button
+              key={label}
+              onClick={() => setPage(label === '«' ? 1 : (p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              style={{
+                padding: '5px 10px', fontSize: '13px', fontWeight: 700,
+                background: page === 1 ? '#F1F5F9' : '#fff',
+                border: '1px solid #E2E8F0', borderRadius: '8px',
+                color: page === 1 ? '#CBD5E1' : '#475569', cursor: page === 1 ? 'default' : 'pointer',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+
+          {/* Page select */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>Page</span>
+            <select
+              value={page}
+              onChange={(e) => setPage(Number(e.target.value))}
+              style={{
+                padding: '4px 8px', fontSize: '13px', fontWeight: 600,
+                background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px',
+                color: '#0F172A', cursor: 'pointer', outline: 'none',
+              }}
+            >
+              {Array.from({ length: totalPages }, (_, i) => (
+                <option key={i + 1} value={i + 1}>{i + 1}</option>
+              ))}
+            </select>
+            <span style={{ fontSize: '12px', color: '#94A3B8' }}>of {totalPages}</span>
+          </div>
+
+          {/* Go-to number input */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '12px', color: '#64748B', fontWeight: 500 }}>Go to</span>
+            <input
+              type="number"
+              min={1}
+              max={totalPages}
+              placeholder="–"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const v = Number((e.target as HTMLInputElement).value)
+                  if (v >= 1 && v <= totalPages) { setPage(v); (e.target as HTMLInputElement).value = '' }
+                }
+              }}
+              style={{
+                width: '52px', padding: '4px 8px', fontSize: '13px', fontWeight: 600,
+                background: '#fff', border: '1px solid #E2E8F0', borderRadius: '8px',
+                color: '#0F172A', outline: 'none', textAlign: 'center',
+              }}
+            />
+          </div>
+
+          {/* Next / Last */}
+          {(['›', '»'] as const).map((label) => (
+            <button
+              key={label}
+              onClick={() => setPage(label === '»' ? totalPages : (p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              style={{
+                padding: '5px 10px', fontSize: '13px', fontWeight: 700,
+                background: page === totalPages ? '#F1F5F9' : '#fff',
+                border: '1px solid #E2E8F0', borderRadius: '8px',
+                color: page === totalPages ? '#CBD5E1' : '#475569', cursor: page === totalPages ? 'default' : 'pointer',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {cancelTarget && (
         <CancelBookingModal

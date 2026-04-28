@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { format, parseISO, differenceInCalendarDays } from 'date-fns'
+import { usePostHog } from 'posthog-js/react'
 import DatePicker from '@/components/public/DatePicker'
 import CancellationPolicyDisplay from '@/components/public/CancellationPolicyDisplay'
 import type { Booking, Room, Property, BookingModificationRequest, CancellationPolicy } from '@/types'
@@ -43,10 +44,12 @@ export default function BookingManageView({
   blockedDates,
   genericFeesTotal,
 }: Props) {
+  const ph = usePostHog()
   const room = booking.room
   const property = room.property
 
-  const isActive = booking.status === 'confirmed' || booking.status === 'pending'
+  const isActive = ['confirmed', 'pending', 'pending_docs', 'under_review'].includes(booking.status)
+  const isPendingApproval = booking.status === 'pending_docs' || booking.status === 'under_review'
   const isCancelled = booking.status === 'cancelled'
   const isCompleted = booking.status === 'completed'
 
@@ -67,7 +70,12 @@ export default function BookingManageView({
   const [modPriceDelta, setModPriceDelta] = useState<number | null>(null)
   const [modNewTotal, setModNewTotal] = useState<number | null>(null)
 
-  // Client-side price delta preview
+  // Client-side price delta preview — only meaningful when the guest changes something
+  const hasModChanges =
+    modCheckIn !== booking.check_in ||
+    modCheckOut !== booking.check_out ||
+    modGuestCount !== booking.guest_count
+
   const totalNightsPreview = differenceInCalendarDays(parseISO(modCheckOut), parseISO(modCheckIn))
   const extraGuests = Math.max(0, modGuestCount - 1)
   const extraGuestFeePerNight = room.extra_guest_fee ?? 0
@@ -76,14 +84,14 @@ export default function BookingManageView({
   if (totalNightsPreview > 0) {
     if (booking.booking_type === 'short_term') {
       previewTotal =
-        totalNightsPreview * (room.nightly_rate ?? 0) +
-        (room.cleaning_fee ?? 0) +
+        totalNightsPreview * (booking.nightly_rate ?? 0) +
+        (booking.cleaning_fee ?? 0) +
         extraGuests * extraGuestFeePerNight * totalNightsPreview +
         genericFeesTotal
     } else {
       previewTotal =
-        (room.monthly_rate ?? 0) +
-        (room.security_deposit ?? 0) +
+        (booking.monthly_rate ?? 0) +
+        (booking.security_deposit ?? 0) +
         extraGuests * extraGuestFeePerNight +
         genericFeesTotal
     }
@@ -104,6 +112,7 @@ export default function BookingManageView({
       setCancelSuccess(true)
       setCancelledRefund(data.refund_amount)
     } catch (err) {
+      ph?.captureException(err instanceof Error ? err : new Error(String(err)), { action: 'cancel_booking', booking_id: booking.id })
       setCancelError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setCancelLoading(false)
@@ -131,6 +140,7 @@ export default function BookingManageView({
       setModPriceDelta(data.price_delta)
       setModNewTotal(data.new_total)
     } catch (err) {
+      ph?.captureException(err instanceof Error ? err : new Error(String(err)), { action: 'modify_booking', booking_id: booking.id })
       setModError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setModLoading(false)
@@ -139,12 +149,12 @@ export default function BookingManageView({
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <button
-        onClick={() => window.history.back()}
+      <a
+        href="/booking/manage"
         className="flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-on-surface transition-colors font-body"
       >
-        <span>←</span> Back
-      </button>
+        <span>←</span> Manage Booking
+      </a>
 
       {booking.status === 'pending_docs' && (
         <div className="mb-6 bg-warning/10 border border-warning/30 rounded-xl p-4">
@@ -184,7 +194,13 @@ export default function BookingManageView({
 
       {/* Booking summary */}
       <div className="bg-surface-container rounded-2xl p-6 shadow-[0_8px_40px_rgba(45,212,191,0.06)]">
-        <h1 className="font-display text-2xl font-bold text-primary mb-4">Your Booking</h1>
+        <div className="flex items-start justify-between mb-4">
+          <h1 className="font-display text-2xl font-bold text-primary">Your Booking</h1>
+          <div className="text-right">
+            <p className="text-xs text-on-surface-variant uppercase tracking-wide">Confirmation #</p>
+            <p className="font-mono text-sm font-semibold text-on-surface">{booking.id.slice(0, 8).toUpperCase()}</p>
+          </div>
+        </div>
         <div className="space-y-1 font-body text-on-surface-variant text-sm">
           <p className="text-on-surface font-semibold text-base">{room.name}</p>
           <p>{property.name}</p>
@@ -250,7 +266,7 @@ export default function BookingManageView({
       )}
 
       {/* Within-window notice — modifications only */}
-      {isActive && withinWindow && !cancelSuccess && (
+      {isActive && !isPendingApproval && withinWindow && !cancelSuccess && (
         <div className="bg-surface-highest/40 rounded-2xl p-5 font-body">
           <p className="text-on-surface-variant text-sm">
             Date modifications are no longer available within {windowHours} hours of check-in.
@@ -264,22 +280,33 @@ export default function BookingManageView({
         <>
           {/* Cancel section */}
           <div className="bg-surface-container rounded-2xl p-6 space-y-3">
-            <h2 className="font-display text-lg font-semibold text-primary">Cancellation</h2>
-            <CancellationPolicyDisplay
-              variant={booking.booking_type}
-              policy={cancellationPolicy}
-            />
-            <p className="font-body text-on-surface-variant text-sm">{policyDescription}</p>
-            {refundPercentage > 0 ? (
-              <p className="font-body text-sm text-on-surface-variant">
-                Expected refund:{' '}
-                <span className="text-on-surface font-semibold">{fmtCurrency(refundAmount)}</span>{' '}
-                ({refundPercentage}%)
+            <h2 className="font-display text-lg font-semibold text-primary">
+              {isPendingApproval ? 'Withdraw Application' : 'Cancellation'}
+            </h2>
+            {isPendingApproval ? (
+              <p className="font-body text-on-surface-variant text-sm">
+                Withdrawing will cancel your application and void the payment hold on your card.
+                You will not be charged.
               </p>
             ) : (
-              <p className="font-body text-sm text-on-surface-variant">
-                No refund applies at this time.
-              </p>
+              <>
+                <CancellationPolicyDisplay
+                  variant={booking.booking_type}
+                  policy={cancellationPolicy}
+                />
+                <p className="font-body text-on-surface-variant text-sm">{policyDescription}</p>
+                {refundPercentage > 0 ? (
+                  <p className="font-body text-sm text-on-surface-variant">
+                    Expected refund:{' '}
+                    <span className="text-on-surface font-semibold">{fmtCurrency(refundAmount)}</span>{' '}
+                    ({refundPercentage}%)
+                  </p>
+                ) : (
+                  <p className="font-body text-sm text-on-surface-variant">
+                    No refund applies at this time.
+                  </p>
+                )}
+              </>
             )}
             {cancelError && <p className="text-error text-sm font-body">{cancelError}</p>}
             {!cancelConfirm ? (
@@ -287,7 +314,7 @@ export default function BookingManageView({
                 onClick={() => setCancelConfirm(true)}
                 className="rounded-xl bg-error/20 px-4 py-2 text-sm font-semibold text-error hover:bg-error/30 transition-colors font-body"
               >
-                Cancel Reservation
+                {isPendingApproval ? 'Withdraw Application' : 'Cancel Reservation'}
               </button>
             ) : (
               <div className="space-y-2">
@@ -300,7 +327,7 @@ export default function BookingManageView({
                     disabled={cancelLoading}
                     className="rounded-xl bg-error/20 px-4 py-2 text-sm font-semibold text-error hover:bg-error/30 transition-colors disabled:opacity-50 font-body"
                   >
-                    {cancelLoading ? 'Cancelling…' : 'Yes, Cancel'}
+                    {cancelLoading ? 'Cancelling…' : 'Yes, Withdraw'}
                   </button>
                   <button
                     onClick={() => setCancelConfirm(false)}
@@ -313,8 +340,8 @@ export default function BookingManageView({
             )}
           </div>
 
-          {/* Modify section — only outside the cancellation window */}
-          {!withinWindow && modSuccess ? (
+          {/* Modify section — only for confirmed/pending bookings outside the cancellation window */}
+          {!isPendingApproval && (!withinWindow && modSuccess ? (
             <div className="bg-secondary/10 rounded-2xl p-6 font-body">
               <h2 className="font-display text-lg font-semibold text-primary mb-2">
                 Modification Requested
@@ -413,8 +440,8 @@ export default function BookingManageView({
                   </select>
                 </div>
 
-                {/* Price preview */}
-                {totalNightsPreview > 0 && (
+                {/* Price preview — only shown after guest changes something */}
+                {hasModChanges && totalNightsPreview > 0 && (
                   <div className="rounded-xl bg-surface-highest/40 p-4 text-sm font-body space-y-1">
                     <p className="text-on-surface-variant">
                       Estimated new total:{' '}
@@ -450,7 +477,7 @@ export default function BookingManageView({
                 </button>
               </form>
             </div>
-          )}
+          ))}
         </>
       )}
     </div>
