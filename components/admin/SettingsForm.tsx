@@ -10,6 +10,8 @@ import AIWriteButton from './AIWriteButton'
 import FormTabBar from './FormTabBar'
 import type { AiPrompts } from '@/types'
 import { DEFAULT_SYSTEM_PROMPT, DEFAULT_USER_PROMPTS } from '@/lib/ai-prompts'
+import dynamic from 'next/dynamic'
+const LegalDocEditor = dynamic(() => import('./LegalDocEditor'), { ssr: false })
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 
@@ -52,7 +54,7 @@ interface SettingsFormProps {
   paymentMethodConfigs: PaymentMethodConfig[]
 }
 
-type SettingsTab = 'general' | 'booking' | 'ai'
+type SettingsTab = 'general' | 'booking' | 'ai' | 'legal'
 
 async function compressImage(file: File, maxWidth = 400): Promise<Blob> {
   return new Promise((resolve) => {
@@ -130,6 +132,8 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
   const [methodError, setMethodError] = useState<Record<string, string>>({})
 
   const [tab, setTab] = useState<SettingsTab>('general')
+  const [privacyHtml, setPrivacyHtml] = useState(settings.privacy_policy_html ?? '')
+  const [tosHtml, setTosHtml] = useState(settings.terms_of_service_html ?? '')
 
   const [aiPrompts, setAiPrompts] = useState<AiPrompts>(() => {
     if (!settings.ai_prompts) return {}
@@ -311,6 +315,8 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
           global_house_rules: form.global_house_rules,
           cancellation_policy: JSON.stringify(cancellationPolicy),
           ai_prompts: JSON.stringify(aiPrompts),
+          privacy_policy_html: privacyHtml,
+          terms_of_service_html: tosHtml,
         }),
       })
       if (!res.ok) {
@@ -334,6 +340,7 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
     { id: 'general', label: 'General', icon: '⚙' },
     { id: 'booking', label: 'Booking', icon: '📋' },
     { id: 'ai', label: 'AI Prompts', icon: '✨' },
+    { id: 'legal', label: 'Legal', icon: '📄' },
   ]
 
   function renderMethodSection(label: string, bookingType: 'short_term' | 'long_term') {
@@ -716,6 +723,31 @@ export default function SettingsForm({ settings, paymentMethodConfigs }: Setting
               </div>
             ))}
           </section>
+        )}
+
+        {/* ── Tab: Legal ── */}
+        {tab === 'legal' && (
+          <div className="space-y-10">
+            <section className="space-y-3">
+              <div>
+                <h2 className="font-display text-base font-semibold text-on-surface">Privacy Policy</h2>
+                <p className="text-xs text-on-surface-variant/60 mt-0.5">
+                  Displayed at <code className="text-secondary">/privacypolicy</code>. Use the toolbar to format headings, lists, bold, and links.
+                </p>
+              </div>
+              <LegalDocEditor value={privacyHtml} onChange={setPrivacyHtml} />
+            </section>
+
+            <section className="space-y-3">
+              <div>
+                <h2 className="font-display text-base font-semibold text-on-surface">Terms &amp; Conditions</h2>
+                <p className="text-xs text-on-surface-variant/60 mt-0.5">
+                  Displayed at <code className="text-secondary">/termsandconditions</code>.
+                </p>
+              </div>
+              <LegalDocEditor value={tosHtml} onChange={setTosHtml} />
+            </section>
+          </div>
         )}
 
         {/* Save button — always visible */}
