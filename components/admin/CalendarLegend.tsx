@@ -6,6 +6,7 @@ const items = [
   { label: 'Blocked', style: { background: 'rgba(100,116,139,0.1)', borderTop: '2px solid #CBD5E1' } },
   { label: 'iCal Block', style: { background: 'rgba(45,212,191,0.07)' } },
   { label: 'Selected', style: { background: 'rgba(45,212,191,0.28)', border: '2px solid #2DD4BF' } },
+  { label: 'Advance Limit', style: { background: 'repeating-linear-gradient(-45deg, rgba(148,163,184,0.10), rgba(148,163,184,0.10) 3px, rgba(203,213,225,0.18) 3px, rgba(203,213,225,0.18) 7px)', border: '1px solid #E2E8F0' } },
 ]
 
 export function CalendarLegend() {

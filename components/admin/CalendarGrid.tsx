@@ -16,7 +16,7 @@ export interface DragSelection {
 }
 
 export const DAY_COL_WIDTH = 36
-export const LABEL_COL_WIDTH = 200
+export const LABEL_COL_WIDTH = 240
 export const LABEL_COL_COLLAPSED = 40
 
 interface CalendarGridProps {
@@ -40,7 +40,15 @@ interface CalendarGridProps {
   today: string
 }
 
-type CellStatus = 'available' | 'booked-first' | 'booked-cont' | 'blocked' | 'ical' | 'selected'
+type CellStatus = 'available' | 'booked-first' | 'booked-cont' | 'blocked' | 'ical' | 'selected' | 'advance-blocked'
+
+function isAdvanceBlocked(room: Room, dateStr: string, todayStr: string): boolean {
+  const maxDays = room.max_advance_booking_days
+  if (maxDays == null) return false
+  const today = new Date(todayStr + 'T00:00:00')
+  today.setDate(today.getDate() + maxDays)
+  return dateStr > format(today, 'yyyy-MM-dd')
+}
 
 function getCellStatus(
   roomId: string,
@@ -91,6 +99,10 @@ function getCellStyle(status: CellStatus): React.CSSProperties {
       }
     case 'blocked':
       return { background: 'rgba(100,116,139,0.10)', borderTop: '2px solid #CBD5E1' }
+    case 'advance-blocked':
+      return {
+        background: 'repeating-linear-gradient(-45deg, rgba(148,163,184,0.10), rgba(148,163,184,0.10) 3px, rgba(203,213,225,0.18) 3px, rgba(203,213,225,0.18) 7px)',
+      }
     case 'ical':
       return { background: 'rgba(45,212,191,0.07)' }
     case 'selected':
@@ -132,6 +144,9 @@ function CellContent({
   }
   if (status === 'blocked') {
     return <span className="text-[11px] text-slate-400">–</span>
+  }
+  if (status === 'advance-blocked') {
+    return null
   }
   if (status === 'ical') {
     return <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#2DD4BF' }} />
@@ -392,7 +407,7 @@ export function CalendarGrid({
             {/* Property header row — always visible */}
             <CalendarTaskRow
               label={`🏠 ${propName}`}
-              tasks={viewMode === 'tasks' ? tasks.filter((t) => t.property_id === propId && !t.room_id) : []}
+              tasks={tasks.filter((t) => t.property_id === propId && !t.room_id)}
               days={days}
               onTaskClick={onTaskClick}
               onAddClick={(date) => onAddPropertyTask(propId, date)}
@@ -408,7 +423,7 @@ export function CalendarGrid({
                   <tr className="border-b border-slate-100 group">
                     {/* Label cell */}
                     <td
-                      className="sticky left-0 z-10 border-r border-slate-200"
+                      className="sticky left-0 z-20 border-r border-slate-200"
                       style={{ width: labelWidth, background: '#ffffff', padding: labelCollapsed ? 0 : '4px 8px' }}
                     >
                       {labelCollapsed ? (
@@ -426,6 +441,7 @@ export function CalendarGrid({
                           <span
                             className="flex items-center gap-1 text-xs font-semibold truncate w-full text-left"
                             style={{ color: '#2DD4BF' }}
+                            title={room.name}
                           >
                             <HomeIcon className="shrink-0 w-3 h-3" />
                             {room.name}
@@ -433,7 +449,7 @@ export function CalendarGrid({
                               <span title="Smart Pricing enabled" className="text-amber-500 shrink-0">⚡</span>
                             )}
                           </span>
-                          <span className="text-[10px] text-slate-400 block truncate">
+                          <span className="text-[10px] text-slate-400 block truncate" title={room.property?.name ?? ''}>
                             {room.property?.name ?? ''}
                           </span>
                           {viewMode === 'bookings' && (
@@ -543,6 +559,10 @@ export function CalendarGrid({
                         const todayCell = ds === todayStr
                         const isPastDate = ds < todayStr
                         const status = getCellStatus(room.id, ds, bookings, icalBlocks, overrideMap, selection)
+                        const effectiveStatus: CellStatus =
+                          status === 'available' && isAdvanceBlocked(room, ds, todayStr)
+                            ? 'advance-blocked'
+                            : status
 
                         if (
                           status === 'booked-first' ||
@@ -634,28 +654,42 @@ export function CalendarGrid({
                                 {/* Task dots */}
                                 {Array.from({ length: span }, (_, offset) => {
                                   const colDate = format(days[i + offset], 'yyyy-MM-dd')
-                                  return roomTasks.some(t => t.due_date === colDate) ? (
+                                  const dateTasks = roomTasks.filter(t => t.due_date === colDate)
+                                  if (dateTasks.length === 0) return null
+                                  const firstTask = dateTasks[0]
+                                  const tooltip = dateTasks.map(t => t.title).join('\n')
+                                  return (
                                     <div
                                       key={offset}
-                                      aria-hidden
+                                      role="button"
+                                      title={tooltip}
+                                      onClick={(e) => { e.stopPropagation(); onTaskClick(firstTask) }}
                                       style={{
                                         position: 'absolute',
-                                        top: 2,
-                                        left: offset * DAY_COL_WIDTH + DAY_COL_WIDTH / 2 - 3,
-                                        width: 6,
-                                        height: 6,
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        left: offset * DAY_COL_WIDTH + (DAY_COL_WIDTH - 16) / 2,
+                                        width: 16,
+                                        height: 16,
                                         borderRadius: '50%',
                                         background: '#EF4444',
                                         zIndex: 4,
-                                        pointerEvents: 'none',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
                                       }}
-                                    />
-                                  ) : null
+                                    >
+                                      <span style={{ color: '#fff', fontSize: 9, fontWeight: 700, lineHeight: 1, pointerEvents: 'none' }}>
+                                        {dateTasks.length > 9 ? '9+' : dateTasks.length}
+                                      </span>
+                                    </div>
+                                  )
                                 })}
                                 {/* Sticky name */}
                                 <div style={{
                                   position: 'sticky',
-                                  left: LABEL_COL_WIDTH + 6,
+                                  left: labelWidth + 6,
                                   width: 'max-content',
                                   maxWidth: 180,
                                   height: '100%',
@@ -764,28 +798,42 @@ export function CalendarGrid({
                                 {/* Task dots */}
                                 {Array.from({ length: span }, (_, offset) => {
                                   const colDate = format(days[i + offset], 'yyyy-MM-dd')
-                                  return roomTasks.some(t => t.due_date === colDate) ? (
+                                  const dateTasks = roomTasks.filter(t => t.due_date === colDate)
+                                  if (dateTasks.length === 0) return null
+                                  const firstTask = dateTasks[0]
+                                  const tooltip = dateTasks.map(t => t.title).join('\n')
+                                  return (
                                     <div
                                       key={offset}
-                                      aria-hidden
+                                      role="button"
+                                      title={tooltip}
+                                      onClick={(e) => { e.stopPropagation(); onTaskClick(firstTask) }}
                                       style={{
                                         position: 'absolute',
-                                        top: 2,
-                                        left: offset * DAY_COL_WIDTH + DAY_COL_WIDTH / 2 - 3,
-                                        width: 6,
-                                        height: 6,
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        left: offset * DAY_COL_WIDTH + (DAY_COL_WIDTH - 16) / 2,
+                                        width: 16,
+                                        height: 16,
                                         borderRadius: '50%',
                                         background: '#EF4444',
                                         zIndex: 4,
-                                        pointerEvents: 'none',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
                                       }}
-                                    />
-                                  ) : null
+                                    >
+                                      <span style={{ color: '#fff', fontSize: 9, fontWeight: 700, lineHeight: 1, pointerEvents: 'none' }}>
+                                        {dateTasks.length > 9 ? '9+' : dateTasks.length}
+                                      </span>
+                                    </div>
+                                  )
                                 })}
                                 {/* Label */}
                                 <div style={{
                                   position: 'sticky',
-                                  left: LABEL_COL_WIDTH + 6,
+                                  left: labelWidth + 6,
                                   width: 'max-content',
                                   maxWidth: 180,
                                   height: '100%',
@@ -818,24 +866,24 @@ export function CalendarGrid({
                           }
                         }
 
-                        const cellStyle = getCellStyle(status)
+                        const cellStyle = getCellStyle(effectiveStatus)
                         cells.push(
                           <td
                             key={ds}
-                            onMouseDown={() => handleMouseDown(room.id, ds, status)}
+                            onMouseDown={() => handleMouseDown(room.id, ds, effectiveStatus)}
                             onMouseEnter={() => handleMouseEnter(room.id, ds)}
                             onMouseUp={() => handleMouseUp(room.id, ds)}
                             className={clsx(
                               'group/cell relative border-r border-slate-100 text-center cursor-pointer transition-colors',
-                              isFriSat && status === 'available' && 'bg-amber-50/40',
+                              isFriSat && effectiveStatus === 'available' && 'bg-amber-50/40',
                               isSun && 'border-l border-slate-200',
-                              todayCell && status === 'available' && 'bg-teal-100',
+                              todayCell && effectiveStatus === 'available' && 'bg-teal-100',
                             )}
                             style={{
                               height: 36,
                               verticalAlign: 'middle',
                               ...cellStyle,
-                              ...(isPastDate && status === 'available'
+                              ...(isPastDate && effectiveStatus === 'available'
                                 ? { background: 'rgba(203,213,225,0.25)' }
                                 : {}),
                             }}
@@ -846,26 +894,41 @@ export function CalendarGrid({
                               style={{ background: 'rgba(45,212,191,0.18)' }}
                             />
                             {/* Task dot */}
-                            {roomTasks.some(t => t.due_date === ds) && (
-                              <div
-                                aria-hidden
-                                style={{
-                                  position: 'absolute',
-                                  top: 2,
-                                  left: '50%',
-                                  transform: 'translateX(-50%)',
-                                  width: 6,
-                                  height: 6,
-                                  borderRadius: '50%',
-                                  background: '#EF4444',
-                                  zIndex: 4,
-                                  pointerEvents: 'none',
-                                }}
-                              />
-                            )}
+                            {(() => {
+                              const dateTasks = roomTasks.filter(t => t.due_date === ds)
+                              if (dateTasks.length === 0) return null
+                              const firstTask = dateTasks[0]
+                              const tooltip = dateTasks.map(t => t.title).join('\n')
+                              return (
+                                <div
+                                  role="button"
+                                  title={tooltip}
+                                  onClick={(e) => { e.stopPropagation(); onTaskClick(firstTask) }}
+                                  style={{
+                                    position: 'absolute',
+                                    top: '50%',
+                                    left: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                    width: 16,
+                                    height: 16,
+                                    borderRadius: '50%',
+                                    background: '#EF4444',
+                                    zIndex: 4,
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                  }}
+                                >
+                                  <span style={{ color: '#fff', fontSize: 9, fontWeight: 700, lineHeight: 1, pointerEvents: 'none' }}>
+                                    {dateTasks.length > 9 ? '9+' : dateTasks.length}
+                                  </span>
+                                </div>
+                              )
+                            })()}
                             <div className="relative z-10 flex items-center justify-center h-full">
                               <CellContent
-                                status={status}
+                                status={effectiveStatus}
                                 roomId={room.id}
                                 dateStr={ds}
                                 bookings={bookings}

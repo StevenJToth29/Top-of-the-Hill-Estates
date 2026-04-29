@@ -15,6 +15,7 @@ import { SetPriceModal } from './calendar/SetPriceModal'
 import { AddBookingModal } from './calendar/AddBookingModal'
 import { BookingDetailModal } from './calendar/BookingDetailModal'
 import { SmartPricingModal } from './calendar/SmartPricingModal'
+import SyncAllButton from './SyncAllButton'
 import { useDateOverrides } from '@/hooks/useDateOverrides'
 import type {
   Booking,
@@ -322,6 +323,8 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
         )}
 
         <div className="flex-1" />
+
+        <SyncAllButton compact />
 
         {/* View mode toggle */}
         <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden shrink-0">

@@ -42,7 +42,7 @@ export function CalendarTaskRow({
     <tr style={{ background: rowBg, borderBottom: `${isPropertyRow ? 2 : 1}px solid ${borderColor}` }}>
       {/* Label cell */}
       <td
-        className="sticky left-0 z-10 px-2 py-1"
+        className="sticky left-0 z-20 px-2 py-1"
         style={{
           width: labelWidth,
           background: rowBg,
@@ -74,18 +74,17 @@ export function CalendarTaskRow({
 
             const offsetDays = differenceInDays(taskDate, firstDay)
             const leftPct = (offsetDays / days.length) * 100
-            const minWidthPx = 72
-            const naturalWidthPct = (1 / days.length) * 100
+            const widthPct = (1 / days.length) * 100
 
             return (
               <button
                 type="button"
                 key={`${task.id}-${task.due_date}`}
                 onClick={(e) => { e.stopPropagation(); onTaskClick(task) }}
-                className="absolute top-1 bottom-1 rounded-md text-[10px] text-white font-semibold px-2 truncate hover:brightness-110 transition-all shadow-sm"
+                className="absolute top-1 bottom-1 rounded-md text-[10px] text-white font-semibold px-1 truncate hover:brightness-110 transition-all shadow-sm"
                 style={{
                   left: `${leftPct}%`,
-                  width: `max(${naturalWidthPct}%, ${minWidthPx}px)`,
+                  width: `${widthPct}%`,
                   background: task.color ?? '#6366F1',
                   boxShadow: '0 1px 3px rgba(99,102,241,0.4)',
                 }}
