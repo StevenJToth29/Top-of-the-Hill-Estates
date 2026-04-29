@@ -9,7 +9,7 @@ CREATE POLICY "Service role full access on task_exceptions"
 ALTER TABLE task_exceptions
   ADD COLUMN IF NOT EXISTS updated_at timestamptz NOT NULL DEFAULT now();
 
-CREATE TRIGGER update_task_exceptions_updated_at
+CREATE OR REPLACE TRIGGER update_task_exceptions_updated_at
   BEFORE UPDATE ON task_exceptions
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
