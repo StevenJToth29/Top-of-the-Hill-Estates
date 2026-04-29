@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import type { TaskAutomation, TaskTriggerEvent, TaskScopeType, Person, Room, Property } from '@/types'
 
+const PRESET_COLORS = ['#6366F1', '#2DD4BF', '#F59E0B', '#EF4444', '#10B981', '#8B5CF6']
+
 const TRIGGER_LABELS: Record<TaskTriggerEvent, string> = {
   booking_confirmed: 'Booking Confirmed',
   checkin_day: 'Check-in Day',
@@ -29,6 +31,7 @@ export function TaskAutomationModal({ automation, rooms, properties, people, onC
   const [description, setDescription] = useState(automation?.description ?? '')
   const [dayOffset, setDayOffset] = useState(automation?.day_offset ?? 0)
   const [assigneeId, setAssigneeId] = useState(automation?.assignee_id ?? '')
+  const [color, setColor] = useState(automation?.color ?? PRESET_COLORS[0])
   const [isActive, setIsActive] = useState(automation?.is_active ?? true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -47,6 +50,7 @@ export function TaskAutomationModal({ automation, rooms, properties, people, onC
         room_id: scope === 'room' ? roomId : null,
         property_id: scope === 'property' ? propertyId : null,
         assignee_id: assigneeId || null,
+        color: color || null,
         is_active: isActive,
       }
       const url = isEdit ? `/api/admin/task-automations/${automation!.id}` : '/api/admin/task-automations'
@@ -135,6 +139,19 @@ export function TaskAutomationModal({ automation, rooms, properties, people, onC
               <option value="">Unassigned</option>
               {people.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Color</label>
+            <div className="flex gap-2">
+              {PRESET_COLORS.map((c) => (
+                <button
+                  key={c} type="button" onClick={() => setColor(c)}
+                  className={`w-6 h-6 rounded-full transition-transform ${color === c ? 'scale-125 ring-2 ring-offset-1 ring-slate-400' : 'hover:scale-110'}`}
+                  style={{ background: c }}
+                />
+              ))}
+            </div>
           </div>
 
           <label className="flex items-center gap-2 text-sm">

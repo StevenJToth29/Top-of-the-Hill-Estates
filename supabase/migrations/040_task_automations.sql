@@ -41,3 +41,11 @@ ALTER TABLE calendar_tasks
   ADD COLUMN IF NOT EXISTS source_booking_id     uuid REFERENCES bookings(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS source_ical_block_id  uuid REFERENCES ical_blocks(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS automation_id         uuid REFERENCES task_automations(id) ON DELETE SET NULL;
+
+CREATE INDEX idx_calendar_tasks_source_booking
+  ON calendar_tasks (source_booking_id)
+  WHERE source_booking_id IS NOT NULL;
+
+CREATE INDEX idx_calendar_tasks_automation
+  ON calendar_tasks (automation_id)
+  WHERE automation_id IS NOT NULL;
