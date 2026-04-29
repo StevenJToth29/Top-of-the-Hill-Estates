@@ -4,6 +4,7 @@ import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { notifyGHLBookingConfirmed } from '@/lib/ghl'
 import { evaluateAndQueueEmails, seedReminderEmails } from '@/lib/email-queue'
+import { generateTasksForBooking } from '@/lib/task-automation'
 import type { Booking } from '@/types'
 
 export async function POST(request: NextRequest) {
@@ -60,6 +61,9 @@ export async function POST(request: NextRequest) {
 
         seedReminderEmails((booking as Booking).id).catch((err) => {
           console.error('seedReminderEmails error:', err)
+        })
+        generateTasksForBooking((booking as Booking).id, 'booking_confirmed').catch((err) => {
+          console.error('task automation error on booking_confirmed:', err)
         })
         break
       }
