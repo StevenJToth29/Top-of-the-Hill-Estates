@@ -30,6 +30,7 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
   const [checkOut, setCheckOut] = useState('')
   const [noEndDate, setNoEndDate] = useState(false)
   const [guests, setGuests] = useState(1)
+  const [monthlyAmount, setMonthlyAmount] = useState(0)
 
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -47,6 +48,13 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
       })
   }, [])
 
+  useEffect(() => {
+    if (bookingType === 'long_term') {
+      const room = rooms.find((r) => r.id === roomId)
+      setMonthlyAmount(room?.monthly_rate ?? 0)
+    }
+  }, [roomId, bookingType, rooms])
+
   const selectedRoom = rooms.find((r) => r.id === roomId)
 
   const nights =
@@ -59,7 +67,7 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
       ? (selectedRoom?.monthly_rate ?? 0)
       : (selectedRoom?.nightly_rate ?? 0)
 
-  const totalAmount = bookingType === 'long_term' ? rate : rate * nights
+  const totalAmount = bookingType === 'long_term' ? monthlyAmount : rate * nights
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -68,6 +76,10 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
     const requiresCheckOut = !(bookingType === 'long_term' && noEndDate)
     if (!roomId || !checkIn || (requiresCheckOut && !checkOut) || !firstName || !lastName || !email || !phone) {
       setError('Please fill in all required fields.')
+      return
+    }
+    if (bookingType === 'long_term' && monthlyAmount <= 0) {
+      setError('Monthly amount must be greater than $0.')
       return
     }
     if (requiresCheckOut && nights < 1) {
@@ -95,6 +107,7 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
           total_nights: nights,
           nightly_rate: selectedRoom?.nightly_rate ?? 0,
           monthly_rate: selectedRoom?.monthly_rate ?? 0,
+          ...(bookingType === 'long_term' ? { admin_monthly_amount: monthlyAmount } : {}),
           total_amount: totalAmount,
           amount_paid: 0,
           amount_due_at_checkin: 0,
@@ -264,6 +277,26 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
       </div>
 
       {bookingType === 'long_term' && (
+        <div className="space-y-1">
+          <label className="text-xs text-on-surface-variant">
+            Monthly Amount <span className="text-error">*</span>
+          </label>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-on-surface-variant">$</span>
+            <input
+              type="number"
+              min={0.01}
+              step={0.01}
+              value={monthlyAmount}
+              onChange={(e) => setMonthlyAmount(Number(e.target.value))}
+              required
+              className="w-full bg-surface-highest/40 rounded-xl pl-8 pr-4 py-3 text-sm text-on-surface focus:ring-1 focus:ring-secondary/50 outline-none"
+            />
+          </div>
+        </div>
+      )}
+
+      {bookingType === 'long_term' && (
         <label className="flex items-start gap-3 cursor-pointer">
           <input
             type="checkbox"
@@ -301,8 +334,8 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
             </div>
           ) : (
             <div className="flex justify-between text-sm">
-              <span className="text-on-surface-variant">Monthly rate (deposit)</span>
-              <span className="text-on-surface">{formatCurrency(rate)}</span>
+              <span className="text-on-surface-variant">Monthly amount</span>
+              <span className="text-on-surface">{formatCurrency(monthlyAmount)}</span>
             </div>
           )}
           <div className="flex justify-between text-sm font-semibold pt-1">
