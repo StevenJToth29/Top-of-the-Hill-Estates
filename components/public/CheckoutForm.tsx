@@ -88,10 +88,6 @@ export default function CheckoutForm({
       setFieldErrors(errors)
       return false
     }
-    if (!smsConsent) {
-      setError('You must consent to non-marketing SMS messages to continue.')
-      return false
-    }
     return true
   }
 

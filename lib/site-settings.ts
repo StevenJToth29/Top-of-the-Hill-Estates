@@ -16,3 +16,18 @@ export const getSiteSettings = unstable_cache(
   ['site_settings'],
   { revalidate: 3600, tags: ['site_settings'] },
 )
+
+// Cached legal content — invalidated by revalidateTag('site_settings') on settings save.
+export const getLegalContent = unstable_cache(
+  async () => {
+    const supabase = createServiceRoleClient()
+    const { data } = await supabase
+      .from('site_settings')
+      .select('privacy_policy_html, terms_of_service_html, legal_last_updated')
+      .limit(1)
+      .maybeSingle()
+    return data ?? null
+  },
+  ['site_settings_legal'],
+  { tags: ['site_settings'] },
+)

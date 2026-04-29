@@ -760,6 +760,7 @@ export function CalendarGrid({
                               <td
                                 key={ds}
                                 colSpan={span}
+                                title={`${block.platform} · ${format(new Date(block.start_date + 'T00:00:00'), 'MMM d')} – ${format(new Date(block.end_date + 'T00:00:00'), 'MMM d, yyyy')}`}
                                 className={clsx(
                                   'group/pill',
                                   isSun && 'border-l border-slate-200',

@@ -52,14 +52,9 @@ export default function ReviewsClient({ reviews: initial }: { reviews: ReviewRow
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="font-display font-extrabold text-[22px]" style={{ color: '#0F172A' }}>
-          Reviews
-        </h1>
-        <p className="mt-0.5 text-sm" style={{ color: '#64748B' }}>
-          Approve guest reviews before they appear on your homepage
-        </p>
-      </div>
+      <p className="text-sm" style={{ color: '#64748B' }}>
+        Approve guest reviews before they appear on your homepage
+      </p>
 
       {reviews.length === 0 ? (
         <p className="text-sm text-on-surface-variant">No reviews yet.</p>

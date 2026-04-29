@@ -4,8 +4,11 @@ import { useState, useEffect, useRef, ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import ApplicationsTab from '@/components/admin/ApplicationsTab'
 
+type Tab = 'bookings' | 'applications' | 'reviews'
+
 interface Props {
   bookingsContent: ReactNode
+  reviewsContent: ReactNode
 }
 
 function usePendingApplicationCount() {
@@ -33,14 +36,15 @@ function usePendingApplicationCount() {
   return { count, refresh: () => fetchRef.current() }
 }
 
-export default function BookingsPageTabs({ bookingsContent }: Props) {
+export default function BookingsPageTabs({ bookingsContent, reviewsContent }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const initialTab = searchParams.get('tab') === 'applications' ? 'applications' : 'bookings'
-  const [tab, setTab] = useState<'bookings' | 'applications'>(initialTab)
+  const rawTab = searchParams.get('tab')
+  const initialTab: Tab = rawTab === 'applications' ? 'applications' : rawTab === 'reviews' ? 'reviews' : 'bookings'
+  const [tab, setTab] = useState<Tab>(initialTab)
   const { count: pendingCount, refresh: refreshCount } = usePendingApplicationCount()
 
-  function switchTab(t: 'bookings' | 'applications') {
+  function switchTab(t: Tab) {
     setTab(t)
     const params = new URLSearchParams(searchParams.toString())
     if (t === 'bookings') params.delete('tab')
@@ -51,7 +55,7 @@ export default function BookingsPageTabs({ bookingsContent }: Props) {
   return (
     <div>
       <div className="flex gap-1 border-b border-outline mb-6" role="tablist">
-        {(['bookings', 'applications'] as const).map((t) => (
+        {(['bookings', 'applications', 'reviews'] as const).map((t) => (
           <button
             key={t}
             role="tab"
@@ -72,8 +76,10 @@ export default function BookingsPageTabs({ bookingsContent }: Props) {
           </button>
         ))}
       </div>
-      <div id={tab === 'bookings' ? 'tabpanel-bookings' : 'tabpanel-applications'} role="tabpanel">
-        {tab === 'bookings' ? bookingsContent : <ApplicationsTab onDecision={refreshCount} />}
+      <div id={`tabpanel-${tab}`} role="tabpanel">
+        {tab === 'bookings' && bookingsContent}
+        {tab === 'applications' && <ApplicationsTab onDecision={refreshCount} />}
+        {tab === 'reviews' && reviewsContent}
       </div>
     </div>
   )

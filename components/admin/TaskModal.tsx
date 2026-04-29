@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useRef } from 'react'
+import { InformationCircleIcon } from '@heroicons/react/16/solid'
 import { ModalShell } from './calendar/ModalShell'
 import type { Room, CalendarTask } from '@/types'
 
@@ -70,6 +71,18 @@ export function TaskModal({
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
 
+  const rruleIconRef = useRef<HTMLDivElement>(null)
+  const [showRruleHelp, setShowRruleHelp] = useState(false)
+  const [rruleAnchor, setRruleAnchor] = useState({ top: 0, left: 0 })
+
+  function handleRruleEnter() {
+    if (rruleIconRef.current) {
+      const r = rruleIconRef.current.getBoundingClientRect()
+      setRruleAnchor({ top: r.top, left: r.left + r.width / 2 })
+    }
+    setShowRruleHelp(true)
+  }
+
   const effectiveRRule = recurrencePreset === 'custom' ? customRRule : recurrencePreset
 
   async function handleSubmit(e: React.FormEvent) {
@@ -111,10 +124,11 @@ export function TaskModal({
         body: JSON.stringify(payload),
       })
       if (!res.ok) {
-        const j = await res.json()
-        throw new Error(j.error ?? 'Failed to save task')
+        const j = await res.json().catch(() => null)
+        throw new Error(j?.error ?? `Failed to save task (${res.status})`)
       }
       const j = await res.json()
+      if (!j?.task) throw new Error('Server returned an invalid response')
       onSuccess(j.task)
       onClose()
     } catch (err) {
@@ -247,7 +261,63 @@ export function TaskModal({
 
         {!isRecurringOccurrence && (
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Recurrence</label>
+            <div className="flex items-center gap-1.5 mb-1">
+              <label className="text-xs font-medium text-slate-600">Recurrence</label>
+              <div
+                ref={rruleIconRef}
+                onMouseEnter={handleRruleEnter}
+                onMouseLeave={() => setShowRruleHelp(false)}
+              >
+                <InformationCircleIcon className="w-3.5 h-3.5 text-slate-400 cursor-help" />
+              </div>
+            </div>
+            {showRruleHelp && (
+              <div
+                style={{
+                  position: 'fixed',
+                  top: rruleAnchor.top,
+                  left: rruleAnchor.left,
+                  transform: 'translate(-50%, calc(-100% - 8px))',
+                  zIndex: 9999,
+                }}
+                className="w-80 bg-slate-800 text-white text-xs rounded-xl px-3 py-3 shadow-xl pointer-events-none space-y-2"
+              >
+                <p className="font-semibold text-slate-200 leading-snug">Recurrence options</p>
+                <div className="space-y-1.5 text-slate-300">
+                  <p><span className="font-medium text-white">None</span> — one-time task, no repeat.</p>
+                  <p><span className="font-medium text-white">Daily</span> — repeats every day from the start date.</p>
+                  <p><span className="font-medium text-white">Weekly</span> — repeats on the same day of the week.</p>
+                  <p><span className="font-medium text-white">Monthly</span> — repeats on the same date each month.</p>
+                  <p><span className="font-medium text-white">Custom Rule</span> — enter a raw iCalendar RRULE string.</p>
+                </div>
+                <div className="border-t border-slate-700 pt-2 space-y-1.5">
+                  <p className="font-semibold text-slate-200">RRULE parameters</p>
+                  <p className="text-slate-300">
+                    <span className="font-mono text-yellow-300">INTERVAL=n</span>
+                    <span className="text-slate-400"> — </span>
+                    repeat every <em>n</em> periods. <span className="font-mono text-teal-300">INTERVAL=2</span> with <span className="font-mono text-teal-300">FREQ=WEEKLY</span> = every 2 weeks.
+                  </p>
+                  <p className="text-slate-300">
+                    <span className="font-mono text-yellow-300">BYDAY=</span>
+                    <span className="text-slate-400"> — </span>
+                    day(s) of the week: <span className="font-mono text-teal-300">MO TU WE TH FR SA SU</span>. Prefix with a number for nth-weekday: <span className="font-mono text-teal-300">1MO</span> = 1st Monday, <span className="font-mono text-teal-300">-1FR</span> = last Friday.
+                  </p>
+                </div>
+                <div className="border-t border-slate-700 pt-2">
+                  <p className="text-slate-400 text-[10px] mb-1">Examples</p>
+                  <ul className="font-mono text-[10px] text-teal-300 space-y-0.5 pl-1">
+                    <li>FREQ=WEEKLY;BYDAY=MO,FR</li>
+                    <li>FREQ=MONTHLY;BYDAY=1MO</li>
+                    <li>FREQ=DAILY;INTERVAL=2</li>
+                    <li>FREQ=WEEKLY;INTERVAL=2;BYDAY=SA</li>
+                  </ul>
+                </div>
+                <p className="text-slate-400 text-[10px] leading-snug pt-0.5 border-t border-slate-700">
+                  Use <span className="text-white">Ends</span> to set a stop date for any recurring rule.
+                </p>
+                <div className="absolute left-1/2 -translate-x-1/2 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800" aria-hidden />
+              </div>
+            )}
             <select value={recurrencePreset} onChange={(e) => setRecurrencePreset(e.target.value)}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
               {RECURRENCE_OPTIONS.map((o) => (

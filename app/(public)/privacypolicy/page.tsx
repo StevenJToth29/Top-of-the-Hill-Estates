@@ -1,8 +1,6 @@
 import type { Metadata } from 'next'
-import { createServiceRoleClient } from '@/lib/supabase'
+import { getLegalContent } from '@/lib/site-settings'
 import { format } from 'date-fns'
-
-export const dynamic = 'force-dynamic'
 
 export const metadata: Metadata = {
   title: 'Privacy Policy | Top of the Hill Rooms',
@@ -10,15 +8,11 @@ export const metadata: Metadata = {
 }
 
 export default async function PrivacyPolicyPage() {
-  const supabase = createServiceRoleClient()
-  const { data } = await supabase
-    .from('site_settings')
-    .select('privacy_policy_html, legal_last_updated')
-    .single()
+  const legal = await getLegalContent()
 
-  const html: string | null = data?.privacy_policy_html ?? null
-  const lastUpdated: string | null = data?.legal_last_updated
-    ? format(new Date(data.legal_last_updated), 'MMMM d, yyyy')
+  const html: string | null = legal?.privacy_policy_html ?? null
+  const lastUpdated: string | null = legal?.legal_last_updated
+    ? format(new Date(legal.legal_last_updated), 'MMMM d, yyyy')
     : null
 
   return (

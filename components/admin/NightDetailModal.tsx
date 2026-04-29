@@ -22,11 +22,12 @@ interface NightDetailModalProps {
   onCancelBooking: (bookingId: string) => void
   onManageIcal: () => void
   onSaveRate: (roomId: string, date: string, price: number, note: string) => Promise<void>
+  onAddTask: () => void
 }
 
 export function NightDetailModal({
   status, date, room, booking, icalBlock, override,
-  onClose, onBook, onBlock, onUnblock, onViewBooking, onCancelBooking, onManageIcal, onSaveRate,
+  onClose, onBook, onBlock, onUnblock, onViewBooking, onCancelBooking, onManageIcal, onSaveRate, onAddTask,
 }: NightDetailModalProps) {
   const dateLabel = format(new Date(date + 'T00:00:00'), 'EEEE, MMMM d, yyyy')
 
@@ -34,27 +35,28 @@ export function NightDetailModal({
     <ModalShell title={dateLabel} onClose={onClose}>
       {status === 'available' && (
         <AvailableState date={date} room={room} override={override}
-          onBook={onBook} onBlock={onBlock} onSaveRate={onSaveRate} onClose={onClose} />
+          onBook={onBook} onBlock={onBlock} onSaveRate={onSaveRate} onClose={onClose} onAddTask={onAddTask} />
       )}
       {status === 'booked' && booking && (
         <BookedState booking={booking}
           onViewBooking={() => onViewBooking(booking.id)}
-          onCancelBooking={() => onCancelBooking(booking.id)} />
+          onCancelBooking={() => onCancelBooking(booking.id)}
+          onAddTask={onAddTask} />
       )}
       {status === 'blocked' && (
         <BlockedState date={date} room={room} override={override}
-          onUnblock={() => onUnblock(room.id, date)} />
+          onUnblock={() => onUnblock(room.id, date)} onAddTask={onAddTask} />
       )}
       {status === 'ical' && icalBlock && (
-        <ICalState icalBlock={icalBlock} onManageIcal={onManageIcal} />
+        <ICalState icalBlock={icalBlock} onManageIcal={onManageIcal} onAddTask={onAddTask} />
       )}
     </ModalShell>
   )
 }
 
-function AvailableState({ date, room, override, onBook, onBlock, onSaveRate, onClose }: {
+function AvailableState({ date, room, override, onBook, onBlock, onSaveRate, onClose, onAddTask }: {
   date: string; room: Room; override?: DateOverride
-  onBook: () => void; onBlock: () => void; onClose: () => void
+  onBook: () => void; onBlock: () => void; onClose: () => void; onAddTask: () => void
   onSaveRate: (roomId: string, date: string, price: number, note: string) => Promise<void>
 }) {
   const currentPrice = override?.price_override ?? room.nightly_rate
@@ -138,13 +140,17 @@ function AvailableState({ date, room, override, onBook, onBlock, onSaveRate, onC
           className="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-800 text-white hover:bg-slate-700 transition-colors disabled:opacity-50">
           {saving ? 'Saving…' : '💲 Save Rate'}
         </button>
+        <button type="button" onClick={onAddTask}
+          className="px-3 py-2 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors">
+          ✓ Add Task
+        </button>
       </div>
     </div>
   )
 }
 
-function BookedState({ booking, onViewBooking, onCancelBooking }: {
-  booking: Booking; onViewBooking: () => void; onCancelBooking: () => void
+function BookedState({ booking, onViewBooking, onCancelBooking, onAddTask }: {
+  booking: Booking; onViewBooking: () => void; onCancelBooking: () => void; onAddTask: () => void
 }) {
   const initials = `${booking.guest_first_name[0] ?? ''}${booking.guest_last_name[0] ?? ''}`.toUpperCase()
   const checkIn = format(new Date(booking.check_in + 'T00:00:00'), 'MMM d')
@@ -177,7 +183,7 @@ function BookedState({ booking, onViewBooking, onCancelBooking }: {
           <span className="font-medium text-slate-800">{booking.total_nights}</span>
         </div>
       </div>
-      <div className="flex gap-2 pt-2">
+      <div className="flex gap-2 pt-2 flex-wrap">
         <button type="button" onClick={onCancelBooking}
           className="px-3 py-2 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors">
           ✕ Cancel Booking
@@ -187,18 +193,23 @@ function BookedState({ booking, onViewBooking, onCancelBooking }: {
           style={{ background: '#2DD4BF' }}>
           📋 View Full Booking
         </button>
+        <button type="button" onClick={onAddTask}
+          className="px-3 py-2 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors">
+          ✓ Add Task
+        </button>
       </div>
     </div>
   )
 }
 
 function BlockedState({
-  date, room, override, onUnblock,
+  date, room, override, onUnblock, onAddTask,
 }: {
   date: string
   room: Room
   override?: DateOverride
   onUnblock: () => void
+  onAddTask: () => void
 }) {
   const [reason, setReason] = useState(override?.block_reason ?? '')
   const [saving, setSaving] = useState(false)
@@ -238,7 +249,7 @@ function BlockedState({
 
       {error && <p className="text-xs text-red-500">{error}</p>}
 
-      <div className="flex gap-2 pt-2">
+      <div className="flex gap-2 pt-2 flex-wrap">
         <button type="button" onClick={onUnblock}
           className="px-3 py-2 rounded-lg text-xs font-semibold text-white bg-green-500 hover:bg-green-600 transition-colors">
           ✓ Unblock Night
@@ -247,12 +258,16 @@ function BlockedState({
           className="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors disabled:opacity-50">
           {saving ? 'Saving…' : '💾 Save Note'}
         </button>
+        <button type="button" onClick={onAddTask}
+          className="px-3 py-2 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors">
+          ✓ Add Task
+        </button>
       </div>
     </div>
   )
 }
 
-function ICalState({ icalBlock, onManageIcal }: { icalBlock: ICalBlock; onManageIcal: () => void }) {
+function ICalState({ icalBlock, onManageIcal, onAddTask }: { icalBlock: ICalBlock; onManageIcal: () => void; onAddTask: () => void }) {
   return (
     <div className="space-y-4">
       <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-100">
@@ -280,10 +295,14 @@ function ICalState({ icalBlock, onManageIcal }: { icalBlock: ICalBlock; onManage
       <p className="text-xs text-slate-500 bg-purple-50 rounded-lg px-3 py-2 border border-purple-100">
         This block is managed by {icalBlock.platform}. Cancel on {icalBlock.platform} to remove it — it clears on the next iCal sync.
       </p>
-      <div className="pt-2">
+      <div className="flex gap-2 pt-2 flex-wrap">
         <button type="button" onClick={onManageIcal}
           className="px-3 py-2 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
           ⚙️ Manage iCal Sources
+        </button>
+        <button type="button" onClick={onAddTask}
+          className="px-3 py-2 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700 hover:bg-violet-200 transition-colors">
+          ✓ Add Task
         </button>
       </div>
     </div>

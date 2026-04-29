@@ -86,11 +86,6 @@ export default function LongTermInquiryForm({
       setFieldErrors(errors)
       return
     }
-    if (!smsConsent) {
-      setError('You must consent to SMS messages to continue.')
-      return
-    }
-
     setIsSubmitting(true)
     try {
       const res = await fetch('/api/inquiries', {

@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { createServerSupabaseClient } from '@/lib/supabase'
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import type { Property, Room } from '@/types'
 import { getSiteSettings } from '@/lib/site-settings'
 
@@ -33,8 +33,13 @@ type Review = {
 async function getData() {
   try {
     const supabase = await createServerSupabaseClient()
+    const serviceSupabase = createServiceRoleClient()
 
-    const [roomsResult, settings, reviewsResult] = await Promise.all([
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayStr = today.toISOString().split('T')[0]
+
+    const [roomsResult, settings, reviewsResult, bookingsResult, overridesResult, icalResult] = await Promise.all([
       supabase.from('rooms').select('*, property:properties(*)').eq('is_active', true).order('name'),
       getSiteSettings(),
       supabase
@@ -43,20 +48,64 @@ async function getData() {
         .eq('approved', true)
         .order('created_at', { ascending: false })
         .limit(6),
+      // Use service role for occupancy data — bookings table is RLS-protected
+      serviceSupabase
+        .from('bookings')
+        .select('room_id, check_in, check_out')
+        .in('status', ['confirmed', 'pending'])
+        .gte('check_out', todayStr),
+      serviceSupabase
+        .from('date_overrides')
+        .select('room_id, date')
+        .eq('is_blocked', true)
+        .gte('date', todayStr),
+      serviceSupabase
+        .from('ical_blocks')
+        .select('room_id, start_date, end_date')
+        .gte('end_date', todayStr),
     ])
 
     const rooms: Array<Room & { property: Property }> = roomsResult.data ?? []
+    const bookings = (bookingsResult.data ?? []) as Array<{ room_id: string; check_in: string; check_out: string }>
+    const icalBlocks = (icalResult.data ?? []) as Array<{ room_id: string; start_date: string; end_date: string }>
 
-    const propertyMap = new Map<string, Property & { rooms: Room[] }>()
-    for (const room of rooms) {
-      if (!room.property) continue
-      const existing = propertyMap.get(room.property_id)
-      if (existing) {
-        existing.rooms.push(room)
-      } else {
-        propertyMap.set(room.property_id, { ...room.property, rooms: [room] })
+    // Compute next available date using a sweep-line over merged intervals.
+    // Returns the earliest date string >= today that is not covered by any
+    // booking or iCal block, or null if blocked for 365+ days.
+    const nextAvailableDate = (roomId: string): string | null => {
+      const intervals = [
+        ...bookings
+          .filter((b) => b.room_id === roomId)
+          .map((b) => ({ start: b.check_in, end: b.check_out })),
+        ...icalBlocks
+          .filter((ib) => ib.room_id === roomId)
+          .map((ib) => ({ start: ib.start_date, end: ib.end_date })),
+      ].sort((a, b) => a.start.localeCompare(b.start))
+
+      let cursor = todayStr
+      for (const interval of intervals) {
+        if (interval.start > cursor) break   // gap found — cursor is free
+        if (interval.end > cursor) cursor = interval.end
       }
+
+      // Treat anything 365+ days out as "no availability"
+      const limitDate = new Date(today)
+      limitDate.setFullYear(limitDate.getFullYear() + 1)
+      const limitStr = limitDate.toISOString().split('T')[0]
+      return cursor < limitStr ? cursor : null
     }
+
+    // Sort rooms by next available date string ascending; null (fully blocked) goes last
+    const sorted = rooms
+      .map((room) => ({ room, nextAvailable: nextAvailableDate(room.id) }))
+      .sort((a, b) => {
+        if (!a.nextAvailable && !b.nextAvailable) return 0
+        if (!a.nextAvailable) return 1
+        if (!b.nextAvailable) return -1
+        return a.nextAvailable.localeCompare(b.nextAvailable)
+      })
+
+    const featuredRooms = sorted.slice(0, 6).map((r) => r.room)
 
     const reviews: Review[] = (reviewsResult.data ?? []).map((r) => ({
       ...r,
@@ -64,23 +113,23 @@ async function getData() {
     })) as Review[]
 
     return {
-      properties: Array.from(propertyMap.values()),
+      featuredRooms,
       aboutText: settings?.about_text ?? DEFAULT_ABOUT,
       reviews,
     }
   } catch {
-    return { properties: [], aboutText: DEFAULT_ABOUT, reviews: [] }
+    return { featuredRooms: [], aboutText: DEFAULT_ABOUT, reviews: [] }
   }
 }
 
 export default async function HomePage() {
-  const { properties, aboutText, reviews } = await getData()
+  const { featuredRooms, aboutText, reviews } = await getData()
 
   return (
     <>
       <Hero />
       <AboutSection aboutText={aboutText} />
-      <PropertiesSection properties={properties} />
+      <PropertiesSection rooms={featuredRooms} />
       <ReviewsSection reviews={reviews} />
       <section id="contact" className="bg-background py-16 px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl">

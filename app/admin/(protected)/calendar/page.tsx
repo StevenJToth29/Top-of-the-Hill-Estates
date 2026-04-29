@@ -3,6 +3,7 @@ import { format, subDays, addDays } from 'date-fns'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import { redirect } from 'next/navigation'
 import { CalendarClient } from '@/components/admin/CalendarClient'
+import { expandRecurringTasks } from '@/lib/expand-recurring-tasks'
 import type { CalendarData } from '@/types'
 
 export const dynamic = 'force-dynamic'
@@ -18,7 +19,7 @@ export default async function AdminCalendarPage() {
   const from = format(subDays(today, 60), 'yyyy-MM-dd')
   const to = format(addDays(today, 120), 'yyyy-MM-dd')
 
-  const [roomsRes, bookingsRes, icalRes, overridesRes, tasksRes] = await Promise.all([
+  const [roomsRes, bookingsRes, icalRes, overridesRes, tasksRes, exceptionsRes] = await Promise.all([
     supabase
       .from('rooms')
       .select('*, property:properties(id, name)')
@@ -48,14 +49,23 @@ export default async function AdminCalendarPage() {
       .from('calendar_tasks')
       .select('*')
       .or(`recurrence_rule.not.is.null,and(due_date.gte.${from},due_date.lte.${to})`),
+
+    supabase
+      .from('task_exceptions')
+      .select('*')
+      .gte('occurrence_date', from)
+      .lte('occurrence_date', to),
   ])
+
+  const fromDate = new Date(from + 'T00:00:00Z')
+  const toDate = new Date(to + 'T23:59:59Z')
 
   const initialData: CalendarData = {
     rooms: roomsRes.data ?? [],
     bookings: bookingsRes.data ?? [],
     icalBlocks: icalRes.data ?? [],
     dateOverrides: overridesRes.data ?? [],
-    tasks: tasksRes.data ?? [],
+    tasks: expandRecurringTasks(tasksRes.data ?? [], exceptionsRes.data ?? [], fromDate, toDate),
   }
 
   return (

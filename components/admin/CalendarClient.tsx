@@ -475,6 +475,9 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
             router.push('/admin/ical')
             closeModal()
           }}
+          onAddTask={() => {
+            setModal({ type: 'task', roomId: modal.roomId, date: modal.date })
+          }}
           onSaveRate={async (roomId, date, price, note) => {
             const originalOverride = getOverride(roomId, date)
             const optimisticRow = {

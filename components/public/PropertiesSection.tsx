@@ -3,12 +3,10 @@ import RoomCard from './RoomCard'
 import Link from 'next/link'
 
 interface Props {
-  properties: Array<Property & { rooms: Room[] }>
+  rooms: Array<Room & { property: Property }>
 }
 
-export default function PropertiesSection({ properties }: Props) {
-  const hasRooms = properties.some((p) => p.rooms.length > 0)
-
+export default function PropertiesSection({ rooms }: Props) {
   return (
     <section className="bg-surface-lowest py-16 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -32,18 +30,16 @@ export default function PropertiesSection({ properties }: Props) {
           </Link>
         </div>
 
-        {!hasRooms && (
+        {rooms.length === 0 && (
           <p className="text-on-surface-variant font-body text-center py-12">
             No rooms are currently available. Please check back soon.
           </p>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {properties.flatMap((property) =>
-            property.rooms.map((room) => (
-              <RoomCard key={room.id} room={{ ...room, property }} />
-            )),
-          )}
+          {rooms.map((room) => (
+            <RoomCard key={room.id} room={room} />
+          ))}
         </div>
 
         <div className="text-center mt-4 sm:hidden">
