@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
 
   await Promise.all(
     (bookingsCheckin ?? []).map(async (b) => {
-      const propertyId = (b.room as { property_id: string } | null)?.property_id
+      const propertyId = (b.room as unknown as { property_id: string } | null)?.property_id
       if (!propertyId) return
       await generateTasksForDateTrigger(b.id, 'checkin_day', b.check_in, b.check_out, b.room_id, propertyId)
       bookingTasksCreated++
@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
 
   await Promise.all(
     (bookingsCheckout ?? []).map(async (b) => {
-      const propertyId = (b.room as { property_id: string } | null)?.property_id
+      const propertyId = (b.room as unknown as { property_id: string } | null)?.property_id
       if (!propertyId) return
       await generateTasksForDateTrigger(b.id, 'checkout', b.check_in, b.check_out, b.room_id, propertyId)
       bookingTasksCreated++
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
 
   await Promise.all(
     (blocksStart ?? []).map(async (block) => {
-      const propertyId = (block.room as { property_id: string } | null)?.property_id
+      const propertyId = (block.room as unknown as { property_id: string } | null)?.property_id
       if (!propertyId) return
       await generateTasksForICalBlock(block.id, 'checkin_day', block.start_date, block.end_date, block.room_id, propertyId)
       icalTasksCreated++
@@ -79,7 +79,7 @@ export async function GET(request: NextRequest) {
 
   await Promise.all(
     (blocksEnd ?? []).map(async (block) => {
-      const propertyId = (block.room as { property_id: string } | null)?.property_id
+      const propertyId = (block.room as unknown as { property_id: string } | null)?.property_id
       if (!propertyId) return
       await generateTasksForICalBlock(block.id, 'checkout', block.start_date, block.end_date, block.room_id, propertyId)
       icalTasksCreated++

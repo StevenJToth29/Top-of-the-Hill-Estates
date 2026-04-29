@@ -92,7 +92,7 @@ export async function generateTasksForBooking(
     .from('bookings').select('id, check_in, check_out, room_id, room:rooms(property_id)')
     .eq('id', bookingId).single()
   if (!booking || !booking.room) return
-  const propertyId = (booking.room as { property_id: string }).property_id
+  const propertyId = (booking.room as unknown as { property_id: string }).property_id
   const rules = await resolveAutomations(supabase, booking.room_id, propertyId, triggerEvent)
   if (rules.length === 0) return
   const today = new Date().toISOString().slice(0, 10)
