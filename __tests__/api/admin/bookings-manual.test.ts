@@ -353,6 +353,8 @@ describe('POST /api/admin/bookings/manual — admin_monthly_amount override', ()
     }
     const res = await POST(makeRequest(body))
     expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error).toMatch(/admin_monthly_amount/i)
   })
 
   it('falls back to standard computation when admin_monthly_amount is absent', async () => {

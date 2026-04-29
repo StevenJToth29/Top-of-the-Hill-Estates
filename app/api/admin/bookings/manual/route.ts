@@ -138,6 +138,7 @@ export async function POST(request: Request) {
   let snapshotCleaningFee: number
   let snapshotSecurityDeposit: number
   let snapshotExtraGuestFee: number
+  let monthlyRateSnapshot = room.monthly_rate
 
   if (bookingType === 'short_term') {
     const nightlySubtotal = computeNightlySubtotal(
@@ -152,11 +153,26 @@ export async function POST(request: Request) {
     snapshotSecurityDeposit = 0
     snapshotExtraGuestFee = extraGuestTotal
   } else {
-    const extraGuestTotal = extraGuests * extra_guest_fee
-    total_amount = room.monthly_rate + security_deposit + extraGuestTotal
-    snapshotCleaningFee = 0
-    snapshotSecurityDeposit = security_deposit
-    snapshotExtraGuestFee = extraGuestTotal
+    if (body.admin_monthly_amount !== undefined) {
+      const adminAmount = Number(body.admin_monthly_amount)
+      if (!isFinite(adminAmount) || adminAmount <= 0) {
+        return NextResponse.json(
+          { error: 'admin_monthly_amount must be a positive number' },
+          { status: 400 },
+        )
+      }
+      monthlyRateSnapshot = adminAmount
+      total_amount = adminAmount
+      snapshotCleaningFee = 0
+      snapshotSecurityDeposit = 0
+      snapshotExtraGuestFee = 0
+    } else {
+      const extraGuestTotal = extraGuests * extra_guest_fee
+      total_amount = room.monthly_rate + security_deposit + extraGuestTotal
+      snapshotCleaningFee = 0
+      snapshotSecurityDeposit = security_deposit
+      snapshotExtraGuestFee = extraGuestTotal
+    }
   }
   const amount_due_at_checkin = 0
 
@@ -179,7 +195,7 @@ export async function POST(request: Request) {
       check_out: checkOut,
       total_nights: totalNights,
       nightly_rate: room.nightly_rate,
-      monthly_rate: room.monthly_rate,
+      monthly_rate: monthlyRateSnapshot,
       cleaning_fee: snapshotCleaningFee,
       security_deposit: snapshotSecurityDeposit,
       extra_guest_fee: snapshotExtraGuestFee,
