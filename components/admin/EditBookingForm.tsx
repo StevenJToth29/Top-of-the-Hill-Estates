@@ -32,15 +32,6 @@ function computeShortTermTotal(
   return nightlyRate * nights + cleaningFee + extraGuestFee * extraGuests * nights
 }
 
-function computeLongTermTotal(
-  monthlyRate: number,
-  securityDeposit: number,
-  extraGuestFee: number,
-  extraGuests: number,
-): number {
-  return monthlyRate + securityDeposit + extraGuestFee * extraGuests
-}
-
 export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
   const [checkIn, setCheckIn] = useState(booking.check_in)
   const [checkOut, setCheckOut] = useState(
