@@ -18,10 +18,10 @@ import type { BookingWithRoom } from '@/components/admin/RecentBookingsWidget'
 
 export const dynamic = 'force-dynamic'
 
-type RoomRow = { id: string; name: string; nightly_rate: number; property: { name: string } | null }
+type RoomRow = { id: string; name: string; nightly_rate: number; monthly_rate: number; is_active: boolean; property: { name: string } | null }
 type ConfirmedRow = {
-  id: string; room_id: string; check_in: string; check_out: string
-  amount_paid: number; total_amount: number; processing_fee: number | null; created_at: string
+  id: string; room_id: string; check_in: string; check_out: string; booking_type: string
+  amount_paid: number; total_amount: number; processing_fee: number | null; monthly_rate: number | null; created_at: string
 }
 type PendingRow = { id: string; total_amount: number; amount_paid: number }
 type UpcomingRow = {
@@ -49,13 +49,12 @@ export default async function AdminDashboardPage() {
   ] = await Promise.all([
     supabase
       .from('rooms')
-      .select('id, name, nightly_rate, property:properties(name)')
-      .eq('is_active', true)
+      .select('id, name, nightly_rate, monthly_rate, is_active, property:properties(name)')
       .order('name'),
 
     supabase
       .from('bookings')
-      .select('id, room_id, check_in, check_out, amount_paid, total_amount, processing_fee, created_at')
+      .select('id, room_id, check_in, check_out, booking_type, amount_paid, total_amount, processing_fee, monthly_rate, created_at')
       .eq('status', 'confirmed')
       .gte('check_out', format(sevenMonthsAgo, 'yyyy-MM-dd'))
       .order('created_at', { ascending: false })
@@ -84,7 +83,7 @@ export default async function AdminDashboardPage() {
       .from('bookings')
       .select('*, room:rooms(name, property:properties(name))')
       .order('created_at', { ascending: false })
-      .limit(20),
+      .limit(10),
 
     supabase
       .from('bookings')
@@ -103,9 +102,33 @@ export default async function AdminDashboardPage() {
   const recent = (recentData ?? []) as BookingWithRoom[]
   const upcoming = (upcomingData ?? []) as UpcomingRow[]
 
-  const roomCount = rooms.length
+  const activeRooms = rooms.filter(r => r.is_active)
+  const roomCount = activeRooms.length
   const thisMonthKey = format(thisMonthStart, 'yyyy-MM')
   const lastMonthKey = format(lastMonthStart, 'yyyy-MM')
+
+  // Revenue for a calendar month:
+  //   short-term → amount_paid for bookings *created* that month
+  //   long-term  → monthly_rate snapshot on the booking for each active (overlapping) month
+  function calcRevenue(mStart: Date, mEnd: Date, mKey: string) {
+    const mStartStr = format(mStart, 'yyyy-MM-dd')
+    const mEndStr = format(mEnd, 'yyyy-MM-dd')
+
+    const shortTerm = confirmed.filter(b => b.booking_type !== 'long_term' && b.created_at.startsWith(mKey))
+    const revenue = shortTerm.reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+    const processingFees = shortTerm.reduce((s, b) => s + (b.processing_fee ?? 0), 0)
+
+    const longTermRevenue = confirmed
+      .filter(b =>
+        b.booking_type === 'long_term' &&
+        b.check_in <= mEndStr &&
+        b.check_out > mStartStr,
+      )
+      .reduce((s, b) => s + (b.monthly_rate ?? 0), 0)
+
+    const total = revenue + longTermRevenue
+    return { revenue: total, shortTermRevenue: revenue, longTermRevenue, processingFees, net: total - processingFees }
+  }
 
   function calcOccupancy(mStart: Date, mEnd: Date, days: number) {
     if (roomCount === 0 || days === 0) return 0
@@ -122,14 +145,16 @@ export default async function AdminDashboardPage() {
     return Math.min(100, Math.round((bookedNights / capacity) * 100))
   }
 
-  const thisMonthBookings = confirmed.filter(b => b.created_at.startsWith(thisMonthKey))
-  const thisMonthRevenue = thisMonthBookings.reduce((s, b) => s + (b.amount_paid ?? 0), 0)
-  const thisMonthProcessingFees = thisMonthBookings.reduce((s, b) => s + (b.processing_fee ?? 0), 0)
-  const thisMonthNet = thisMonthRevenue - thisMonthProcessingFees
+  const {
+    revenue: thisMonthRevenue,
+    shortTermRevenue: thisMonthShortTermRevenue,
+    longTermRevenue: thisMonthLongTermRevenue,
+    processingFees: thisMonthProcessingFees,
+    net: thisMonthNet,
+  } = calcRevenue(thisMonthStart, endOfMonth(now), thisMonthKey)
 
-  const lastMonthRevenue = confirmed
-    .filter(b => b.created_at.startsWith(lastMonthKey))
-    .reduce((s, b) => s + (b.amount_paid ?? 0), 0)
+  const { revenue: lastMonthRevenue } =
+    calcRevenue(lastMonthStart, endOfMonth(lastMonthStart), lastMonthKey)
 
   const revenueDelta =
     lastMonthRevenue > 0
@@ -153,7 +178,7 @@ export default async function AdminDashboardPage() {
   )
   const avgNightlyRate =
     roomCount > 0
-      ? Math.round(rooms.reduce((s, r) => s + r.nightly_rate, 0) / roomCount)
+      ? Math.round(activeRooms.reduce((s, r) => s + r.nightly_rate, 0) / roomCount)
       : 0
 
   const monthlyData = Array.from({ length: 6 }, (_, i) => {
@@ -161,10 +186,7 @@ export default async function AdminDashboardPage() {
     const mStart = startOfMonth(d)
     const mEnd = endOfMonth(d)
     const mKey = format(mStart, 'yyyy-MM')
-    const mBookings = confirmed.filter(b => b.created_at.startsWith(mKey))
-    const revenue = mBookings.reduce((s, b) => s + (b.amount_paid ?? 0), 0)
-    const processingFees = mBookings.reduce((s, b) => s + (b.processing_fee ?? 0), 0)
-    const net = revenue - processingFees
+    const { revenue, processingFees, net } = calcRevenue(mStart, mEnd, mKey)
     const occ = calcOccupancy(mStart, mEnd, getDaysInMonth(d))
     return { label: format(d, 'MMM'), revenue, processingFees, net, occupancyPercent: occ, isCurrent: mKey === thisMonthKey }
   })
@@ -193,6 +215,7 @@ export default async function AdminDashboardPage() {
       id: room.id,
       name: room.name,
       propertyName: (room.property as { name: string } | null)?.name ?? '',
+      isActive: room.is_active,
       isOccupied: !!current,
       isCheckoutToday: roomUpcoming.some(b => b.check_out === today),
       isCheckinToday: roomUpcoming.some(b => b.check_in === today),
@@ -226,6 +249,8 @@ export default async function AdminDashboardPage() {
 
       <DashboardStats
         thisMonthRevenue={thisMonthRevenue}
+        thisMonthShortTermRevenue={thisMonthShortTermRevenue}
+        thisMonthLongTermRevenue={thisMonthLongTermRevenue}
         thisMonthProcessingFees={thisMonthProcessingFees}
         thisMonthNet={thisMonthNet}
         revenueDelta={revenueDelta}
