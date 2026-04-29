@@ -19,15 +19,17 @@ interface TaskModalProps {
   initialRoomId?: string | null
   initialPropertyId?: string | null
   initialDate?: string
+  occurrenceDate?: string
   onClose: () => void
   onSuccess: (task: CalendarTask) => void
-  onDelete?: (taskId: string) => void
+  onDelete?: (taskId: string, occurrenceDate?: string) => void
 }
 
 export function TaskModal({
-  rooms, task, initialRoomId = null, initialPropertyId = null, initialDate, onClose, onSuccess, onDelete,
+  rooms, task, initialRoomId = null, initialPropertyId = null, initialDate, occurrenceDate, onClose, onSuccess, onDelete,
 }: TaskModalProps) {
   const isEdit = !!task
+  const isRecurringOccurrence = !!occurrenceDate && !!task?.recurrence_rule
 
   const properties = useMemo(() => {
     const seen = new Set<string>()
@@ -76,20 +78,32 @@ export function TaskModal({
     setSaving(true)
     setError(null)
 
-    const payload = {
-      title: title.trim(),
-      description: description.trim() || null,
-      due_date: date,
-      room_id: scope === 'room' && roomId ? roomId : null,
-      property_id: scope === 'property' && propertyId ? propertyId : null,
-      recurrence_rule: effectiveRRule || null,
-      recurrence_end_date: recurrenceEnd || null,
-      status,
-      color,
-    }
+    const isOccurrenceEdit = isEdit && !!occurrenceDate
+    const payload = isOccurrenceEdit
+      ? {
+          title: title.trim(),
+          description: description.trim() || null,
+          status,
+          color,
+        }
+      : {
+          title: title.trim(),
+          description: description.trim() || null,
+          due_date: date,
+          room_id: scope === 'room' && roomId ? roomId : null,
+          property_id: scope === 'property' && propertyId ? propertyId : null,
+          recurrence_rule: effectiveRRule || null,
+          recurrence_end_date: recurrenceEnd || null,
+          status,
+          color,
+        }
 
     try {
-      const url = isEdit ? `/api/admin/calendar-tasks/${task!.id}` : '/api/admin/calendar-tasks'
+      const url = isOccurrenceEdit
+        ? `/api/admin/calendar-tasks/${task!.id}/occurrences/${occurrenceDate}`
+        : isEdit
+          ? `/api/admin/calendar-tasks/${task!.id}`
+          : '/api/admin/calendar-tasks'
       const method = isEdit ? 'PATCH' : 'POST'
       const res = await fetch(url, {
         method,
@@ -127,11 +141,55 @@ export function TaskModal({
     }
   }
 
+  async function handleDeleteOccurrence() {
+    if (!task || !onDelete || !occurrenceDate) return
+    setSaving(true)
+    try {
+      const res = await fetch(
+        `/api/admin/calendar-tasks/${task.id}/occurrences/${occurrenceDate}`,
+        { method: 'DELETE' },
+      )
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `Failed to delete occurrence (${res.status})`)
+      }
+      onDelete(task.id, occurrenceDate)
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      setSaving(false)
+    }
+  }
+
+  async function handleDeleteSeries() {
+    if (!task || !onDelete) return
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/admin/calendar-tasks/${task.id}`, { method: 'DELETE' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error ?? `Failed to delete series (${res.status})`)
+      }
+      onDelete(task.id)
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unknown error')
+      setSaving(false)
+    }
+  }
+
   return (
     <ModalShell title={isEdit ? 'Edit Task' : 'Add Task'} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Title *</label>
+          <div className="flex items-center gap-2 mb-1">
+            <label className="block text-xs font-medium text-slate-600">Title *</label>
+            {isRecurringOccurrence && (
+              <span className="text-[10px] font-semibold rounded-full px-2 py-0.5 bg-teal-100 text-teal-700">
+                Recurring
+              </span>
+            )}
+          </div>
           <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} required
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
         </div>
@@ -142,68 +200,74 @@ export function TaskModal({
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400 resize-none" />
         </div>
 
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-2">Scope</label>
-          <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
-            {[{ v: 'property', label: 'Property-level' }, { v: 'room', label: 'Unit-specific' }].map(({ v, label }) => (
-              <button key={v} type="button" onClick={() => setScope(v as 'property' | 'room')}
-                className={`flex-1 py-2 font-medium transition-colors ${
-                  scope === v ? 'text-white' : 'text-slate-500 hover:bg-slate-50'
-                }`}
-                style={scope === v ? { background: '#2DD4BF' } : {}}>
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {scope === 'property' && (
-            <select value={propertyId} onChange={(e) => setPropertyId(e.target.value)}
-              className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
-              <option value="">Select a property…</option>
-              {properties.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+        {!isRecurringOccurrence && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-2">Scope</label>
+            <div className="flex rounded-lg border border-slate-200 overflow-hidden text-xs">
+              {[{ v: 'property', label: 'Property-level' }, { v: 'room', label: 'Unit-specific' }].map(({ v, label }) => (
+                <button key={v} type="button" onClick={() => setScope(v as 'property' | 'room')}
+                  className={`flex-1 py-2 font-medium transition-colors ${
+                    scope === v ? 'text-white' : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                  style={scope === v ? { background: '#2DD4BF' } : {}}>
+                  {label}
+                </button>
               ))}
-            </select>
-          )}
-
-          {scope === 'room' && (
-            <select value={roomId} onChange={(e) => setRoomId(e.target.value)}
-              className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
-              <option value="">Select a unit…</option>
-              {rooms.map((r) => (
-                <option key={r.id} value={r.id}>{r.property?.name ? `${r.property.name} — ${r.name}` : r.name}</option>
-              ))}
-            </select>
-          )}
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Date *</label>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-slate-600 mb-1">Recurrence</label>
-          <select value={recurrencePreset} onChange={(e) => setRecurrencePreset(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
-            {RECURRENCE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-          {recurrencePreset === 'custom' && (
-            <input type="text" value={customRRule} onChange={(e) => setCustomRRule(e.target.value)}
-              placeholder="e.g. FREQ=WEEKLY;BYDAY=MO,FR"
-              className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-400" />
-          )}
-          {recurrencePreset && (
-            <div className="mt-2">
-              <label className="block text-xs font-medium text-slate-600 mb-1">Ends</label>
-              <input type="date" value={recurrenceEnd} onChange={(e) => setRecurrenceEnd(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
             </div>
-          )}
-        </div>
+
+            {scope === 'property' && (
+              <select value={propertyId} onChange={(e) => setPropertyId(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+                <option value="">Select a property…</option>
+                {properties.map((p) => (
+                  <option key={p.id} value={p.id}>{p.name}</option>
+                ))}
+              </select>
+            )}
+
+            {scope === 'room' && (
+              <select value={roomId} onChange={(e) => setRoomId(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+                <option value="">Select a unit…</option>
+                {rooms.map((r) => (
+                  <option key={r.id} value={r.id}>{r.property?.name ? `${r.property.name} — ${r.name}` : r.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
+
+        {!isRecurringOccurrence && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Date *</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+          </div>
+        )}
+
+        {!isRecurringOccurrence && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Recurrence</label>
+            <select value={recurrencePreset} onChange={(e) => setRecurrencePreset(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400">
+              {RECURRENCE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+            {recurrencePreset === 'custom' && (
+              <input type="text" value={customRRule} onChange={(e) => setCustomRRule(e.target.value)}
+                placeholder="e.g. FREQ=WEEKLY;BYDAY=MO,FR"
+                className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-400" />
+            )}
+            {recurrencePreset && (
+              <div className="mt-2">
+                <label className="block text-xs font-medium text-slate-600 mb-1">Ends</label>
+                <input type="date" value={recurrenceEnd} onChange={(e) => setRecurrenceEnd(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400" />
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="flex items-center gap-2">
           <input type="checkbox" id="task-status"
@@ -229,22 +293,53 @@ export function TaskModal({
         {error && <p className="text-xs text-red-500">{error}</p>}
 
         {confirmDelete ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 space-y-3">
-            <p className="text-sm font-semibold text-red-700">Delete this task?</p>
-            <p className="text-xs text-red-500">
-              &ldquo;{task?.title}&rdquo; will be permanently removed. This cannot be undone.
-            </p>
-            <div className="flex gap-2 pt-1">
-              <button type="button" onClick={() => setConfirmDelete(false)}
-                className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors">
-                Cancel
-              </button>
-              <button type="button" onClick={handleDelete} disabled={saving}
-                className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50">
-                {saving ? 'Deleting…' : 'Yes, Delete'}
-              </button>
+          isRecurringOccurrence ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 space-y-3">
+              <p className="text-sm font-semibold text-red-700">Delete recurring task?</p>
+              <div className="flex flex-col gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handleDeleteOccurrence}
+                  disabled={saving}
+                  className="w-full px-3 py-2 rounded-lg text-xs font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors disabled:opacity-50"
+                >
+                  {saving ? 'Deleting…' : 'Delete this occurrence'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteSeries}
+                  disabled={saving}
+                  className="w-full px-3 py-2 rounded-lg text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50"
+                >
+                  {saving ? 'Deleting…' : 'Delete the whole series'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="w-full px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 space-y-3">
+              <p className="text-sm font-semibold text-red-700">Delete this task?</p>
+              <p className="text-xs text-red-500">
+                &ldquo;{task?.title}&rdquo; will be permanently removed. This cannot be undone.
+              </p>
+              <div className="flex gap-2 pt-1">
+                <button type="button" onClick={() => setConfirmDelete(false)}
+                  className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-50 transition-colors">
+                  Cancel
+                </button>
+                <button type="button" onClick={handleDelete} disabled={saving}
+                  className="flex-1 px-3 py-2 rounded-lg text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition-colors disabled:opacity-50">
+                  {saving ? 'Deleting…' : 'Yes, Delete'}
+                </button>
+              </div>
+            </div>
+          )
         ) : (
           <div className="flex justify-between gap-3 pt-2">
             <div>
