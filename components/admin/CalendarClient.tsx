@@ -93,7 +93,7 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
   useEffect(() => {
     fetch('/api/admin/people')
       .then((r) => r.ok ? r.json() : [])
-      .then((data: Person[]) => setPeople(data))
+      .then((data: unknown) => { if (Array.isArray(data)) setPeople(data as Person[]) })
       .catch(() => {})
   }, [])
 
