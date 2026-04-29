@@ -174,6 +174,7 @@ export async function PATCH(
           )
         }
         monthlyRateSnapshot = adminAmount
+        // admin_monthly_amount is all-in — extra_guest_fee excluded (admin sets fully negotiated amount)
         newTotal = adminAmount + additionalFees
       } else {
         // long_term: only extra_guest_fee changes with guest count; base is monthly_rate + security_deposit
