@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
+import React, { useState, useTransition, useRef, useEffect } from 'react'
 import clsx from 'clsx'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -21,9 +21,10 @@ interface RoomFormProps {
   icalSources?: ICalSource[]
   roomId?: string
   defaultPropertyId?: string
+  taskAutomationsTab?: React.ReactNode
 }
 
-type RoomTab = 'info' | 'pricing' | 'amenities' | 'images' | 'ical'
+type RoomTab = 'info' | 'pricing' | 'amenities' | 'images' | 'ical' | 'automations'
 
 const WINDOW_PRESETS = [
   { label: 'All Blocked', days: 0 },
@@ -103,7 +104,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   )
 }
 
-export default function RoomForm({ room, properties, icalSources, roomId, defaultPropertyId }: RoomFormProps) {
+export default function RoomForm({ room, properties, icalSources, roomId, defaultPropertyId, taskAutomationsTab }: RoomFormProps) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [tab, setTab] = useState<RoomTab>('info')
@@ -246,6 +247,7 @@ export default function RoomForm({ room, properties, icalSources, roomId, defaul
     },
     { id: 'images', label: 'Images', icon: '🖼', badge: images.length || null, warn: images.length === 0 },
     { id: 'ical', label: 'iCal & Widget', icon: '🔗' },
+    { id: 'automations', label: 'Automations' },
   ]
 
   const inputClass =
@@ -1293,6 +1295,13 @@ export default function RoomForm({ room, properties, icalSources, roomId, defaul
                 </p>
               </div>
             </SCard>
+          </div>
+        )}
+
+        {/* ── Tab: Automations ── */}
+        {tab === 'automations' && (
+          <div className="px-6 pb-8">
+            {taskAutomationsTab}
           </div>
         )}
 
