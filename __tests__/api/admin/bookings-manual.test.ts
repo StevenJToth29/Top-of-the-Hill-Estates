@@ -306,3 +306,63 @@ describe('POST /api/admin/bookings/manual — success', () => {
     expect(insert.mock.calls[0][0].guest_count).toBe(1)
   })
 })
+
+// ── admin_monthly_amount override ───────────────────────────────────────────
+
+describe('POST /api/admin/bookings/manual — admin_monthly_amount override', () => {
+  beforeEach(mockAuthed)
+
+  it('uses admin_monthly_amount as both monthly_rate and total_amount for long-term', async () => {
+    const { insert } = mockDb()
+    const body = {
+      ...baseBody,
+      booking_type: 'long_term',
+      check_out: undefined,
+      admin_monthly_amount: 1800,
+    }
+    const res = await POST(makeRequest(body))
+    expect(res.status).toBe(201)
+    const insertArg = insert.mock.calls[0][0]
+    expect(insertArg.monthly_rate).toBe(1800)
+    expect(insertArg.total_amount).toBe(1800)
+    expect(insertArg.security_deposit).toBe(0)
+    expect(insertArg.extra_guest_fee).toBe(0)
+  })
+
+  it('returns 400 when admin_monthly_amount is zero', async () => {
+    mockDb()
+    const body = {
+      ...baseBody,
+      booking_type: 'long_term',
+      check_out: undefined,
+      admin_monthly_amount: 0,
+    }
+    const res = await POST(makeRequest(body))
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error).toMatch(/admin_monthly_amount/i)
+  })
+
+  it('returns 400 when admin_monthly_amount is negative', async () => {
+    mockDb()
+    const body = {
+      ...baseBody,
+      booking_type: 'long_term',
+      check_out: undefined,
+      admin_monthly_amount: -100,
+    }
+    const res = await POST(makeRequest(body))
+    expect(res.status).toBe(400)
+  })
+
+  it('falls back to standard computation when admin_monthly_amount is absent', async () => {
+    const { insert } = mockDb()
+    const body = { ...baseBody, booking_type: 'long_term', check_out: undefined }
+    await POST(makeRequest(body))
+    const insertArg = insert.mock.calls[0][0]
+    // baseRoom: monthly_rate 2500 + security_deposit 500 = 3000
+    expect(insertArg.total_amount).toBe(3000)
+    expect(insertArg.monthly_rate).toBe(2500)
+    expect(insertArg.security_deposit).toBe(500)
+  })
+})
