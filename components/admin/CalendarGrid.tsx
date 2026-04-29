@@ -146,7 +146,17 @@ function CellContent({
     return <span className="text-[11px] text-slate-400">–</span>
   }
   if (status === 'advance-blocked') {
-    return null
+    const override = overrideMap[roomId]?.[dateStr]
+    const price = override?.price_override ?? room.nightly_rate
+    const isFriSat = getDay(new Date(dateStr + 'T00:00:00')) === 5 || getDay(new Date(dateStr + 'T00:00:00')) === 6
+    return (
+      <span
+        className="text-[9px] font-semibold leading-none"
+        style={{ color: isFriSat ? '#B45309' : '#94A3B8' }}
+      >
+        ${price}
+      </span>
+    )
   }
   if (status === 'ical') {
     return <span className="w-1.5 h-1.5 rounded-full inline-block" style={{ background: '#2DD4BF' }} />
