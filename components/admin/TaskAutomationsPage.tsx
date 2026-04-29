@@ -27,6 +27,7 @@ interface Props {
 
 export function TaskAutomationsPage({ initialAutomations, people, rooms, properties }: Props) {
   const [automations, setAutomations] = useState<TaskAutomation[]>(initialAutomations)
+  const [peopleList, setPeopleList] = useState<Person[]>(people)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<TaskAutomation | undefined>()
 
@@ -110,14 +111,18 @@ export function TaskAutomationsPage({ initialAutomations, people, rooms, propert
         </div>
       </div>
 
-      <PeopleManager initialPeople={people} />
+      <PeopleManager
+        initialPeople={peopleList}
+        onPersonAdded={(person) => setPeopleList((prev) => [...prev, person])}
+        onPersonDeleted={(id) => setPeopleList((prev) => prev.filter((p) => p.id !== id))}
+      />
 
       {modalOpen && (
         <TaskAutomationModal
           automation={editing}
           rooms={rooms}
           properties={properties}
-          people={people}
+          people={peopleList}
           onClose={() => setModalOpen(false)}
           onSave={handleSaved}
         />

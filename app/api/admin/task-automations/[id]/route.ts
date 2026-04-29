@@ -20,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     .from('task_automations')
     .update(update)
     .eq('id', id)
-    .select()
+    .select('*, room:rooms(name), property:properties(name), assignee:people(id,name)')
     .single()
   if (error) {
     const status = error.code === 'PGRST116' ? 404 : 500

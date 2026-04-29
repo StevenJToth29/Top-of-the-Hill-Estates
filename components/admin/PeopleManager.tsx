@@ -5,9 +5,11 @@ import type { Person } from '@/types'
 
 interface Props {
   initialPeople: Person[]
+  onPersonAdded?: (person: Person) => void
+  onPersonDeleted?: (id: string) => void
 }
 
-export function PeopleManager({ initialPeople }: Props) {
+export function PeopleManager({ initialPeople, onPersonAdded, onPersonDeleted }: Props) {
   const [people, setPeople] = useState<Person[]>(initialPeople)
   const [newName, setNewName] = useState('')
   const [saving, setSaving] = useState(false)
@@ -28,6 +30,7 @@ export function PeopleManager({ initialPeople }: Props) {
       if (!res.ok) { const j = await res.json(); throw new Error(j.error ?? 'Failed to add'); }
       const person: Person = await res.json()
       setPeople((prev) => [...prev, person])
+      onPersonAdded?.(person)
       setNewName('')
     } catch (err) {
       setError((err as Error).message)
@@ -39,6 +42,7 @@ export function PeopleManager({ initialPeople }: Props) {
   async function handleDelete(id: string) {
     await fetch(`/api/admin/people/${id}`, { method: 'DELETE' })
     setPeople((prev) => prev.filter((p) => p.id !== id))
+    onPersonDeleted?.(id)
   }
 
   function handleCopyLink(token: string) {

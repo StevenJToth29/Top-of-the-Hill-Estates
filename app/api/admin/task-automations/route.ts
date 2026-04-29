@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
       assignee_id: body.assignee_id ?? null,
       is_active: body.is_active ?? true,
     })
-    .select()
+    .select('*, room:rooms(name), property:properties(name), assignee:people(id,name)')
     .single()
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json(data, { status: 201 })
