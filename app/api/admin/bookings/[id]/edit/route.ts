@@ -165,7 +165,7 @@ export async function PATCH(
       const cleaningFee = room.cleaning_fee ?? 0
       newTotal = nightlySubtotal + cleaningFee + extraGuestFee * extraGuests * newTotalNights + additionalFees
     } else {
-      if (body.admin_monthly_amount !== undefined) {
+      if (b.booking_type === 'long_term' && body.admin_monthly_amount !== undefined) {
         const adminAmount = Number(body.admin_monthly_amount)
         if (!isFinite(adminAmount) || adminAmount <= 0) {
           return NextResponse.json(
