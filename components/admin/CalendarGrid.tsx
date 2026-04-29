@@ -152,7 +152,7 @@ function CellContent({
     return (
       <span
         className="text-[9px] font-semibold leading-none"
-        style={{ color: isFriSat ? '#B45309' : '#94A3B8' }}
+        style={{ color: '#0F172A' }}
       >
         ${price}
       </span>
