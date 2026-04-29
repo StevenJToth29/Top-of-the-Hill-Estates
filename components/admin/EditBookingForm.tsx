@@ -53,6 +53,7 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
   const [phone, setPhone] = useState(booking.guest_phone)
   const [guestCount, setGuestCount] = useState(booking.guest_count)
   const [notes, setNotes] = useState(booking.notes ?? '')
+  const [monthlyAmount, setMonthlyAmount] = useState(booking.monthly_rate ?? 0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -65,12 +66,7 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
   const newTotal = (() => {
     const extraGuests = Math.max(0, guestCount - 1)
     if (isLongTerm) {
-      return computeLongTermTotal(
-        room.monthly_rate,
-        room.security_deposit ?? 0,
-        room.extra_guest_fee ?? 0,
-        extraGuests,
-      ) + additionalFees
+      return monthlyAmount + additionalFees
     }
     if (!checkOut || checkOut === OPEN_ENDED_DATE) return booking.total_amount
     return computeShortTermTotal(
@@ -90,6 +86,10 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError(null)
+    if (isLongTerm && monthlyAmount <= 0) {
+      setError('Monthly amount must be greater than $0.')
+      return
+    }
     setSaving(true)
     try {
       const res = await fetch(`/api/admin/bookings/${booking.id}/edit`, {
@@ -104,6 +104,7 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
           guest_phone: phone,
           guest_count: guestCount,
           notes: notes || null,
+          ...(isLongTerm ? { admin_monthly_amount: monthlyAmount } : {}),
         }),
       })
       const data = await res.json()
@@ -188,6 +189,30 @@ export default function EditBookingForm({ booking, onClose, onSaved }: Props) {
             </div>
 
             <hr className="border-slate-100" />
+
+            {/* Pricing — long-term only */}
+            {isLongTerm && (
+              <>
+                <div>
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Pricing</p>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-500 mb-1">Monthly Amount</label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400">$</span>
+                      <input
+                        type="number"
+                        min={0.01}
+                        step={0.01}
+                        value={monthlyAmount}
+                        onChange={(e) => setMonthlyAmount(Number(e.target.value))}
+                        className="w-full pl-7 pr-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-400/40 focus:border-teal-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+                <hr className="border-slate-100" />
+              </>
+            )}
 
             {/* Guest */}
             <div>
