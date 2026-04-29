@@ -80,6 +80,31 @@ describe('POST /api/admin/calendar-tasks', () => {
     expect(body.task.title).toBe('Clean Room')
   })
 
+  it('sets series_id equal to the task id when recurrence_rule is provided', async () => {
+    ;(createServerSupabaseClient as jest.Mock).mockResolvedValue(makeAuthMock())
+    const db = makeDbMock()
+    ;(createServiceRoleClient as jest.Mock).mockReturnValue(db)
+
+    await POST(makeReq({ title: 'Weekly Clean', due_date: '2026-05-01', recurrence_rule: 'FREQ=WEEKLY' }))
+
+    expect(db.insert).toHaveBeenCalledTimes(1)
+    const insertPayload = db.insert.mock.calls[0][0] as Record<string, unknown>
+    expect(insertPayload.series_id).toBeDefined()
+    expect(insertPayload.series_id).toBe(insertPayload.id)
+  })
+
+  it('sets series_id to null when recurrence_rule is not provided', async () => {
+    ;(createServerSupabaseClient as jest.Mock).mockResolvedValue(makeAuthMock())
+    const db = makeDbMock()
+    ;(createServiceRoleClient as jest.Mock).mockReturnValue(db)
+
+    await POST(makeReq({ title: 'One-off Task', due_date: '2026-05-01' }))
+
+    expect(db.insert).toHaveBeenCalledTimes(1)
+    const insertPayload = db.insert.mock.calls[0][0] as Record<string, unknown>
+    expect(insertPayload.series_id).toBeNull()
+  })
+
   it('returns 500 when DB insert fails', async () => {
     ;(createServerSupabaseClient as jest.Mock).mockResolvedValue(makeAuthMock())
     ;(createServiceRoleClient as jest.Mock).mockReturnValue(makeDbMock(new Error('DB failure')))

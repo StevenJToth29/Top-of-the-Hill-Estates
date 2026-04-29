@@ -24,10 +24,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Missing due_date' }, { status: 400 })
   }
 
+  const taskId = crypto.randomUUID()
+
   const supabase = createServiceRoleClient()
   const { data: task, error } = await supabase
     .from('calendar_tasks')
     .insert({
+      id: taskId,
       title,
       due_date,
       description: description ?? null,
@@ -37,6 +40,7 @@ export async function POST(request: NextRequest) {
       recurrence_end_date: recurrence_end_date ?? null,
       status: status ?? 'pending',
       color: color ?? null,
+      series_id: recurrence_rule ? taskId : null,
     })
     .select()
     .single()
