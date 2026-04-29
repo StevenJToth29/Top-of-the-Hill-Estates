@@ -162,7 +162,6 @@ export default function ContactForm() {
             <a href="/termsandconditions" className="underline hover:text-secondary transition-colors duration-150">
               Terms of Service
             </a>
-            <span className="text-error ml-1">*</span>
           </span>
         </label>
 

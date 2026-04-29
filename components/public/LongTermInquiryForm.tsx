@@ -290,7 +290,6 @@ export default function LongTermInquiryForm({
             >
               Terms of Service
             </a>
-            <span className="text-error ml-1">*</span>
           </span>
         </label>
 
