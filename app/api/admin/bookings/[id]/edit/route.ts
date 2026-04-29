@@ -139,6 +139,7 @@ export async function PATCH(
     // Recalculate total
     let newTotal: number
     let newTotalNights: number
+    let monthlyRateSnapshot = b.monthly_rate ?? 0
 
     if (b.booking_type === 'short_term' && checkOut !== OPEN_ENDED_DATE) {
       // Fetch price overrides for the new date range
@@ -164,9 +165,21 @@ export async function PATCH(
       const cleaningFee = room.cleaning_fee ?? 0
       newTotal = nightlySubtotal + cleaningFee + extraGuestFee * extraGuests * newTotalNights + additionalFees
     } else {
-      // long_term: only extra_guest_fee changes with guest count; base is monthly_rate + security_deposit
-      const securityDeposit = room.security_deposit ?? 0
-      newTotal = room.monthly_rate + securityDeposit + extraGuestFee * extraGuests + additionalFees
+      if (body.admin_monthly_amount !== undefined) {
+        const adminAmount = Number(body.admin_monthly_amount)
+        if (!isFinite(adminAmount) || adminAmount <= 0) {
+          return NextResponse.json(
+            { error: 'admin_monthly_amount must be a positive number' },
+            { status: 400 },
+          )
+        }
+        monthlyRateSnapshot = adminAmount
+        newTotal = adminAmount + additionalFees
+      } else {
+        // long_term: only extra_guest_fee changes with guest count; base is monthly_rate + security_deposit
+        const securityDeposit = room.security_deposit ?? 0
+        newTotal = room.monthly_rate + securityDeposit + extraGuestFee * extraGuests + additionalFees
+      }
       if (checkOut === OPEN_ENDED_DATE) {
         newTotalNights = 0
       } else {
@@ -195,6 +208,7 @@ export async function PATCH(
         guest_phone: guestPhone,
         guest_count: guestCount,
         total_nights: newTotalNights,
+        monthly_rate: monthlyRateSnapshot,
         total_amount: newTotal,
         amount_due_at_checkin: amountDueAtCheckin,
         notes,
