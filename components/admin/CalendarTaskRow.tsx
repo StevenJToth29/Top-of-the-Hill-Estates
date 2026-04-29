@@ -10,6 +10,7 @@ interface CalendarTaskRowProps {
   onTaskClick: (task: CalendarTask) => void
   onAddClick: (date: string) => void
   isPropertyRow?: boolean
+  labelWidth?: number
 }
 
 export function CalendarTaskRow({
@@ -19,6 +20,7 @@ export function CalendarTaskRow({
   onTaskClick,
   onAddClick,
   isPropertyRow = false,
+  labelWidth = 200,
 }: CalendarTaskRowProps) {
   if (days.length === 0) return null
 
@@ -42,9 +44,11 @@ export function CalendarTaskRow({
       <td
         className="sticky left-0 z-10 px-2 py-1"
         style={{
+          width: labelWidth,
           background: rowBg,
           borderRight: `2px solid ${borderColor}`,
           borderLeft: `3px solid ${isPropertyRow ? '#6366F1' : '#8B5CF6'}`,
+          overflow: 'hidden',
         }}
       >
         <span

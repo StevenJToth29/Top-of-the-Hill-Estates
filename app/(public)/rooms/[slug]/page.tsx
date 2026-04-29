@@ -3,7 +3,7 @@ export const revalidate = 60
 import { cache } from 'react'
 import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { format, addMonths } from 'date-fns'
+import { format, addMonths, addDays } from 'date-fns'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import { getBlockedDatesForRoom, getLatestCheckoutForRoom } from '@/lib/availability'
 import { resolvePolicy } from '@/lib/cancellation'
@@ -154,6 +154,17 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
   ])
 
   const minMoveIn = latestCheckout && latestCheckout > todayStr ? latestCheckout : todayStr
+
+  // Only apply window to the display calendar when it applies to both booking types.
+  // Per-type enforcement is handled by BookingWidget using max_advance_booking_applies_to.
+  const calendarWindowEnd: string | undefined = (() => {
+    const applies = rawRoom.max_advance_booking_applies_to ?? 'both'
+    if (applies !== 'both') return undefined
+    const days = rawRoom.max_advance_booking_days
+    if (days == null) return undefined
+    if (days === 0) return format(addDays(today, -1), 'yyyy-MM-dd')
+    return format(addDays(today, days), 'yyyy-MM-dd')
+  })()
 
   const dateOverrides: Record<string, number> = {}
   for (const o of rawOverrides ?? []) {
@@ -314,7 +325,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
 
             {/* Availability calendar */}
             <>
-              <AvailabilityCalendar blockedDates={blockedDates} roomName={room.name} />
+              <AvailabilityCalendar blockedDates={blockedDates} roomName={room.name} windowEnd={calendarWindowEnd} />
               {divider}
             </>
 

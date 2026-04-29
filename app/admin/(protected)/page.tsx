@@ -1,6 +1,7 @@
 import {
   format,
   subMonths,
+  addMonths,
   startOfMonth,
   endOfMonth,
   getDaysInMonth,
@@ -24,6 +25,7 @@ type ConfirmedRow = {
   amount_paid: number; total_amount: number; processing_fee: number | null; monthly_rate: number | null; created_at: string
 }
 type PendingRow = { id: string; total_amount: number; amount_paid: number }
+type ICalBlockRow = { room_id: string; start_date: string; end_date: string }
 type UpcomingRow = {
   room_id: string; guest_first_name: string; guest_last_name: string
   check_in: string; check_out: string; status: string
@@ -36,7 +38,7 @@ export default async function AdminDashboardPage() {
 
   const thisMonthStart = startOfMonth(now)
   const lastMonthStart = startOfMonth(subMonths(now, 1))
-  const sevenMonthsAgo = startOfMonth(subMonths(now, 6))
+  const sixMonthsAgo = startOfMonth(subMonths(now, 6))
 
   const [
     { data: roomsData },
@@ -46,6 +48,7 @@ export default async function AdminDashboardPage() {
     { data: departuresData },
     { data: recentData },
     { data: upcomingData },
+    { data: icalBlocksData },
   ] = await Promise.all([
     supabase
       .from('rooms')
@@ -56,7 +59,7 @@ export default async function AdminDashboardPage() {
       .from('bookings')
       .select('id, room_id, check_in, check_out, booking_type, amount_paid, total_amount, processing_fee, monthly_rate, created_at')
       .eq('status', 'confirmed')
-      .gte('check_out', format(sevenMonthsAgo, 'yyyy-MM-dd'))
+      .gte('check_out', format(sixMonthsAgo, 'yyyy-MM-dd'))
       .order('created_at', { ascending: false })
       .limit(1000),
 
@@ -92,11 +95,18 @@ export default async function AdminDashboardPage() {
       .gte('check_out', today)
       .order('check_in')
       .limit(50),
+
+    supabase
+      .from('ical_blocks')
+      .select('room_id, start_date, end_date')
+      .lt('start_date', format(addMonths(startOfMonth(now), 1), 'yyyy-MM-dd'))
+      .gte('end_date', format(sixMonthsAgo, 'yyyy-MM-dd')),
   ])
 
   const rooms = (roomsData ?? []) as unknown as RoomRow[]
   const confirmed = (confirmedData ?? []) as ConfirmedRow[]
   const pending = (pendingData ?? []) as PendingRow[]
+  const icalBlocks = (icalBlocksData ?? []) as ICalBlockRow[]
   const arrivals = (arrivalsData ?? []) as BookingWithRoom[]
   const departures = (departuresData ?? []) as BookingWithRoom[]
   const recent = (recentData ?? []) as BookingWithRoom[]
@@ -138,6 +148,13 @@ export default async function AdminDashboardPage() {
     for (const b of confirmed) {
       const ci = parseISO(b.check_in)
       const co = parseISO(b.check_out)
+      const oStart = ci > mStart ? ci : mStart
+      const oEnd = co < endPlusOne ? co : endPlusOne
+      if (oStart < oEnd) bookedNights += differenceInDays(oEnd, oStart)
+    }
+    for (const b of icalBlocks) {
+      const ci = parseISO(b.start_date)
+      const co = parseISO(b.end_date)
       const oStart = ci > mStart ? ci : mStart
       const oEnd = co < endPlusOne ? co : endPlusOne
       if (oStart < oEnd) bookedNights += differenceInDays(oEnd, oStart)

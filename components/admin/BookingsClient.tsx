@@ -204,7 +204,8 @@ export default function BookingsClient({
       if (b.status === 'cancelled') cancelled++
       if (b.check_in === todayStr) checkinToday++
       if (b.check_out === todayStr && b.check_out !== OPEN_ENDED_DATE) checkoutToday++
-      outstanding += Math.max(0, b.total_amount - b.amount_paid)
+      const isLtDirect = b.booking_type === 'long_term' && (!b.source || b.source.toLowerCase() === 'direct')
+      if (!isLtDirect) outstanding += Math.max(0, b.total_amount - b.amount_paid)
     }
 
     return { total, confirmed, pending, cancelled, checkinToday, checkoutToday, outstanding }
@@ -327,6 +328,15 @@ export default function BookingsClient({
     }
   }
 
+  function handleExport() {
+    const params = new URLSearchParams()
+    if (statusFilter !== 'all') params.set('status', statusFilter)
+    if (typeFilter !== 'all') params.set('type', typeFilter)
+    if (fromDate) params.set('from', fromDate)
+    if (toDate) params.set('to', toDate)
+    window.location.href = `/api/admin/bookings/export?${params.toString()}`
+  }
+
   async function quickConfirm(e: React.MouseEvent, id: string) {
     e.stopPropagation()
     await fetch(`/api/admin/bookings/${id}/status`, {
@@ -357,112 +367,129 @@ export default function BookingsClient({
   const someSelected = paginated.some((b) => selectedRows.has(b.id)) && !allSelected
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* ── Page header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-baseline gap-2 mr-auto">
           <h1
-            className="font-display font-extrabold text-[22px]"
+            className="font-display font-extrabold text-[20px]"
             style={{ color: '#0F172A' }}
           >
             Bookings
           </h1>
-          <p className="mt-0.5 text-sm" style={{ color: '#64748B' }}>
-            Manage all guest reservations
-          </p>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: '#64748B' }}>
+            {sorted.length} booking{sorted.length !== 1 ? 's' : ''}
+            {totalPages > 1 && (
+              <span style={{ fontWeight: 400, color: '#94A3B8' }}>
+                {' '}· page {page} of {totalPages}
+              </span>
+            )}
+            {statusFilter !== 'all' && (
+              <span style={{ color: getStatus(statusFilter).color }}>
+                {' '}· {getStatus(statusFilter).label}
+              </span>
+            )}
+          </span>
         </div>
-        <NewManualBookingButton />
-      </div>
 
-      {/* ── Stat pills + today widget ─────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-3">
-        {(
-          [
-            { key: 'all', label: 'Total', count: stats.total, color: '#2DD4BF', activeBg: 'rgba(45,212,191,0.08)', activeBorder: 'rgba(45,212,191,0.22)', activeShadow: '0 0 0 3px rgba(45,212,191,0.15)' },
-            { key: 'confirmed', label: 'Confirmed', count: stats.confirmed, color: '#059669', activeBg: 'rgba(5,150,105,0.08)', activeBorder: 'rgba(5,150,105,0.2)', activeShadow: '0 0 0 3px rgba(5,150,105,0.12)' },
-            { key: 'pending', label: 'Pending', count: stats.pending, color: '#D97706', activeBg: 'rgba(217,119,6,0.08)', activeBorder: 'rgba(217,119,6,0.2)', activeShadow: '0 0 0 3px rgba(217,119,6,0.12)' },
-            { key: 'cancelled', label: 'Cancelled', count: stats.cancelled, color: '#DC2626', activeBg: 'rgba(220,38,38,0.07)', activeBorder: 'rgba(220,38,38,0.18)', activeShadow: '0 0 0 3px rgba(220,38,38,0.1)' },
-          ] as const
-        ).map(({ key, label, count, color, activeBg, activeBorder, activeShadow }) => {
-          const active = statusFilter === key
-          return (
-            <button
-              key={key}
-              onClick={() => setStatusFilter(key)}
-              style={{
-                background: active ? activeBg : '#fff',
-                border: `1px solid ${active ? activeBorder : '#E2E8F0'}`,
-                boxShadow: active ? activeShadow : 'none',
-                borderRadius: '12px',
-                padding: '8px 16px',
-                cursor: 'pointer',
-                transition: 'all 0.15s',
-                display: 'flex',
-                alignItems: 'baseline',
-                gap: '6px',
-              }}
-            >
-              <span
-                className="font-display text-lg font-extrabold leading-none"
-                style={{ color: active ? color : '#0F172A' }}
-              >
-                {count}
-              </span>
-              <span
-                className="text-[12px] font-semibold"
-                style={{ color: active ? color : '#94A3B8' }}
-              >
-                {label}
-              </span>
-            </button>
-          )
-        })}
-
-        {/* Today info widget */}
+        {/* Today info — inline with header */}
         <div
-          className="ml-auto inline-flex items-center gap-3 text-[12px]"
+          className="inline-flex items-center gap-2 text-[12px]"
           style={{
             background: '#fff',
             border: '1px solid #E2E8F0',
-            borderRadius: '10px',
-            padding: '8px 14px',
+            borderRadius: '8px',
+            padding: '4px 10px',
             color: '#64748B',
           }}
         >
-          <span className="font-semibold" style={{ color: '#0F172A' }}>Today:</span>
-          <span>
-            <span style={{ color: '#2DD4BF', fontWeight: 700 }}>{stats.checkinToday}</span>
-            {' '}in
-          </span>
-          <span style={{ color: '#E2E8F0' }}>·</span>
-          <span>
-            <span style={{ color: '#D97706', fontWeight: 700 }}>{stats.checkoutToday}</span>
-            {' '}out
-          </span>
-          <span style={{ color: '#E2E8F0' }}>·</span>
-          <span>
-            <span style={{ color: '#DC2626', fontWeight: 700 }}>{formatCurrency(stats.outstanding)}</span>
-            {' '}outstanding
-          </span>
+          <span className="font-semibold" style={{ color: '#0F172A' }}>Today</span>
+          <span style={{ color: '#CBD5E1' }}>·</span>
+          <span><span style={{ color: '#2DD4BF', fontWeight: 700 }}>{stats.checkinToday}</span> in</span>
+          <span style={{ color: '#CBD5E1' }}>·</span>
+          <span><span style={{ color: '#D97706', fontWeight: 700 }}>{stats.checkoutToday}</span> out</span>
+          <span style={{ color: '#CBD5E1' }}>·</span>
+          <span><span style={{ color: '#DC2626', fontWeight: 700 }}>{formatCurrency(stats.outstanding)}</span> owed</span>
         </div>
+
+        <button
+          onClick={handleExport}
+          style={{
+            background: '#F8FAFC',
+            border: '1px solid #E2E8F0',
+            borderRadius: '7px',
+            padding: '5px 12px',
+            fontSize: '12px',
+            color: '#475569',
+            fontWeight: 500,
+            cursor: 'pointer',
+          }}
+        >
+          Export CSV
+        </button>
+        <NewManualBookingButton />
       </div>
 
-      {/* ── Filter bar ─────────────────────────────────────────────────────────── */}
+      {/* ── Stat pills + filter bar (combined row) ───────────────────────────── */}
       <div
         style={{
           background: '#fff',
           border: '1px solid #E2E8F0',
           borderRadius: '12px',
-          padding: '14px 16px',
+          padding: '8px 12px',
         }}
-        className="flex flex-wrap items-center gap-3"
+        className="flex flex-wrap items-center gap-2"
       >
+        {/* Status filter pills */}
+        <div
+          style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '3px', display: 'inline-flex', gap: '2px', flexShrink: 0 }}
+        >
+          {(
+            [
+              { key: 'all', label: 'All', count: stats.total, color: '#2DD4BF' },
+              { key: 'confirmed', label: 'Confirmed', count: stats.confirmed, color: '#059669' },
+              { key: 'pending', label: 'Pending', count: stats.pending, color: '#D97706' },
+              { key: 'cancelled', label: 'Cancelled', count: stats.cancelled, color: '#DC2626' },
+            ] as const
+          ).map(({ key, label, count, color }) => {
+            const active = statusFilter === key
+            return (
+              <button
+                key={key}
+                onClick={() => setStatusFilter(key)}
+                style={{
+                  background: active ? '#fff' : 'transparent',
+                  color: active ? color : '#94A3B8',
+                  border: active ? '1px solid #E2E8F0' : '1px solid transparent',
+                  borderRadius: '6px',
+                  padding: '3px 10px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  boxShadow: active ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
+                  display: 'inline-flex',
+                  alignItems: 'baseline',
+                  gap: '4px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span style={{ fontWeight: 800, fontSize: '13px' }}>{count}</span>
+                {label}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Divider */}
+        <div style={{ width: '1px', height: '20px', background: '#E2E8F0', flexShrink: 0 }} />
+
         {/* Search */}
-        <div className="relative flex-1 min-w-[200px]">
+        <div className="relative" style={{ flex: '1 1 160px', minWidth: '160px' }}>
           <svg
-            className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
-            width="14"
-            height="14"
+            className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none"
+            width="12"
+            height="12"
             viewBox="0 0 24 24"
             fill="none"
             stroke="#94A3B8"
@@ -475,18 +502,18 @@ export default function BookingsClient({
           </svg>
           <input
             type="text"
-            placeholder="Search by name, email, or booking ID…"
+            placeholder="Search name, email, or ID…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             style={{
               background: '#F8FAFC',
               border: '1px solid #E2E8F0',
-              borderRadius: '8px',
-              paddingLeft: '34px',
-              paddingRight: '12px',
-              paddingTop: '7px',
-              paddingBottom: '7px',
-              fontSize: '13px',
+              borderRadius: '7px',
+              paddingLeft: '28px',
+              paddingRight: '8px',
+              paddingTop: '5px',
+              paddingBottom: '5px',
+              fontSize: '12px',
               color: '#0F172A',
               width: '100%',
               outline: 'none',
@@ -496,13 +523,13 @@ export default function BookingsClient({
 
         {/* Type toggle */}
         <div
-          style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '3px', display: 'inline-flex', gap: '2px' }}
+          style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '7px', padding: '3px', display: 'inline-flex', gap: '2px', flexShrink: 0 }}
         >
           {(
             [
               { key: 'all', label: 'All' },
-              { key: 'short_term', label: 'Short-term' },
-              { key: 'long_term', label: 'Long-term' },
+              { key: 'short_term', label: 'Short' },
+              { key: 'long_term', label: 'Long' },
             ] as const
           ).map(({ key, label }) => {
             const active = typeFilter === key
@@ -514,8 +541,8 @@ export default function BookingsClient({
                   background: active ? '#fff' : 'transparent',
                   color: active ? '#0F172A' : '#94A3B8',
                   border: active ? '1px solid #E2E8F0' : '1px solid transparent',
-                  borderRadius: '6px',
-                  padding: '5px 12px',
+                  borderRadius: '5px',
+                  padding: '3px 8px',
                   fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
@@ -530,8 +557,8 @@ export default function BookingsClient({
         </div>
 
         {/* Date range */}
-        <div className="flex items-center gap-2">
-          <span style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 600 }}>Check-in from</span>
+        <div className="flex items-center gap-1" style={{ flexShrink: 0 }}>
+          <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>From</span>
           <input
             type="date"
             value={fromDate}
@@ -539,14 +566,14 @@ export default function BookingsClient({
             style={{
               background: '#F8FAFC',
               border: '1px solid #E2E8F0',
-              borderRadius: '8px',
-              padding: '6px 10px',
-              fontSize: '13px',
+              borderRadius: '7px',
+              padding: '4px 6px',
+              fontSize: '12px',
               color: '#0F172A',
               outline: 'none',
             }}
           />
-          <span style={{ fontSize: '12px', color: '#94A3B8', fontWeight: 600 }}>To</span>
+          <span style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 600 }}>to</span>
           <input
             type="date"
             value={toDate}
@@ -555,9 +582,9 @@ export default function BookingsClient({
             style={{
               background: '#F8FAFC',
               border: '1px solid #E2E8F0',
-              borderRadius: '8px',
-              padding: '6px 10px',
-              fontSize: '13px',
+              borderRadius: '7px',
+              padding: '4px 6px',
+              fontSize: '12px',
               color: '#0F172A',
               outline: 'none',
             }}
@@ -572,11 +599,12 @@ export default function BookingsClient({
               background: 'rgba(220,38,38,0.06)',
               border: '1px solid rgba(220,38,38,0.15)',
               color: '#DC2626',
-              borderRadius: '8px',
-              padding: '6px 12px',
+              borderRadius: '7px',
+              padding: '4px 9px',
               fontSize: '12px',
               fontWeight: 600,
               cursor: 'pointer',
+              flexShrink: 0,
             }}
           >
             Clear ×
@@ -643,66 +671,6 @@ export default function BookingsClient({
           overflow: 'hidden',
         }}
       >
-        {/* Table header row (above <table>) */}
-        <div
-          style={{
-            padding: '12px 16px',
-            borderBottom: '1px solid #E2E8F0',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span style={{ fontSize: '13px', fontWeight: 600, color: '#64748B' }}>
-            {sorted.length} booking{sorted.length !== 1 ? 's' : ''}
-            {totalPages > 1 && (
-              <span style={{ fontWeight: 400, color: '#94A3B8' }}>
-                {' '}· page {page} of {totalPages}
-              </span>
-            )}
-            {statusFilter !== 'all' && (
-              <span style={{ color: getStatus(statusFilter).color }}>
-                {' '}· {getStatus(statusFilter).label}
-              </span>
-            )}
-          </span>
-          <div className="flex items-center gap-2">
-            {(
-              [
-                { key: 'check_in', label: 'Check-in' },
-                { key: 'guest', label: 'Guest' },
-                { key: 'total_amount', label: 'Amount' },
-              ] as { key: SortKey; label: string }[]
-            ).map(({ key, label }) => {
-              const active = sortKey === key
-              return (
-                <button
-                  key={key}
-                  onClick={() => handleSort(key)}
-                  style={{
-                    background: active ? 'rgba(45,212,191,0.08)' : 'transparent',
-                    border: `1px solid ${active ? 'rgba(45,212,191,0.22)' : '#E2E8F0'}`,
-                    color: active ? '#2DD4BF' : '#94A3B8',
-                    borderRadius: '6px',
-                    padding: '4px 10px',
-                    fontSize: '11px',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                >
-                  {label}
-                  <span style={{ opacity: active ? 1 : 0.4 }}>
-                    {active ? (sortDir === 'asc' ? '↑' : '↓') : '↕'}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
         {/* Table */}
         <div className="overflow-x-auto">
           <table className="w-full" style={{ borderCollapse: 'collapse', tableLayout: 'auto' }}>
@@ -768,6 +736,7 @@ export default function BookingsClient({
                 const checkinIsToday = b.check_in === todayStr
                 const checkoutIsToday = b.check_out === todayStr && b.check_out !== OPEN_ENDED_DATE
                 const isOpenEnded = b.check_out === OPEN_ENDED_DATE
+                const isLtDirect = b.booking_type === 'long_term' && (!b.source || b.source.toLowerCase() === 'direct')
 
                 return (
                   <tr
@@ -942,7 +911,7 @@ export default function BookingsClient({
 
                     {/* Payment */}
                     <td className="px-3 py-2 whitespace-nowrap">
-                      <PayBar paid={b.amount_paid} total={b.total_amount} />
+                      <PayBar paid={isLtDirect ? b.total_amount : b.amount_paid} total={b.total_amount} />
                     </td>
 
                     {/* Status */}

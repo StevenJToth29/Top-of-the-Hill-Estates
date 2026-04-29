@@ -1,40 +1,12 @@
-const reviews = [
-  {
-    id: 1,
-    quote:
-      'The room was immaculate and the location was perfect for my commute. Everything was furnished and ready to go from day one — I was settled in within an hour.',
-    name: 'Marcus T.',
-    stars: 5,
-  },
-  {
-    id: 2,
-    quote:
-      'Booked directly through their site and saved a ton compared to other platforms. The team was responsive and made the whole process effortless.',
-    name: 'Priya S.',
-    stars: 5,
-  },
-  {
-    id: 3,
-    quote:
-      'I stayed for three months while relocating for work. Having a furnished room with flexible terms made a stressful move so much easier.',
-    name: 'Jordan L.',
-    stars: 5,
-  },
-  {
-    id: 4,
-    quote:
-      "Clean, quiet, and great value. The monthly rate is unbeatable for a fully furnished room in Tempe. I've already referred two colleagues.",
-    name: 'Aisha R.',
-    stars: 4,
-  },
-  {
-    id: 5,
-    quote:
-      'No hidden fees, no platform markups. What you see is what you pay. Highly recommend booking direct with Top of the Hill Rooms.',
-    name: 'Derek M.',
-    stars: 5,
-  },
-]
+interface Review {
+  id: string
+  rating: number
+  comment: string | null
+  booking: {
+    guest_first_name: string
+    guest_last_name: string
+  } | null
+}
 
 function StarRating({ count }: { count: number }) {
   return (
@@ -54,7 +26,9 @@ function StarRating({ count }: { count: number }) {
   )
 }
 
-export default function ReviewsSection() {
+export default function ReviewsSection({ reviews }: { reviews: Review[] }) {
+  if (reviews.length === 0) return null
+
   return (
     <section className="bg-background py-16 sm:py-24">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -75,11 +49,15 @@ export default function ReviewsSection() {
               key={review.id}
               className="bg-surface-lowest rounded-2xl p-6 border border-surface flex flex-col gap-4"
             >
-              <StarRating count={review.stars} />
-              <blockquote className="text-on-surface-variant font-body text-sm leading-relaxed flex-1">
-                &ldquo;{review.quote}&rdquo;
-              </blockquote>
-              <p className="font-display font-semibold text-on-surface text-sm">— {review.name}</p>
+              <StarRating count={review.rating} />
+              {review.comment && (
+                <blockquote className="text-on-surface-variant font-body text-sm leading-relaxed flex-1">
+                  &ldquo;{review.comment}&rdquo;
+                </blockquote>
+              )}
+              <p className="font-display font-semibold text-on-surface text-sm">
+                — {review.booking?.guest_first_name} {review.booking?.guest_last_name?.charAt(0)}.
+              </p>
             </div>
           ))}
         </div>

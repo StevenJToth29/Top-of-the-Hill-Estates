@@ -1,5 +1,6 @@
 import { createServiceRoleClient } from '@/lib/supabase'
 import { OPEN_ENDED_DATE } from '@/lib/format'
+import { generateReviewToken } from '@/lib/review-token'
 import type {
   Booking,
   Room,
@@ -76,6 +77,8 @@ export function buildBookingVariables(
     contact_phone: siteSettings?.contact_phone ?? '',
     contact_email: siteSettings?.contact_email ?? emailSettings?.from_email ?? '',
     review_url: emailSettings?.review_url ?? '',
+    room_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/rooms/${room.slug}`,
+    review_page_url: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/review/${booking.id}?token=${generateReviewToken(booking.id)}`,
     decline_reason: '',
     application_deadline_hours: booking.application_deadline
       ? String(Math.max(0, Math.round((new Date(booking.application_deadline).getTime() - Date.now()) / 3600000)))

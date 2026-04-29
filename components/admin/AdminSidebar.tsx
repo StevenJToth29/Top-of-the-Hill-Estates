@@ -11,6 +11,7 @@ import {
   ChartBarIcon,
   Cog6ToothIcon,
   EnvelopeIcon,
+  StarIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useEffect, useRef } from 'react'
@@ -57,6 +58,7 @@ export const NAV_ITEMS = [
   { label: 'Calendar', href: '/admin/calendar', icon: CalendarDaysIcon },
   { label: 'Payout', href: '/admin/payout-accounts', icon: BanknotesIcon },
   { label: 'Email', href: '/admin/email/settings', icon: EnvelopeIcon },
+  { label: 'Reviews', href: '/admin/reviews', icon: StarIcon },
   { label: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
 ]
 

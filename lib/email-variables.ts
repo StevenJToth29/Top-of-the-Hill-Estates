@@ -33,6 +33,8 @@ export const VARIABLE_GROUPS: VariableGroup[] = [
       { key: 'decline_reason', label: 'Decline reason' },
       { key: 'application_deadline_hours', label: 'Hours until application deadline' },
       { key: 'application_link', label: 'Application link (URL)' },
+      { key: 'room_url', label: 'Room page URL' },
+      { key: 'review_page_url', label: 'Review page URL' },
     ],
   },
   {
@@ -91,6 +93,8 @@ export const SAMPLE_VARIABLES: Record<string, string> = {
   decline_reason: 'We are unable to accommodate your request at this time.',
   application_deadline_hours: '24',
   application_link: 'https://example.com/booking/apply/BK-2024-001?email=jane.smith%40example.com',
+  room_url: 'https://topofthehillrooms.com/rooms/garden-suite',
+  review_page_url: 'https://topofthehillrooms.com/review/booking-id-here',
 }
 
 export function resolveVariables(
@@ -109,6 +113,7 @@ export const TRIGGER_EVENT_LABELS: Record<string, string> = {
   booking_confirmed: 'Booking Confirmed',
   booking_pending: 'Booking Pending',
   booking_cancelled: 'Booking Cancelled',
+  booking_abandoned: 'Abandoned Booking Recovery',
   contact_submitted: 'Contact Form Submitted',
   checkin_reminder: 'Check-in Reminder',
   checkout_reminder: 'Check-out Reminder',

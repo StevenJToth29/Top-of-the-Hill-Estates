@@ -73,6 +73,9 @@ async function handler(request: NextRequest) {
   if (sweep1SuccessIds.length > 0) {
     await supabase.from('bookings').update({ status: 'expired' }).in('id', sweep1SuccessIds)
   }
+  for (const id of sweep1SuccessIds) {
+    evaluateAndQueueEmails('booking_abandoned', { type: 'booking', bookingId: id }).catch(console.error)
+  }
 
   // Sweep 2: expire pending_docs bookings older than 48 hours
   const docsCutoff = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()

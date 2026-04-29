@@ -70,6 +70,10 @@ export default function BookingDetailPanel({ booking, modificationRequests = [],
     setEditedBooking(booking)
   }, [booking])
 
+  useEffect(() => {
+    if (searchParams.get('edit') === '1') setShowEditForm(true)
+  }, [searchParams])
+
   function handleClose() {
     const next = new URLSearchParams(searchParams.toString())
     next.delete('id')

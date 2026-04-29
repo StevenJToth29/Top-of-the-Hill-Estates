@@ -77,6 +77,7 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
   const [modal, setModal] = useState<ModalState>({ type: 'none' })
   const [roomSearch, setRoomSearch] = useState('')
   const [viewMode, setViewMode] = useState<'bookings' | 'tasks'>('bookings')
+  const [labelCollapsed, setLabelCollapsed] = useState(false)
 
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const daysRef = useRef(days)
@@ -371,6 +372,8 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
           onAddPropertyTask={(propertyId, date) => setModal({ type: 'task', propertyId, date })}
           onSmartPricingClick={(roomId) => setModal({ type: 'smartPricing', roomId })}
           viewMode={viewMode}
+          labelCollapsed={labelCollapsed}
+          onToggleLabelCollapse={() => setLabelCollapsed((v) => !v)}
           today={today}
         />
       </div>
@@ -616,6 +619,10 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
         <BookingDetailModal
           booking={modal.booking}
           onClose={closeModal}
+          onEdit={(bookingId) => {
+            router.push(`/admin/bookings?id=${bookingId}&edit=1`)
+            closeModal()
+          }}
           onViewFull={(bookingId) => {
             router.push(`/admin/bookings?id=${bookingId}`)
             closeModal()

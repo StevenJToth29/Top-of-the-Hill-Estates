@@ -4,7 +4,7 @@
 import React, { useRef, useCallback, useMemo, useEffect } from 'react'
 import { format, getDay } from 'date-fns'
 import { clsx } from 'clsx'
-import { HomeIcon } from '@heroicons/react/16/solid'
+import { HomeIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/16/solid'
 import type { Room, Booking, ICalBlock, CalendarTask } from '@/types'
 import { CalendarTaskRow } from './CalendarTaskRow'
 import type { OverrideMap } from '@/hooks/useDateOverrides'
@@ -17,6 +17,7 @@ export interface DragSelection {
 
 export const DAY_COL_WIDTH = 36
 export const LABEL_COL_WIDTH = 200
+export const LABEL_COL_COLLAPSED = 40
 
 interface CalendarGridProps {
   rooms: Room[]
@@ -34,6 +35,8 @@ interface CalendarGridProps {
   onAddPropertyTask: (propertyId: string, date: string) => void
   onSmartPricingClick?: (roomId: string) => void
   viewMode?: 'bookings' | 'tasks'
+  labelCollapsed?: boolean
+  onToggleLabelCollapse?: () => void
   today: string
 }
 
@@ -165,6 +168,8 @@ export function CalendarGrid({
   onAddPropertyTask,
   onSmartPricingClick,
   viewMode = 'bookings',
+  labelCollapsed = false,
+  onToggleLabelCollapse,
   today,
 }: CalendarGridProps) {
   const dragging = useRef(false)
@@ -244,7 +249,7 @@ export function CalendarGrid({
       let count = 0
       for (const room of rooms) {
         const status = getCellStatus(room.id, ds, bookings, icalBlocks, overrideMap, null)
-        if (status === 'booked-first' || status === 'booked-cont') count++
+        if (status === 'booked-first' || status === 'booked-cont' || status === 'ical') count++
       }
       map[ds] = count
     }
@@ -266,7 +271,9 @@ export function CalendarGrid({
   }, [days])
 
   const todayStr = today
-  const tableWidth = LABEL_COL_WIDTH + days.length * DAY_COL_WIDTH
+  const todayIdx = days.findIndex(d => format(d, 'yyyy-MM-dd') === todayStr)
+  const labelWidth = labelCollapsed ? LABEL_COL_COLLAPSED : LABEL_COL_WIDTH
+  const tableWidth = labelWidth + days.length * DAY_COL_WIDTH
 
   return (
     <table
@@ -275,23 +282,23 @@ export function CalendarGrid({
       onMouseLeave={handleMouseLeaveTable}
     >
       <colgroup>
-        <col style={{ width: LABEL_COL_WIDTH }} />
+        <col style={{ width: labelWidth }} />
         {days.map((_, i) => <col key={i} style={{ width: DAY_COL_WIDTH }} />)}
       </colgroup>
 
-      <thead className="sticky top-0 z-20 bg-white">
+      <thead className="sticky top-0 z-30 bg-white">
         {/* Month group header */}
         <tr>
           <th
-            className="sticky left-0 z-30 bg-white border-b border-r border-slate-200"
-            style={{ width: LABEL_COL_WIDTH, padding: 0 }}
+            className="sticky left-0 z-40 bg-white border-b border-r border-slate-200"
+            style={{ width: labelWidth, padding: 0 }}
           />
           {monthGroups.map(({ yearMonth, count }) => (
             <th
               key={yearMonth}
               colSpan={count}
               className="border-b border-l border-slate-200 bg-slate-50 text-left text-[11px] font-semibold text-slate-500 px-2 py-1 whitespace-nowrap overflow-hidden"
-              style={{ position: 'sticky', left: LABEL_COL_WIDTH, zIndex: 19 }}
+              style={{ position: 'sticky', left: labelWidth, zIndex: 19 }}
             >
               {format(new Date(yearMonth + '-01T00:00:00'), 'MMMM yyyy')}
             </th>
@@ -300,7 +307,7 @@ export function CalendarGrid({
 
         {/* Occupancy heatbar — hidden in task view */}
         <tr>
-          <td style={{ width: LABEL_COL_WIDTH, height: 4, padding: 0 }} />
+          <td className="sticky left-0 z-40 bg-white" style={{ width: labelWidth, height: 4, padding: 0 }} />
           {days.map((day) => {
             const ds = format(day, 'yyyy-MM-dd')
             if (viewMode === 'tasks') {
@@ -323,10 +330,24 @@ export function CalendarGrid({
         {/* Day header */}
         <tr>
           <th
-            className="sticky left-0 z-30 bg-white border-b border-r border-slate-200 text-left px-3 py-2 text-xs font-semibold text-slate-500"
-            style={{ width: LABEL_COL_WIDTH }}
+            className="sticky left-0 z-40 bg-white border-b border-r border-slate-200"
+            style={{ width: labelWidth, padding: 0 }}
           >
-            Room
+            <button
+              type="button"
+              onClick={onToggleLabelCollapse}
+              className="w-full h-full flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-500 hover:text-teal-600 transition-colors"
+              title={labelCollapsed ? 'Expand room column' : 'Collapse room column'}
+            >
+              {labelCollapsed ? (
+                <ChevronRightIcon className="w-3.5 h-3.5 shrink-0" />
+              ) : (
+                <>
+                  <ChevronLeftIcon className="w-3 h-3 shrink-0" />
+                  <span>Room</span>
+                </>
+              )}
+            </button>
           </th>
           {days.map((day) => {
             const ds = format(day, 'yyyy-MM-dd')
@@ -376,6 +397,7 @@ export function CalendarGrid({
               onTaskClick={onTaskClick}
               onAddClick={(date) => onAddPropertyTask(propId, date)}
               isPropertyRow
+              labelWidth={labelWidth}
             />
 
             {propRooms.map((room) => {
@@ -386,38 +408,52 @@ export function CalendarGrid({
                   <tr className="border-b border-slate-100 group">
                     {/* Label cell */}
                     <td
-                      className="sticky left-0 z-20 border-r border-slate-200 px-2 py-1"
-                      style={{ width: LABEL_COL_WIDTH, background: '#ffffff' }}
+                      className="sticky left-0 z-10 border-r border-slate-200"
+                      style={{ width: labelWidth, background: '#ffffff', padding: labelCollapsed ? 0 : '4px 8px' }}
                     >
-                      <span
-                        className="flex items-center gap-1 text-xs font-semibold truncate w-full text-left"
-                        style={{ color: '#2DD4BF' }}
-                      >
-                        <HomeIcon className="shrink-0 w-3 h-3" />
-                        {room.name}
-                        {room.smart_pricing_enabled && (
-                          <span title="Smart Pricing enabled" className="text-amber-500 shrink-0">⚡</span>
-                        )}
-                      </span>
-                      <span className="text-[10px] text-slate-400 block truncate">
-                        {room.property?.name ?? ''}
-                      </span>
-                      {viewMode === 'bookings' && (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-[10px] text-slate-400">
-                            ${room.nightly_rate}/night
+                      {labelCollapsed ? (
+                        <div className="flex items-center justify-center h-full py-1">
+                          <span
+                            className="text-[11px] font-bold leading-none"
+                            style={{ color: '#2DD4BF' }}
+                            title={room.name}
+                          >
+                            {room.name.match(/\d+/)?.[0] ?? room.name.slice(0, 3).toUpperCase()}
                           </span>
-                          {onSmartPricingClick && (
-                            <button
-                              type="button"
-                              onClick={(e) => { e.stopPropagation(); onSmartPricingClick(room.id) }}
-                              className="text-[10px] text-teal-500 hover:text-teal-700 font-medium transition-colors"
-                              title="Smart Pricing settings"
-                            >
-                              ⚡ Pricing
-                            </button>
-                          )}
                         </div>
+                      ) : (
+                        <>
+                          <span
+                            className="flex items-center gap-1 text-xs font-semibold truncate w-full text-left"
+                            style={{ color: '#2DD4BF' }}
+                          >
+                            <HomeIcon className="shrink-0 w-3 h-3" />
+                            {room.name}
+                            {room.smart_pricing_enabled && (
+                              <span title="Smart Pricing enabled" className="text-amber-500 shrink-0">⚡</span>
+                            )}
+                          </span>
+                          <span className="text-[10px] text-slate-400 block truncate">
+                            {room.property?.name ?? ''}
+                          </span>
+                          {viewMode === 'bookings' && (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-[10px] text-slate-400">
+                                ${room.nightly_rate}/night
+                              </span>
+                              {onSmartPricingClick && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); onSmartPricingClick(room.id) }}
+                                  className="text-[10px] text-teal-500 hover:text-teal-700 font-medium transition-colors"
+                                  title="Smart Pricing settings"
+                                >
+                                  ⚡ Pricing
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </>
                       )}
                     </td>
 
@@ -527,17 +563,24 @@ export function CalendarGrid({
                               else break
                             }
                             const isPending = booking.status === 'pending'
-                            const pillBg = isPastDate
-                              ? 'linear-gradient(135deg, #94A3B8 0%, #64748B 100%)'
-                              : isPending
-                                ? 'linear-gradient(135deg, #FCD34D 0%, #F59E0B 100%)'
-                                : 'linear-gradient(135deg, #2DD4BF 0%, #14B8A6 50%, #0F766E 100%)'
-                            const pillShadow = isPastDate
-                              ? 'none'
-                              : isPending
-                                ? '0 2px 8px rgba(245,158,11,0.45), 0 1px 3px rgba(0,0,0,0.1)'
-                                : '0 2px 8px rgba(45,212,191,0.5), 0 1px 3px rgba(0,0,0,0.1)'
-                            const labelColor = isPastDate || isPending ? '#1E293B' : '#fff'
+                            const isLongTerm = booking.booking_type === 'long_term'
+                            const isActive = !isLongTerm && booking.check_in <= todayStr && booking.check_out > todayStr
+                            const isPast = booking.check_out <= todayStr
+                            const pillBg = isPending
+                              ? 'linear-gradient(135deg, #FCD34D 0%, #F59E0B 100%)'
+                              : isActive
+                                ? 'linear-gradient(135deg, #86EFAC 0%, #22C55E 100%)'
+                                : isPast
+                                  ? 'linear-gradient(135deg, #94A3B8 0%, #64748B 100%)'
+                                  : 'linear-gradient(135deg, #2DD4BF 0%, #14B8A6 50%, #0F766E 100%)'
+                            const pillShadow = isPending
+                              ? '0 2px 8px rgba(245,158,11,0.45), 0 1px 3px rgba(0,0,0,0.1)'
+                              : isActive
+                                ? '0 2px 8px rgba(34,197,94,0.4), 0 1px 3px rgba(0,0,0,0.1)'
+                                : isPast
+                                  ? 'none'
+                                  : '0 2px 8px rgba(45,212,191,0.5), 0 1px 3px rgba(0,0,0,0.1)'
+                            const labelColor = (isPast && !isActive) || isPending ? '#1E293B' : '#fff'
                             cells.push(
                               <td
                                 key={ds}
@@ -571,6 +614,44 @@ export function CalendarGrid({
                                   className="absolute opacity-0 group-hover/pill:opacity-100 transition-opacity duration-100 pointer-events-none"
                                   style={{ inset: '4px 2px', borderRadius: 9999, background: 'rgba(255,255,255,0.14)' }}
                                 />
+                                {/* Today marker */}
+                                {todayIdx >= 0 && todayIdx >= i && todayIdx < i + span && (
+                                  <div
+                                    aria-hidden
+                                    style={{
+                                      position: 'absolute',
+                                      top: 4,
+                                      bottom: 4,
+                                      left: (todayIdx - i) * DAY_COL_WIDTH + DAY_COL_WIDTH / 2 - 1,
+                                      width: 2,
+                                      background: 'rgba(255,255,255,0.65)',
+                                      borderRadius: 1,
+                                      zIndex: 1,
+                                      pointerEvents: 'none',
+                                    }}
+                                  />
+                                )}
+                                {/* Task dots */}
+                                {Array.from({ length: span }, (_, offset) => {
+                                  const colDate = format(days[i + offset], 'yyyy-MM-dd')
+                                  return roomTasks.some(t => t.due_date === colDate) ? (
+                                    <div
+                                      key={offset}
+                                      aria-hidden
+                                      style={{
+                                        position: 'absolute',
+                                        top: 2,
+                                        left: offset * DAY_COL_WIDTH + DAY_COL_WIDTH / 2 - 3,
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: '50%',
+                                        background: '#EF4444',
+                                        zIndex: 4,
+                                        pointerEvents: 'none',
+                                      }}
+                                    />
+                                  ) : null
+                                })}
                                 {/* Sticky name */}
                                 <div style={{
                                   position: 'sticky',
@@ -618,13 +699,19 @@ export function CalendarGrid({
                               if (format(days[j], 'yyyy-MM-dd') < block.end_date) span++
                               else break
                             }
-                            const icalPillBg = isPastDate
-                              ? 'linear-gradient(135deg, #CBD5E1 0%, #94A3B8 100%)'
-                              : 'linear-gradient(135deg, #A5B4FC 0%, #6366F1 100%)'
-                            const icalShadow = isPastDate
-                              ? 'none'
-                              : '0 2px 8px rgba(99,102,241,0.4), 0 1px 3px rgba(0,0,0,0.1)'
-                            const icalLabelColor = isPastDate ? '#475569' : '#fff'
+                            const isICalActive = block.start_date <= todayStr && block.end_date > todayStr
+                            const isICalPast = block.end_date <= todayStr
+                            const icalPillBg = isICalActive
+                              ? 'linear-gradient(135deg, #86EFAC 0%, #22C55E 100%)'
+                              : isICalPast
+                                ? 'linear-gradient(135deg, #CBD5E1 0%, #94A3B8 100%)'
+                                : 'linear-gradient(135deg, #A5B4FC 0%, #6366F1 100%)'
+                            const icalShadow = isICalActive
+                              ? '0 2px 8px rgba(34,197,94,0.4), 0 1px 3px rgba(0,0,0,0.1)'
+                              : isICalPast
+                                ? 'none'
+                                : '0 2px 8px rgba(99,102,241,0.4), 0 1px 3px rgba(0,0,0,0.1)'
+                            const icalLabelColor = isICalPast ? '#475569' : '#fff'
                             cells.push(
                               <td
                                 key={ds}
@@ -657,6 +744,44 @@ export function CalendarGrid({
                                   className="absolute opacity-0 group-hover/pill:opacity-100 transition-opacity duration-100 pointer-events-none"
                                   style={{ inset: '4px 2px', borderRadius: 9999, background: 'rgba(255,255,255,0.14)' }}
                                 />
+                                {/* Today marker */}
+                                {todayIdx >= 0 && todayIdx >= i && todayIdx < i + span && (
+                                  <div
+                                    aria-hidden
+                                    style={{
+                                      position: 'absolute',
+                                      top: 4,
+                                      bottom: 4,
+                                      left: (todayIdx - i) * DAY_COL_WIDTH + DAY_COL_WIDTH / 2 - 1,
+                                      width: 2,
+                                      background: 'rgba(255,255,255,0.65)',
+                                      borderRadius: 1,
+                                      zIndex: 1,
+                                      pointerEvents: 'none',
+                                    }}
+                                  />
+                                )}
+                                {/* Task dots */}
+                                {Array.from({ length: span }, (_, offset) => {
+                                  const colDate = format(days[i + offset], 'yyyy-MM-dd')
+                                  return roomTasks.some(t => t.due_date === colDate) ? (
+                                    <div
+                                      key={offset}
+                                      aria-hidden
+                                      style={{
+                                        position: 'absolute',
+                                        top: 2,
+                                        left: offset * DAY_COL_WIDTH + DAY_COL_WIDTH / 2 - 3,
+                                        width: 6,
+                                        height: 6,
+                                        borderRadius: '50%',
+                                        background: '#EF4444',
+                                        zIndex: 4,
+                                        pointerEvents: 'none',
+                                      }}
+                                    />
+                                  ) : null
+                                })}
                                 {/* Label */}
                                 <div style={{
                                   position: 'sticky',
@@ -720,6 +845,24 @@ export function CalendarGrid({
                               className="absolute inset-0 opacity-0 group-hover/cell:opacity-100 transition-opacity duration-100 pointer-events-none"
                               style={{ background: 'rgba(45,212,191,0.18)' }}
                             />
+                            {/* Task dot */}
+                            {roomTasks.some(t => t.due_date === ds) && (
+                              <div
+                                aria-hidden
+                                style={{
+                                  position: 'absolute',
+                                  top: 2,
+                                  left: '50%',
+                                  transform: 'translateX(-50%)',
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: '50%',
+                                  background: '#EF4444',
+                                  zIndex: 4,
+                                  pointerEvents: 'none',
+                                }}
+                              />
+                            )}
                             <div className="relative z-10 flex items-center justify-center h-full">
                               <CellContent
                                 status={status}

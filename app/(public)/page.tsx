@@ -23,17 +23,26 @@ import ContactForm from '@/components/public/ContactForm'
 const DEFAULT_ABOUT =
   'Top of the Hill Estates offers fully furnished rooms in the heart of Mesa and Tempe, Arizona. Whether you need a short-term stay or a long-term home, we have flexible options to fit your lifestyle — with no platform fees when you book directly.'
 
+type Review = {
+  id: string
+  rating: number
+  comment: string | null
+  booking: { guest_first_name: string; guest_last_name: string } | null
+}
+
 async function getData() {
   try {
     const supabase = await createServerSupabaseClient()
 
-    const [roomsResult, settings] = await Promise.all([
-      supabase
-        .from('rooms')
-        .select('*, property:properties(*)')
-        .eq('is_active', true)
-        .order('name'),
+    const [roomsResult, settings, reviewsResult] = await Promise.all([
+      supabase.from('rooms').select('*, property:properties(*)').eq('is_active', true).order('name'),
       getSiteSettings(),
+      supabase
+        .from('reviews')
+        .select('id, rating, comment, booking:bookings(guest_first_name, guest_last_name)')
+        .eq('approved', true)
+        .order('created_at', { ascending: false })
+        .limit(6),
     ])
 
     const rooms: Array<Room & { property: Property }> = roomsResult.data ?? []
@@ -49,24 +58,30 @@ async function getData() {
       }
     }
 
+    const reviews: Review[] = (reviewsResult.data ?? []).map((r) => ({
+      ...r,
+      booking: Array.isArray(r.booking) ? (r.booking[0] ?? null) : r.booking,
+    })) as Review[]
+
     return {
       properties: Array.from(propertyMap.values()),
       aboutText: settings?.about_text ?? DEFAULT_ABOUT,
+      reviews,
     }
   } catch {
-    return { properties: [], aboutText: DEFAULT_ABOUT }
+    return { properties: [], aboutText: DEFAULT_ABOUT, reviews: [] }
   }
 }
 
 export default async function HomePage() {
-  const { properties, aboutText } = await getData()
+  const { properties, aboutText, reviews } = await getData()
 
   return (
     <>
       <Hero />
       <AboutSection aboutText={aboutText} />
       <PropertiesSection properties={properties} />
-      <ReviewsSection />
+      <ReviewsSection reviews={reviews} />
       <section id="contact" className="bg-background py-16 px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl">
           <h2 className="font-display text-3xl font-bold text-primary mb-2">Get in Touch</h2>

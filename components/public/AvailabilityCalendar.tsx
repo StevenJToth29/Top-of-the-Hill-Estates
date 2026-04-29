@@ -23,6 +23,7 @@ interface Props {
   selectedCheckIn?: string | null
   selectedCheckOut?: string | null
   onDateSelect?: (date: string) => void
+  windowEnd?: string // YYYY-MM-DD — dates after this are treated as blocked
 }
 
 const DAYS_OF_WEEK = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
@@ -34,6 +35,7 @@ function MonthGrid({
   selectedCheckIn,
   selectedCheckOut,
   onDateSelect,
+  windowEnd,
 }: {
   month: Date
   today: Date
@@ -41,6 +43,7 @@ function MonthGrid({
   selectedCheckIn?: string | null
   selectedCheckOut?: string | null
   onDateSelect?: (date: string) => void
+  windowEnd?: string
 }) {
   const monthStart = startOfMonth(month)
   const monthEnd = endOfMonth(month)
@@ -69,7 +72,7 @@ function MonthGrid({
           const isCurrentMonth = isSameMonth(day, month)
           const isToday = isSameDay(day, today)
           const isPast = isBefore(day, today) && !isToday
-          const isBlocked = blockedSet.has(iso)
+          const isBlocked = blockedSet.has(iso) || (!!windowEnd && iso > windowEnd)
           const isDisabled = isPast || isBlocked || !isCurrentMonth
 
           const isCheckIn = checkInDate && isSameDay(day, checkInDate)
@@ -133,6 +136,7 @@ export default function AvailabilityCalendar({
   selectedCheckIn,
   selectedCheckOut,
   onDateSelect,
+  windowEnd,
 }: Props) {
   const [startMonth, setStartMonth] = useState(() => THIS_MONTH)
 
@@ -152,7 +156,7 @@ export default function AvailabilityCalendar({
 
   const atMin = isSameDay(startMonth, THIS_MONTH)
 
-  const sharedProps = { today: TODAY, blockedSet, selectedCheckIn, selectedCheckOut, onDateSelect }
+  const sharedProps = { today: TODAY, blockedSet, selectedCheckIn, selectedCheckOut, onDateSelect, windowEnd }
 
   return (
     <div className="bg-surface-highest/40 backdrop-blur-xl shadow-[0_8px_40px_rgba(45,212,191,0.06)] rounded-2xl p-5">

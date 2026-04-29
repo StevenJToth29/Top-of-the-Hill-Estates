@@ -14,6 +14,7 @@ const SOURCE_COLORS: Record<string, string> = {
 interface BookingDetailModalProps {
   booking: Booking
   onClose: () => void
+  onEdit: (bookingId: string) => void
   onViewFull: (bookingId: string) => void
   onCancelBooking: (bookingId: string) => void
 }
@@ -21,6 +22,7 @@ interface BookingDetailModalProps {
 export function BookingDetailModal({
   booking,
   onClose,
+  onEdit,
   onViewFull,
   onCancelBooking,
 }: BookingDetailModalProps) {
@@ -81,9 +83,13 @@ export function BookingDetailModal({
             Cancel Booking
           </button>
           <button type="button" onClick={() => onViewFull(booking.id)}
+            className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors">
+            View
+          </button>
+          <button type="button" onClick={() => onEdit(booking.id)}
             className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors"
             style={{ background: '#2DD4BF' }}>
-            View Full Booking
+            ✏ Edit
           </button>
         </div>
       </div>
