@@ -102,6 +102,29 @@ describe('PATCH /api/admin/task-automations/[id]', () => {
     const res = await PATCH(req, idParams)
     expect(res.status).toBe(200)
   })
+  it('returns 404 when automation not found', async () => {
+    ;(createServerSupabaseClient as jest.Mock).mockResolvedValue(makeAuth())
+    ;(createServiceRoleClient as jest.Mock).mockReturnValue({
+      from: jest.fn().mockReturnValue({
+        update: jest.fn().mockReturnValue({
+          eq: jest.fn().mockReturnValue({
+            select: jest.fn().mockReturnValue({
+              single: jest.fn().mockResolvedValue({
+                data: null,
+                error: { code: 'PGRST116', message: 'Row not found' },
+              }),
+            }),
+          }),
+        }),
+      }),
+    })
+    const req = new NextRequest('http://localhost/api/admin/task-automations/missing', {
+      method: 'PATCH', body: JSON.stringify({ is_active: false }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    const res = await PATCH(req, { params: Promise.resolve({ id: 'missing' }) })
+    expect(res.status).toBe(404)
+  })
 })
 
 describe('DELETE /api/admin/task-automations/[id]', () => {
