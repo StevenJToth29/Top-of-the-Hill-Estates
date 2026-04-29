@@ -27,7 +27,9 @@ function makeDb(overrides: Record<string, unknown> = {}) {
   const insert = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single }) })
   const eqUpdate = jest.fn().mockReturnValue({ select: jest.fn().mockReturnValue({ single }) })
   const update = jest.fn().mockReturnValue({ eq: eqUpdate })
-  const eqDelete = jest.fn().mockResolvedValue({ error: null })
+  const eqDeleteSingle = jest.fn().mockResolvedValue({ data: personRow, error: null })
+  const eqDeleteSelect = jest.fn().mockReturnValue({ single: eqDeleteSingle })
+  const eqDelete = jest.fn().mockReturnValue({ select: eqDeleteSelect })
   const del = jest.fn().mockReturnValue({ eq: eqDelete })
   return { from: jest.fn().mockReturnValue({ select, insert, update, delete: del }), ...overrides }
 }
