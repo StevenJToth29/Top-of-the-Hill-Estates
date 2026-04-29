@@ -474,8 +474,23 @@ export interface CalendarTask {
   recurrence_end_date: string | null
   status: 'pending' | 'complete'
   color: string | null
+  series_id: string | null
+  occurrence_date: string | null
+  is_recurring: boolean | null
   created_at: string
   updated_at: string
+}
+
+export interface TaskException {
+  id: string
+  task_id: string
+  occurrence_date: string
+  is_deleted: boolean
+  status: 'pending' | 'complete' | null
+  title: string | null
+  color: string | null
+  description: string | null
+  created_at: string
 }
 
 export interface CalendarData {
