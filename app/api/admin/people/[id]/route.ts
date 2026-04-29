@@ -19,11 +19,14 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   const supabase = createServiceRoleClient()
   const { data, error } = await supabase
     .from('people')
-    .update({ name: body.name })
+    .update({ name: body.name.trim() })
     .eq('id', id)
     .select()
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    const status = error.code === 'PGRST116' ? 404 : 500
+    return NextResponse.json({ error: error.message }, { status })
+  }
   return NextResponse.json(data)
 }
 
