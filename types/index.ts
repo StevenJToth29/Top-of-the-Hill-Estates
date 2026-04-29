@@ -366,6 +366,7 @@ export type TriggerEvent =
   | 'booking_confirmed'
   | 'booking_pending'
   | 'booking_cancelled'
+  | 'booking_abandoned'
   | 'contact_submitted'
   | 'checkin_reminder'
   | 'checkout_reminder'
@@ -474,9 +475,9 @@ export interface CalendarTask {
   recurrence_end_date: string | null
   status: 'pending' | 'complete'
   color: string | null
-  series_id: string | null
-  occurrence_date: string | null
-  is_recurring: boolean | null
+  series_id: string | null        // set to task.id when recurrence_rule is set
+  occurrence_date: string | null  // set on virtual expanded occurrences (not stored in DB)
+  is_recurring: boolean | null    // true on virtual expanded occurrences (not stored in DB)
   created_at: string
   updated_at: string
 }
