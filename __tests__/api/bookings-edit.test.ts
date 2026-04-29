@@ -264,3 +264,68 @@ describe('PATCH /api/admin/bookings/[id]/edit', () => {
     )
   })
 })
+
+// ── admin_monthly_amount override ───────────────────────────────────────────
+
+describe('PATCH /api/admin/bookings/[id]/edit — admin_monthly_amount override', () => {
+  const ltBooking = {
+    ...baseBooking,
+    booking_type: 'long_term',
+    check_out: '9999-12-31',
+    total_nights: 0,
+    total_amount: 3000,
+    amount_paid: 3000,
+    monthly_rate: 3000,
+    stripe_payment_intent_id: null as string | null,
+  }
+  const ltRoom = { ...baseRoom, monthly_rate: 3000, security_deposit: 500, extra_guest_fee: 0 }
+
+  beforeEach(() => jest.clearAllMocks())
+
+  it('uses admin_monthly_amount as both total_amount and monthly_rate for long-term', async () => {
+    const { update } = setupMocks(ltBooking, ltRoom)
+    const res = await PATCH(makeRequest({ admin_monthly_amount: 2200 }), mockParams)
+    expect(res.status).toBe(200)
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        total_amount: 2200,
+        monthly_rate: 2200,
+      }),
+    )
+  })
+
+  it('returns 400 when admin_monthly_amount is zero', async () => {
+    setupMocks(ltBooking, ltRoom)
+    const res = await PATCH(makeRequest({ admin_monthly_amount: 0 }), mockParams)
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error).toMatch(/admin_monthly_amount/i)
+  })
+
+  it('returns 400 when admin_monthly_amount is negative', async () => {
+    setupMocks(ltBooking, ltRoom)
+    const res = await PATCH(makeRequest({ admin_monthly_amount: -500 }), mockParams)
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error).toMatch(/admin_monthly_amount/i)
+  })
+
+  it('adds booking_fees on top of admin_monthly_amount', async () => {
+    const { update } = setupMocks(ltBooking, ltRoom, [{ amount: 100 }])
+    const res = await PATCH(makeRequest({ admin_monthly_amount: 2200 }), mockParams)
+    expect(res.status).toBe(200)
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ total_amount: 2300 }),
+    )
+  })
+
+  it('falls back to standard long-term computation when admin_monthly_amount is absent', async () => {
+    const { update } = setupMocks(ltBooking, ltRoom)
+    // standard: 3000 monthly + 500 deposit + 0 extra = 3500
+    const res = await PATCH(makeRequest({ guest_count: 1 }), mockParams)
+    expect(res.status).toBe(200)
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({ total_amount: 3500 }),
+    )
+  })
+})
