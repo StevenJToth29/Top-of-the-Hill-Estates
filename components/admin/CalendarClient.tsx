@@ -55,7 +55,7 @@ function mergeCalendarData(existing: CalendarData, incoming: CalendarData): Cale
 type ModalState =
   | { type: 'none' }
   | { type: 'night'; roomId: string; date: string }
-  | { type: 'task'; task?: CalendarTask; roomId?: string | null; propertyId?: string | null; date?: string }
+  | { type: 'task'; task?: CalendarTask; roomId?: string | null; propertyId?: string | null; date?: string; occurrenceDate?: string }
   | { type: 'block'; roomId: string; from: string; to: string }
   | { type: 'setPrice'; roomId: string; from: string; to: string }
   | { type: 'addBooking'; roomId: string; checkIn: string; checkOut: string }
@@ -366,7 +366,7 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
           onSelectionChange={setSelection}
           onCellClick={handleCellClick}
           onBookingClick={(booking) => setModal({ type: 'bookingDetail', booking })}
-          onTaskClick={(task) => setModal({ type: 'task', task })}
+          onTaskClick={(task) => setModal({ type: 'task', task, occurrenceDate: task.occurrence_date ?? undefined })}
           onAddTask={(roomId, date) => setModal({ type: 'task', roomId, date })}
           onAddPropertyTask={(propertyId, date) => setModal({ type: 'task', propertyId, date })}
           onSmartPricingClick={(roomId) => setModal({ type: 'smartPricing', roomId })}
@@ -508,10 +508,12 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
           initialRoomId={modal.roomId}
           initialPropertyId={modal.propertyId}
           initialDate={modal.date}
+          occurrenceDate={modal.occurrenceDate}
           onClose={closeModal}
           onSuccess={(task) => {
             setData((prev) => {
-              const existing = prev.tasks.findIndex((t) => t.id === task.id)
+              const key = `${task.id}|${task.due_date}`
+              const existing = prev.tasks.findIndex((t) => `${t.id}|${t.due_date}` === key)
               if (existing >= 0) {
                 const tasks = [...prev.tasks]
                 tasks[existing] = task
@@ -521,8 +523,17 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
             })
             closeModal()
           }}
-          onDelete={(taskId) => {
-            setData((prev) => ({ ...prev, tasks: prev.tasks.filter((t) => t.id !== taskId) }))
+          onDelete={(taskId, occurrenceDate) => {
+            if (occurrenceDate) {
+              setData((prev) => ({
+                ...prev,
+                tasks: prev.tasks.filter(
+                  (t) => !(t.id === taskId && t.due_date === occurrenceDate),
+                ),
+              }))
+            } else {
+              setData((prev) => ({ ...prev, tasks: prev.tasks.filter((t) => t.id !== taskId) }))
+            }
           }}
         />
       )}
