@@ -134,10 +134,19 @@ export async function POST(request: NextRequest) {
           .from('bookings')
           .update(updatePayload)
           .eq('stripe_payment_intent_id', session.payment_intent as string)
-        const { error } = isPaid ? await query.eq('status', 'pending') : await query
+        const { data: updatedBookings, error } = isPaid
+          ? await query.eq('status', 'pending').select('id')
+          : await query.select('id')
 
         if (error) {
           console.error('Failed to update booking on checkout.session.completed:', error)
+        } else if (isPaid && updatedBookings && updatedBookings.length > 0) {
+          // Fire task generation for each booking confirmed through this path (idempotent)
+          for (const b of updatedBookings) {
+            generateTasksForBooking(b.id, 'booking_confirmed').catch((err) => {
+              console.error('task automation error on checkout.session.completed:', err)
+            })
+          }
         }
         break
       }

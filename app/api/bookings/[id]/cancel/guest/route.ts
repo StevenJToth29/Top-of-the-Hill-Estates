@@ -137,12 +137,9 @@ export async function POST(
       console.error('cancelBookingEmails error:', err)
     })
 
-    cleanupTasksForCancelledBooking(params.id).catch((err) => {
-      console.error('task cleanup error on guest booking_cancelled:', err)
-    })
-    generateTasksForBooking(params.id, 'booking_cancelled').catch((err) => {
-      console.error('task automation error on guest booking_cancelled:', err)
-    })
+    cleanupTasksForCancelledBooking(params.id)
+      .then(() => generateTasksForBooking(params.id, 'booking_cancelled'))
+      .catch((err) => { console.error('task automation error on guest booking_cancelled:', err) })
 
     return NextResponse.json({ success: true, refund_amount: refund.refund_amount })
   } catch (err) {
