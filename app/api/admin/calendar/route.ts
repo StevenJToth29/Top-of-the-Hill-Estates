@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import { RRule } from 'rrule'
-import type { CalendarTask } from '@/types'
+import type { CalendarTask, TaskException } from '@/types'
 
 export async function GET(request: NextRequest) {
   const serverClient = await createServerSupabaseClient()
@@ -58,10 +58,21 @@ export async function GET(request: NextRequest) {
   if (overridesRes.error) return NextResponse.json({ error: overridesRes.error.message }, { status: 500 })
   if (tasksRes.error) return NextResponse.json({ error: tasksRes.error.message }, { status: 500 })
 
+  const exceptionsRes = await supabase
+    .from('task_exceptions')
+    .select('*')
+    .gte('occurrence_date', from)
+    .lte('occurrence_date', to)
+
   const fromDate = new Date(from + 'T00:00:00Z')
   const toDate = new Date(to + 'T23:59:59Z')
 
-  const expandedTasks = expandRecurringTasks(tasksRes.data ?? [], fromDate, toDate)
+  const expandedTasks = expandRecurringTasks(
+    tasksRes.data ?? [],
+    exceptionsRes.data ?? [],
+    fromDate,
+    toDate,
+  )
 
   return NextResponse.json({
     rooms: roomsRes.data ?? [],
@@ -74,9 +85,15 @@ export async function GET(request: NextRequest) {
 
 function expandRecurringTasks(
   tasks: CalendarTask[],
+  exceptions: TaskException[],
   from: Date,
   to: Date,
 ): CalendarTask[] {
+  const exceptionMap = new Map<string, TaskException>()
+  for (const exc of exceptions) {
+    exceptionMap.set(`${exc.task_id}|${exc.occurrence_date}`, exc)
+  }
+
   const result: CalendarTask[] = []
 
   for (const task of tasks) {
@@ -96,10 +113,24 @@ function expandRecurringTasks(
       const rule = new RRule(rruleOptions)
       const occurrences = rule.between(from, to, true)
       const MAX_OCCURRENCES = 500
-      const capped = occurrences.slice(0, MAX_OCCURRENCES)
-      for (const occ of capped) {
+
+      for (const occ of occurrences.slice(0, MAX_OCCURRENCES)) {
         const dateStr = occ.toISOString().split('T')[0]
-        result.push({ ...task, due_date: dateStr })
+        const key = `${task.id}|${dateStr}`
+        const exc = exceptionMap.get(key)
+
+        if (exc?.is_deleted) continue
+
+        result.push({
+          ...task,
+          due_date: dateStr,
+          occurrence_date: dateStr,
+          is_recurring: true,
+          status: (exc?.status ?? task.status) as 'pending' | 'complete',
+          title: exc?.title ?? task.title,
+          color: exc?.color ?? task.color,
+          description: exc?.description ?? task.description,
+        })
       }
     } catch {
       result.push(task)
