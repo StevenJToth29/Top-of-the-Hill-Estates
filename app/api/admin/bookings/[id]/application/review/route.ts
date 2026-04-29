@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
 import { capturePaymentIntent, stripe } from '@/lib/stripe'
 import { evaluateAndQueueEmails, seedReminderEmails, cancelBookingEmails } from '@/lib/email-queue'
+import { generateTasksForBooking, cleanupTasksForCancelledBooking } from '@/lib/task-automation'
 
 interface RouteContext { params: Promise<{ id: string }> }
 interface ReviewBody { decision: 'approved' | 'declined'; decline_reason?: string }
@@ -66,6 +67,9 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     seedReminderEmails(booking.id).catch(
       (err) => { console.error('seedReminderEmails error:', err) }
     )
+    generateTasksForBooking(bookingId, 'booking_confirmed').catch(
+      (err) => { console.error('task automation error on booking_approved:', err) }
+    )
   } else {
     // For decline: attempt PI cancel and DB updates in parallel.
     // capturePaymentIntent_unexpected_state means the PI is already in processing/succeeded
@@ -104,6 +108,9 @@ export async function PATCH(req: Request, { params }: RouteContext) {
     evaluateAndQueueEmails('booking_declined', { type: 'booking', bookingId }).catch(
       (err) => { console.error('email queue error on booking_declined:', err) }
     )
+    cleanupTasksForCancelledBooking(bookingId)
+      .then(() => generateTasksForBooking(bookingId, 'booking_cancelled'))
+      .catch((err) => { console.error('task automation error on booking_declined:', err) })
   }
 
   return NextResponse.json({ success: true, decision: body.decision })

@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
 
     supabase
       .from('calendar_tasks')
-      .select('*')
+      .select('*, assignee:people(id,name,ical_token,created_at,updated_at)')
       .or(`recurrence_rule.not.is.null,and(due_date.gte.${from},due_date.lte.${to})`),
   ])
 

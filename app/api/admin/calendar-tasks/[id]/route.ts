@@ -20,7 +20,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: 'Invalid request body' }, { status: 400 })
     }
 
-    const allowed = ['title', 'description', 'due_date', 'recurrence_rule', 'recurrence_end_date', 'status', 'color', 'room_id', 'property_id']
+    const allowed = ['title', 'description', 'due_date', 'recurrence_rule', 'recurrence_end_date', 'status', 'color', 'room_id', 'property_id', 'assignee_id']
     const updates: Record<string, unknown> = {}
     for (const key of allowed) {
       if (key in body) updates[key] = body[key]
@@ -32,7 +32,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       .from('calendar_tasks')
       .update(updates)
       .eq('id', id)
-      .select()
+      .select('*, assignee:people(id,name,ical_token,created_at,updated_at)')
       .single()
 
     if (error) {

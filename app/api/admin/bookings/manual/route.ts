@@ -3,6 +3,7 @@ import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supab
 import { isRoomAvailable } from '@/lib/availability'
 import { OPEN_ENDED_DATE } from '@/lib/format'
 import { evaluateAndQueueEmails, seedReminderEmails } from '@/lib/email-queue'
+import { generateTasksForBooking } from '@/lib/task-automation'
 import { notifyGHLBookingConfirmed } from '@/lib/ghl'
 import type { BookingType, Booking } from '@/types'
 
@@ -242,6 +243,9 @@ export async function POST(request: Request) {
 
   seedReminderEmails(createdBooking.id).catch((err) => {
     console.error('seedReminderEmails error on manual booking:', err)
+  })
+  generateTasksForBooking(createdBooking.id, 'booking_confirmed').catch((err) => {
+    console.error('task automation error on manual booking_confirmed:', err)
   })
 
   return NextResponse.json({ success: true, booking: data }, { status: 201 })

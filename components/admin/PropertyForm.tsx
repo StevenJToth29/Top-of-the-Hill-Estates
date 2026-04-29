@@ -15,9 +15,10 @@ interface PropertyFormProps {
   propertyId?: string
   globalHouseRules?: string
   stripeAccounts?: StripeAccount[]
+  taskAutomationsTab?: React.ReactNode
 }
 
-type PropertyTab = 'info' | 'amenities' | 'policy' | 'images' | 'payout'
+type PropertyTab = 'info' | 'amenities' | 'policy' | 'images' | 'payout' | 'automations'
 
 function CompletenessBar({ checks }: { checks: [string, boolean][] }) {
   const done = checks.filter((c) => c[1]).length
@@ -70,6 +71,7 @@ export default function PropertyForm({
   propertyId,
   globalHouseRules = '',
   stripeAccounts = [],
+  taskAutomationsTab,
 }: PropertyFormProps) {
   const [isPending, startTransition] = useTransition()
   const [tab, setTab] = useState<PropertyTab>('info')
@@ -123,6 +125,7 @@ export default function PropertyForm({
       icon: '💳',
       warn: stripeAccounts.length > 0 && !stripeAccountId,
     },
+    { id: 'automations', label: 'Automations' },
   ]
 
   const inputClass =
@@ -596,6 +599,13 @@ export default function PropertyForm({
                 </div>
               )}
             </SCard>
+          </div>
+        )}
+
+        {/* ── Tab: Automations ── */}
+        {tab === 'automations' && (
+          <div className="px-6 pb-8">
+            {taskAutomationsTab}
           </div>
         )}
 

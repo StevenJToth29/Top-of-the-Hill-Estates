@@ -81,7 +81,7 @@ export function CalendarTaskRow({
                 type="button"
                 key={`${task.id}-${task.due_date}`}
                 onClick={(e) => { e.stopPropagation(); onTaskClick(task) }}
-                className="absolute top-1 bottom-1 rounded-md text-[10px] text-white font-semibold px-1 truncate hover:brightness-110 transition-all shadow-sm"
+                className="absolute top-1 bottom-1 rounded-md text-[10px] text-white font-semibold px-1 flex items-center gap-1 hover:brightness-110 transition-all shadow-sm"
                 style={{
                   left: `${leftPct}%`,
                   width: `${widthPct}%`,
@@ -90,7 +90,13 @@ export function CalendarTaskRow({
                 }}
                 title={task.title}
               >
-                {task.title}
+                <span className="truncate">{task.title}</span>
+                {task.assignee && (
+                  <span
+                    className="inline-block shrink-0 w-1.5 h-1.5 rounded-full bg-white opacity-80"
+                    title={task.assignee.name}
+                  />
+                )}
               </button>
             )
           })}

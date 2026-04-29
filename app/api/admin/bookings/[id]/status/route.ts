@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient, createServerSupabaseClient } from '@/lib/supabase'
+import { generateTasksForBooking, cleanupTasksForCancelledBooking } from '@/lib/task-automation'
 
 export async function PATCH(
   request: NextRequest,
@@ -44,6 +45,16 @@ export async function PATCH(
     if (updateError) {
       console.error('Failed to update booking status:', updateError)
       return NextResponse.json({ error: 'Failed to update booking status' }, { status: 500 })
+    }
+
+    if (status === 'confirmed') {
+      generateTasksForBooking(params.id, 'booking_confirmed').catch((err) => {
+        console.error('task automation error on manual booking_confirmed:', err)
+      })
+    } else if (status === 'cancelled') {
+      cleanupTasksForCancelledBooking(params.id)
+        .then(() => generateTasksForBooking(params.id, 'booking_cancelled'))
+        .catch((err) => { console.error('task automation error on manual booking_cancelled:', err) })
     }
 
     return NextResponse.json({ success: true })

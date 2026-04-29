@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { calculateRefund, resolvePolicy } from '@/lib/cancellation'
 import { evaluateAndQueueEmails, cancelBookingEmails } from '@/lib/email-queue'
+import { generateTasksForBooking, cleanupTasksForCancelledBooking } from '@/lib/task-automation'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
 import type { Booking } from '@/types'
 
@@ -135,6 +136,10 @@ export async function POST(
     cancelBookingEmails(params.id).catch((err) => {
       console.error('cancelBookingEmails error:', err)
     })
+
+    cleanupTasksForCancelledBooking(params.id)
+      .then(() => generateTasksForBooking(params.id, 'booking_cancelled'))
+      .catch((err) => { console.error('task automation error on guest booking_cancelled:', err) })
 
     return NextResponse.json({ success: true, refund_amount: refund.refund_amount })
   } catch (err) {

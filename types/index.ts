@@ -478,6 +478,11 @@ export interface CalendarTask {
   series_id: string | null        // set to task.id when recurrence_rule is set
   occurrence_date: string | null  // set on virtual expanded occurrences (not stored in DB)
   is_recurring: boolean | null    // true on virtual expanded occurrences (not stored in DB)
+  assignee_id: string | null
+  source_booking_id: string | null
+  source_ical_block_id: string | null
+  automation_id: string | null
+  assignee?: Person
   created_at: string
   updated_at: string
 }
@@ -492,6 +497,23 @@ export interface TaskException {
   color: string | null
   description: string | null
   created_at: string
+}
+
+// ── Task automations ──────────────────────────────────────────────────────────
+
+export type TaskTriggerEvent = 'booking_confirmed' | 'checkin_day' | 'checkout' | 'booking_cancelled'
+export type TaskScopeType = 'global' | 'property' | 'room'
+
+export interface Person {
+  id: string; name: string; ical_token: string; created_at: string; updated_at: string
+}
+
+export interface TaskAutomation {
+  id: string; scope_type: TaskScopeType; room_id: string | null; property_id: string | null
+  trigger_event: TaskTriggerEvent; title: string; description: string | null; day_offset: number
+  color: string | null; assignee_id: string | null; is_active: boolean
+  created_at: string; updated_at: string
+  room?: { name: string }; property?: { name: string }; assignee?: Person
 }
 
 export interface CalendarData {

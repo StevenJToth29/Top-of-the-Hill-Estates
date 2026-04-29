@@ -1,0 +1,32 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerSupabaseClient, createServiceRoleClient } from '@/lib/supabase'
+
+async function requireAuth() {
+  const server = await createServerSupabaseClient()
+  const { data: { user }, error } = await server.auth.getUser()
+  return error || !user ? null : user
+}
+
+export async function GET() {
+  if (!(await requireAuth())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const supabase = createServiceRoleClient()
+  const { data, error } = await supabase.from('people').select('*').order('name')
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data ?? [])
+}
+
+export async function POST(request: NextRequest) {
+  if (!(await requireAuth())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const body = (await request.json()) as { name?: string }
+  if (!body.name || typeof body.name !== 'string') {
+    return NextResponse.json({ error: 'name is required' }, { status: 400 })
+  }
+  const supabase = createServiceRoleClient()
+  const { data, error } = await supabase
+    .from('people')
+    .insert({ name: body.name.trim() })
+    .select()
+    .single()
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  return NextResponse.json(data, { status: 201 })
+}

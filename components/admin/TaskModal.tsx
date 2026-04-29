@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef } from 'react'
 import { InformationCircleIcon } from '@heroicons/react/16/solid'
 import { ModalShell } from './calendar/ModalShell'
-import type { Room, CalendarTask } from '@/types'
+import type { Room, CalendarTask, Person } from '@/types'
 
 const PRESET_COLORS = ['#6366F1', '#2DD4BF', '#F59E0B', '#EF4444', '#10B981', '#8B5CF6']
 const RECURRENCE_OPTIONS = [
@@ -16,6 +16,7 @@ const RECURRENCE_OPTIONS = [
 
 interface TaskModalProps {
   rooms: Room[]
+  people?: Person[]
   task?: CalendarTask
   initialRoomId?: string | null
   initialPropertyId?: string | null
@@ -27,7 +28,7 @@ interface TaskModalProps {
 }
 
 export function TaskModal({
-  rooms, task, initialRoomId = null, initialPropertyId = null, initialDate, occurrenceDate, onClose, onSuccess, onDelete,
+  rooms, people = [], task, initialRoomId = null, initialPropertyId = null, initialDate, occurrenceDate, onClose, onSuccess, onDelete,
 }: TaskModalProps) {
   const isEdit = !!task
   const isRecurringOccurrence = !!occurrenceDate && !!task?.recurrence_rule
@@ -67,6 +68,7 @@ export function TaskModal({
   const [recurrenceEnd, setRecurrenceEnd] = useState(task?.recurrence_end_date ?? '')
   const [status, setStatus] = useState<'pending' | 'complete'>(task?.status ?? 'pending')
   const [color, setColor] = useState(task?.color ?? PRESET_COLORS[0])
+  const [assigneeId, setAssigneeId] = useState(task?.assignee_id ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -109,6 +111,7 @@ export function TaskModal({
           recurrence_end_date: recurrenceEnd || null,
           status,
           color,
+          assignee_id: assigneeId || null,
         }
 
     try {
@@ -359,6 +362,22 @@ export function TaskModal({
             ))}
           </div>
         </div>
+
+        {people.length > 0 && (
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">Assigned to</label>
+            <select
+              value={assigneeId}
+              onChange={(e) => setAssigneeId(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+            >
+              <option value="">Unassigned</option>
+              {people.map((p) => (
+                <option key={p.id} value={p.id}>{p.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {error && <p className="text-xs text-red-500">{error}</p>}
 
