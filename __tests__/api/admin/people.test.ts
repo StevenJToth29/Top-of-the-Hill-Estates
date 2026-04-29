@@ -92,6 +92,12 @@ describe('PATCH /api/admin/people/[id]', () => {
 })
 
 describe('DELETE /api/admin/people/[id]', () => {
+  it('returns 401 when not authenticated', async () => {
+    ;(createServerSupabaseClient as jest.Mock).mockResolvedValue(makeAuthFail())
+    const req = new NextRequest('http://localhost/api/admin/people/person-1', { method: 'DELETE' })
+    const res = await DELETE(req, idParams)
+    expect(res.status).toBe(401)
+  })
   it('deletes and returns 200', async () => {
     ;(createServerSupabaseClient as jest.Mock).mockResolvedValue(makeAuth())
     ;(createServiceRoleClient as jest.Mock).mockReturnValue(makeDb())

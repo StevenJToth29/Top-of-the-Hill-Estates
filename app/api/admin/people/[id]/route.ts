@@ -13,6 +13,9 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
   if (!(await requireAuth())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   const { id } = await params
   const body = (await request.json()) as { name?: string }
+  if (!body.name || typeof body.name !== 'string') {
+    return NextResponse.json({ error: 'name is required' }, { status: 400 })
+  }
   const supabase = createServiceRoleClient()
   const { data, error } = await supabase
     .from('people')
