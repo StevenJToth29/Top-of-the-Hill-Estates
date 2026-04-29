@@ -90,10 +90,10 @@ export async function PATCH(
     }
 
     // Availability check (excluding this booking's own dates)
-    // Note: open-ended bookings skip this check because isRoomAvailableExcluding cannot
-    // handle '9999-12-31' as the end date. A check-in date change on an open-ended
-    // booking is not validated against conflicts as a result.
-    {
+    // Only runs when dates actually changed — price-only edits skip this entirely.
+    // Note: open-ended bookings cap the check at 730 days from today because
+    // isRoomAvailableExcluding cannot handle '9999-12-31' as the end date.
+    if (checkIn !== b.check_in || checkOut !== b.check_out) {
       const CAP_DAYS = 730
       const checkOutForAvailability =
         checkOut === OPEN_ENDED_DATE
