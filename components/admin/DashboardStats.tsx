@@ -71,6 +71,8 @@ function StatCard({ label, value, delta, deltaUnit = '%', sub, accent, breakdown
 
 interface DashboardStatsProps {
   thisMonthRevenue: number
+  thisMonthShortTermRevenue: number
+  thisMonthLongTermRevenue: number
   thisMonthProcessingFees: number
   thisMonthNet: number
   revenueDelta: number
@@ -84,6 +86,8 @@ interface DashboardStatsProps {
 
 export default function DashboardStats({
   thisMonthRevenue,
+  thisMonthShortTermRevenue,
+  thisMonthLongTermRevenue,
   thisMonthProcessingFees,
   thisMonthNet,
   revenueDelta,
@@ -107,7 +111,8 @@ export default function DashboardStats({
         sub="vs last month"
         accent="#2DD4BF"
         breakdown={[
-          { label: 'Gross amount', value: fmt$(thisMonthRevenue) },
+          { label: 'Short-term', value: fmt$(thisMonthShortTermRevenue) },
+          { label: 'Long-term', value: fmt$(thisMonthLongTermRevenue) },
           { label: 'Processing fees', value: `−${fmt$(thisMonthProcessingFees)}`, muted: true },
           { label: 'Net revenue', value: fmt$(thisMonthNet) },
         ]}
