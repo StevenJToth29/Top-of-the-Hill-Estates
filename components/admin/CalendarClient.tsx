@@ -21,6 +21,7 @@ import type {
   Booking,
   CalendarTask,
   CalendarData,
+  Person,
 } from '@/types'
 
 const DAYS_BEFORE = 60
@@ -79,6 +80,7 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
   const [roomSearch, setRoomSearch] = useState('')
   const [viewMode, setViewMode] = useState<'bookings' | 'tasks'>('bookings')
   const [labelCollapsed, setLabelCollapsed] = useState(false)
+  const [people, setPeople] = useState<Person[]>([])
 
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const daysRef = useRef(days)
@@ -87,6 +89,13 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
   const pendingScrollAdjust = useRef(0)
 
   useEffect(() => { daysRef.current = days }, [days])
+
+  useEffect(() => {
+    fetch('/api/admin/people')
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: Person[]) => setPeople(data))
+      .catch(() => {})
+  }, [])
 
   const { overrideMap, getOverride, applyOverrides, removeBlock, removeOverride } = useDateOverrides(
     data.dateOverrides,
@@ -510,6 +519,7 @@ export function CalendarClient({ initialData, today }: CalendarClientProps) {
       {modal.type === 'task' && (
         <TaskModal
           rooms={data.rooms}
+          people={people}
           task={modal.task}
           initialRoomId={modal.roomId}
           initialPropertyId={modal.propertyId}
