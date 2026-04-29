@@ -77,7 +77,8 @@ async function insertNewTasks(
     const expectedDate = addDays(baseDate, rule.day_offset)
     const stored = existingMap.get(rule.id) as { id: string; due_date: string } | undefined
     if (stored && stored.due_date !== expectedDate) {
-      await supabase.from('calendar_tasks').update({ due_date: expectedDate }).eq('id', stored.id)
+      const { error: updateErr } = await supabase.from('calendar_tasks').update({ due_date: expectedDate }).eq('id', stored.id)
+      if (updateErr) console.error('[task-automation] due_date update error:', updateErr)
     }
   }
 }
