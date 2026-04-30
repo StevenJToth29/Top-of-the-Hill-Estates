@@ -1,6 +1,8 @@
 /**
  * @jest-environment node
  */
+process.env.REVIEW_SECRET = 'test-secret'
+
 import { evaluateConditions, buildBookingVariables, buildContactVariables } from '@/lib/email-queue'
 import type { ConditionBlock, Booking, Room, Property, SiteSettings, EmailSettings } from '@/types'
 

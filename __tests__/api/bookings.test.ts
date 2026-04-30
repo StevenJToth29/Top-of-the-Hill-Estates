@@ -228,3 +228,98 @@ describe('POST /api/bookings — long-term pricing', () => {
     expect(data.bookingId).toBe('booking-1')
   })
 })
+
+describe('POST /api/bookings — stale PI retry', () => {
+  beforeEach(() => jest.clearAllMocks())
+
+  const staleStatuses = ['canceled', 'requires_capture', 'succeeded', 'processing'] as const
+
+  const stalePI = { id: 'pi_stale', client_secret: 'secret_stale', status: 'canceled' }
+  const freshPI = { id: 'pi_fresh', client_secret: 'secret_fresh', status: 'requires_payment_method' }
+
+  it('canceled PI triggers retry — returns 200 with fresh client_secret', async () => {
+    setupMocks({ nightly_rate: 100, monthly_rate: 900, cleaning_fee: 0, security_deposit: 0, extra_guest_fee: 0 })
+    ;(stripe.paymentIntents.create as jest.Mock)
+      .mockResolvedValueOnce({ ...stalePI, status: 'canceled' })
+      .mockResolvedValueOnce(freshPI)
+
+    const res = await POST(makeRequest({ ...baseBody, booking_type: 'short_term' }))
+    const data = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(data.clientSecret).toBe('secret_fresh')
+    expect(data.bookingId).toBe('booking-1')
+    expect(stripe.paymentIntents.create as jest.Mock).toHaveBeenCalledTimes(2)
+    const secondCall = (stripe.paymentIntents.create as jest.Mock).mock.calls[1]
+    expect(secondCall[1]).toEqual(
+      expect.objectContaining({ idempotencyKey: expect.stringMatching(/^booking-v2-retry-/) })
+    )
+  })
+
+  it('requires_capture triggers retry — returns 200 with fresh client_secret', async () => {
+    setupMocks({ nightly_rate: 100, monthly_rate: 900, cleaning_fee: 0, security_deposit: 0, extra_guest_fee: 0 })
+    ;(stripe.paymentIntents.create as jest.Mock)
+      .mockResolvedValueOnce({ ...stalePI, status: 'requires_capture' })
+      .mockResolvedValueOnce(freshPI)
+
+    const res = await POST(makeRequest({ ...baseBody, booking_type: 'short_term' }))
+    const data = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(data.clientSecret).toBe('secret_fresh')
+    expect(stripe.paymentIntents.create as jest.Mock).toHaveBeenCalledTimes(2)
+    const secondCall = (stripe.paymentIntents.create as jest.Mock).mock.calls[1]
+    expect(secondCall[1]).toEqual(
+      expect.objectContaining({ idempotencyKey: expect.stringMatching(/^booking-v2-retry-/) })
+    )
+  })
+
+  it('succeeded triggers retry — returns 200 with fresh client_secret', async () => {
+    setupMocks({ nightly_rate: 100, monthly_rate: 900, cleaning_fee: 0, security_deposit: 0, extra_guest_fee: 0 })
+    ;(stripe.paymentIntents.create as jest.Mock)
+      .mockResolvedValueOnce({ ...stalePI, status: 'succeeded' })
+      .mockResolvedValueOnce(freshPI)
+
+    const res = await POST(makeRequest({ ...baseBody, booking_type: 'short_term' }))
+    const data = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(data.clientSecret).toBe('secret_fresh')
+    expect(stripe.paymentIntents.create as jest.Mock).toHaveBeenCalledTimes(2)
+    const secondCall = (stripe.paymentIntents.create as jest.Mock).mock.calls[1]
+    expect(secondCall[1]).toEqual(
+      expect.objectContaining({ idempotencyKey: expect.stringMatching(/^booking-v2-retry-/) })
+    )
+  })
+
+  it('processing triggers retry — returns 200 with fresh client_secret', async () => {
+    setupMocks({ nightly_rate: 100, monthly_rate: 900, cleaning_fee: 0, security_deposit: 0, extra_guest_fee: 0 })
+    ;(stripe.paymentIntents.create as jest.Mock)
+      .mockResolvedValueOnce({ ...stalePI, status: 'processing' })
+      .mockResolvedValueOnce(freshPI)
+
+    const res = await POST(makeRequest({ ...baseBody, booking_type: 'short_term' }))
+    const data = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(data.clientSecret).toBe('secret_fresh')
+    expect(stripe.paymentIntents.create as jest.Mock).toHaveBeenCalledTimes(2)
+    const secondCall = (stripe.paymentIntents.create as jest.Mock).mock.calls[1]
+    expect(secondCall[1]).toEqual(
+      expect.objectContaining({ idempotencyKey: expect.stringMatching(/^booking-v2-retry-/) })
+    )
+  })
+
+  it('requires_payment_method does NOT trigger retry — create called exactly once', async () => {
+    setupMocks({ nightly_rate: 100, monthly_rate: 900, cleaning_fee: 0, security_deposit: 0, extra_guest_fee: 0 })
+    ;(stripe.paymentIntents.create as jest.Mock)
+      .mockResolvedValueOnce({ id: 'pi_normal', client_secret: 'secret_normal', status: 'requires_payment_method' })
+
+    const res = await POST(makeRequest({ ...baseBody, booking_type: 'short_term' }))
+    const data = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(data.clientSecret).toBe('secret_normal')
+    expect(stripe.paymentIntents.create as jest.Mock).toHaveBeenCalledTimes(1)
+  })
+})

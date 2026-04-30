@@ -16,6 +16,7 @@ export default function ApplicationReviewPanel({ application, onBack, onDecision
   const [declineReason, setDeclineReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; alt: string } | null>(null)
 
   const hoursLeft = application.application_deadline
     ? Math.max(0, Math.round((new Date(application.application_deadline).getTime() - Date.now()) / 3600000))
@@ -64,18 +65,28 @@ export default function ApplicationReviewPanel({ application, onBack, onDecision
                     {doc.ai_authenticity_flag === 'clear' ? '✓ AI Clear' : '⚠ AI Flag'}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                <div className="space-y-3 text-sm mb-3">
                   <div><div className="text-on-surface-variant text-xs mb-1">Name</div><div className="text-on-surface">{doc.guest_name || '—'}</div></div>
-                  <div><div className="text-on-surface-variant text-xs mb-1">Address</div><div className="text-on-surface">{doc.current_address || '—'}</div></div>
+                  <div><div className="text-on-surface-variant text-xs mb-1">Address</div><div className="text-on-surface break-words">{doc.current_address || '—'}</div></div>
                 </div>
                 <div className="mb-3">
                   <div className="text-on-surface-variant text-xs mb-1">ID Photo</div>
                   {doc.id_photo_signed_url ? (
-                    <img
-                      src={doc.id_photo_signed_url}
-                      alt={`Guest ${doc.guest_index} ID`}
-                      className="w-full max-h-64 object-contain rounded-lg border border-outline bg-black/20"
-                    />
+                    <button
+                      onClick={() => setExpandedPhoto({ url: doc.id_photo_signed_url!, alt: `Guest ${doc.guest_index} ID` })}
+                      className="w-full focus:outline-none group"
+                    >
+                      <div className="relative">
+                        <img
+                          src={doc.id_photo_signed_url}
+                          alt={`Guest ${doc.guest_index} ID`}
+                          className="w-full max-h-64 object-contain rounded-lg border border-outline bg-black/20 group-hover:opacity-90 transition-opacity"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="bg-black/60 text-white text-xs font-medium px-3 py-1.5 rounded-full">Click to expand</span>
+                        </div>
+                      </div>
+                    </button>
                   ) : (
                     <div className="rounded-lg border border-outline/50 bg-surface-highest/30 px-3 py-3 text-xs text-on-surface-variant italic">
                       {doc.id_photo_url ? 'Photo unavailable — guest must re-upload ID' : 'No photo uploaded'}
@@ -146,6 +157,27 @@ export default function ApplicationReviewPanel({ application, onBack, onDecision
           </div>
         </div>
       </div>
+
+      {expandedPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+          onClick={() => setExpandedPhoto(null)}
+        >
+          <div className="relative max-w-4xl w-full" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setExpandedPhoto(null)}
+              className="absolute -top-10 right-0 text-white text-sm font-medium hover:text-white/70 transition-colors"
+            >
+              ✕ Close
+            </button>
+            <img
+              src={expandedPhoto.url}
+              alt={expandedPhoto.alt}
+              className="w-full max-h-[85vh] object-contain rounded-xl"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

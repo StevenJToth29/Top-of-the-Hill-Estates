@@ -43,7 +43,7 @@ function buildQueryChain(rows: unknown[]) {
   const chain: Record<string, unknown> = {
     then: (resolve: (v: typeof result) => void) => resolve(result),
   }
-  for (const m of ['select', 'order', 'eq', 'gte', 'lte']) {
+  for (const m of ['select', 'order', 'eq', 'neq', 'gte', 'lte']) {
     chain[m] = jest.fn().mockReturnValue(chain)
   }
   return jest.fn().mockReturnValue(chain)

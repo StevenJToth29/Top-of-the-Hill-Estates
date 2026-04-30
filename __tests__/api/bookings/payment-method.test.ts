@@ -13,12 +13,14 @@ jest.mock('@/lib/stripe', () => ({
   stripe: {
     paymentIntents: {
       update: jest.fn(),
+      create: jest.fn(),
     },
   },
 }))
 
 const mockCreateServiceClient = createServiceRoleClient as jest.Mock
 const mockStripeUpdate = (stripe.paymentIntents.update as jest.Mock)
+const mockStripeCreate = (stripe.paymentIntents.create as jest.Mock)
 
 function makeRequest(body: Record<string, unknown>) {
   return new Request('http://localhost/api/bookings/booking-1/payment-method', {
@@ -55,7 +57,8 @@ function createDbMocks(opts: {
     data: opts.config !== undefined ? opts.config : cardConfig,
     error: opts.configError ?? null,
   })
-  const configEqMethod = jest.fn().mockReturnValue({ single: configSingle })
+  const configOrder = jest.fn().mockResolvedValue({ data: [{ method_key: 'card' }], error: null })
+  const configEqMethod = jest.fn().mockReturnValue({ single: configSingle, order: configOrder })
   const configEqType = jest.fn().mockReturnValue({ eq: configEqMethod })
   const configSelect = jest.fn().mockReturnValue({ eq: configEqType })
 
@@ -243,5 +246,169 @@ describe('PATCH /api/bookings/[id]/payment-method – fee calculation', () => {
       expect.objectContaining({ processing_fee: 15.24, total_amount: 515.24 })
     )
     expect(db.updateEq).toHaveBeenCalledWith('id', 'booking-1')
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Helpers for the expired-session recovery tests
+// ---------------------------------------------------------------------------
+
+const allEnabledMethods = [
+  { method_key: 'card' },
+  { method_key: 'us_bank_account' },
+  { method_key: 'cashapp' },
+]
+
+/**
+ * Like createDbMocks but the payment_method_configs table mock supports BOTH
+ * query paths the route now makes:
+ *   1. .select(...).eq('booking_type', …).eq('method_key', …).single()   → selected method config
+ *   2. .select('method_key').eq('booking_type', …).eq('is_enabled', true).order('sort_order') → all enabled methods
+ *
+ * Both paths share the same eq→eq chain so we return a terminal object that
+ * has BOTH .single() and .order() on it.
+ */
+function createDbMocksWithAllMethods(opts: {
+  booking?: unknown
+  bookingError?: unknown
+  config?: unknown
+  configError?: unknown
+  updateError?: unknown
+  allMethods?: { method_key: string }[]
+} = {}) {
+  const updateEq = jest.fn().mockResolvedValue({ error: opts.updateError ?? null })
+  const update = jest.fn().mockReturnValue({ eq: updateEq })
+
+  // Terminal node that both eq chains resolve to — supports .single() and .order()
+  const configTerminal = {
+    single: jest.fn().mockResolvedValue({
+      data: opts.config !== undefined ? opts.config : cardConfig,
+      error: opts.configError ?? null,
+    }),
+    order: jest.fn().mockResolvedValue({
+      data: opts.allMethods !== undefined ? opts.allMethods : allEnabledMethods,
+      error: null,
+    }),
+  }
+  const configEqMethod = jest.fn().mockReturnValue(configTerminal)
+  const configEqType = jest.fn().mockReturnValue({ eq: configEqMethod })
+  const configSelect = jest.fn().mockReturnValue({ eq: configEqType })
+
+  const bookingSingle = jest.fn().mockResolvedValue({
+    data: opts.booking !== undefined ? opts.booking : defaultBooking,
+    error: opts.bookingError ?? null,
+  })
+  const bookingEq = jest.fn().mockReturnValue({ single: bookingSingle })
+  const bookingSelect = jest.fn().mockReturnValue({ eq: bookingEq })
+
+  const from = jest.fn().mockImplementation((table: string) => {
+    if (table === 'bookings') return { select: bookingSelect, update }
+    if (table === 'payment_method_configs') return { select: configSelect }
+    return {}
+  })
+
+  return { from, update, updateEq, configTerminal }
+}
+
+describe('PATCH /api/bookings/[id]/payment-method – expired session recovery', () => {
+  beforeEach(() => {
+    mockStripeUpdate.mockResolvedValue({})
+    mockStripeCreate.mockResolvedValue({
+      id: 'pi_fresh_1',
+      client_secret: 'secret_fresh_1',
+    })
+  })
+
+  test('happy path — replacement PI created when update throws payment_intent_unexpected_state', async () => {
+    const unexpectedStateErr = Object.assign(new Error('unexpected state'), {
+      code: 'payment_intent_unexpected_state',
+    })
+    mockStripeUpdate.mockRejectedValueOnce(unexpectedStateErr)
+
+    const db = createDbMocksWithAllMethods()
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    const res = await PATCH(makeRequest({ method_key: 'card' }), routeParams)
+
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body).toMatchObject({
+      processing_fee: expect.any(Number),
+      grand_total: expect.any(Number),
+      newClientSecret: 'secret_fresh_1',
+    })
+    expect(mockStripeCreate).toHaveBeenCalledTimes(1)
+  })
+
+  test('replacement PI uses all enabled methods, not just the selected one', async () => {
+    const unexpectedStateErr = Object.assign(new Error('unexpected state'), {
+      code: 'payment_intent_unexpected_state',
+    })
+    mockStripeUpdate.mockRejectedValueOnce(unexpectedStateErr)
+
+    const db = createDbMocksWithAllMethods()
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    await PATCH(makeRequest({ method_key: 'card' }), routeParams)
+
+    expect(mockStripeCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        payment_method_types: ['card', 'us_bank_account', 'cashapp'],
+      }),
+    )
+  })
+
+  test('DB updated with fresh PI id after replacement PI creation', async () => {
+    const unexpectedStateErr = Object.assign(new Error('unexpected state'), {
+      code: 'payment_intent_unexpected_state',
+    })
+    mockStripeUpdate.mockRejectedValueOnce(unexpectedStateErr)
+    mockStripeCreate.mockResolvedValueOnce({
+      id: 'pi_fresh_new',
+      client_secret: 'secret_fresh_new',
+    })
+
+    const db = createDbMocksWithAllMethods()
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    await PATCH(makeRequest({ method_key: 'card' }), routeParams)
+
+    // The second update call (after rollback + fresh PI) should include the new PI id
+    expect(db.update).toHaveBeenCalledWith(
+      expect.objectContaining({ stripe_payment_intent_id: 'pi_fresh_new' }),
+    )
+    expect(db.updateEq).toHaveBeenCalledWith('id', 'booking-1')
+  })
+
+  test('fallback to 409 if fresh PI creation fails', async () => {
+    const unexpectedStateErr = Object.assign(new Error('unexpected state'), {
+      code: 'payment_intent_unexpected_state',
+    })
+    mockStripeUpdate.mockRejectedValueOnce(unexpectedStateErr)
+    mockStripeCreate.mockRejectedValueOnce(new Error('Stripe create failed'))
+
+    const db = createDbMocksWithAllMethods()
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    const res = await PATCH(makeRequest({ method_key: 'card' }), routeParams)
+
+    expect(res.status).toBe(409)
+    const body = await res.json()
+    expect(body.error).toBe('This booking session has expired. Please start a new booking.')
+  })
+
+  test('other Stripe errors re-throw to 500 (not payment_intent_unexpected_state)', async () => {
+    const otherErr = Object.assign(new Error('card declined'), {
+      code: 'card_declined',
+    })
+    mockStripeUpdate.mockRejectedValueOnce(otherErr)
+
+    const db = createDbMocksWithAllMethods()
+    mockCreateServiceClient.mockReturnValue({ from: db.from })
+
+    const res = await PATCH(makeRequest({ method_key: 'card' }), routeParams)
+
+    expect(res.status).toBe(500)
+    expect(mockStripeCreate).not.toHaveBeenCalled()
   })
 })

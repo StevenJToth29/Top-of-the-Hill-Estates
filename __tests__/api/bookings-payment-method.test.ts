@@ -64,6 +64,7 @@ function setupMocks(
           select: jest.fn().mockReturnThis(),
           eq: jest.fn().mockReturnThis(),
           single: jest.fn().mockResolvedValue({ data: methodConfig, error: null }),
+          order: jest.fn().mockResolvedValue({ data: [{ method_key: 'card' }], error: null }),
         }
       }
       return {
