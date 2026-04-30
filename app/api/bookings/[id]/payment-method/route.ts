@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
+import { log } from '@/lib/logger'
 
 type BookingRow = {
   id: string
@@ -29,6 +30,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'method_key is required' }, { status: 400 })
     }
 
+    log.info('booking.payment_method.start', { booking_id: params.id, method_key })
+
     const supabase = createServiceRoleClient()
 
     const { data: booking, error: bookingError } = await supabase
@@ -41,6 +44,7 @@ export async function PATCH(
       .single()
 
     if (bookingError || !booking) {
+      log.error('booking.payment_method.booking_not_found', { booking_id: params.id, error: bookingError?.message })
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
     }
 
@@ -112,8 +116,11 @@ export async function PATCH(
       .eq('id', params.id)
 
     if (updateError) {
+      log.error('booking.payment_method.db_update_failed', { booking_id: params.id, error: updateError.message })
       return NextResponse.json({ error: updateError.message }, { status: 500 })
     }
+
+    log.info('booking.payment_method.pi_update_attempt', { booking_id: params.id, pi_id: typedBooking.stripe_payment_intent_id, grand_total_cents, method_key })
 
     try {
       await stripe.paymentIntents.update(typedBooking.stripe_payment_intent_id, {
@@ -130,6 +137,7 @@ export async function PATCH(
       // The original PI is in a non-updatable state (canceled, captured, etc.).
       // Create a replacement PI so the user can complete payment without starting over.
       if ((stripeErr as { code?: string }).code === 'payment_intent_unexpected_state') {
+        log.warn('booking.payment_method.pi_unexpected_state', { booking_id: params.id, pi_id: typedBooking.stripe_payment_intent_id, method_key })
         try {
           const freshPI = await stripe.paymentIntents.create({
             amount: grand_total_cents,
@@ -151,9 +159,10 @@ export async function PATCH(
             .from('bookings')
             .update({ stripe_payment_intent_id: freshPI.id, processing_fee, total_amount: grand_total })
             .eq('id', params.id)
+          log.info('booking.payment_method.replacement_pi_created', { booking_id: params.id, fresh_pi_id: freshPI.id, grand_total_cents, method_key })
           return NextResponse.json({ processing_fee, grand_total, newClientSecret: freshPI.client_secret })
         } catch (freshErr) {
-          console.error('payment-method: failed to create replacement PI:', freshErr)
+          log.error('booking.payment_method.replacement_pi_failed', { booking_id: params.id, error: String(freshErr) })
           return NextResponse.json(
             { error: 'This booking session has expired. Please start a new booking.' },
             { status: 409 },
@@ -161,12 +170,14 @@ export async function PATCH(
         }
       }
 
+      log.error('booking.payment_method.stripe_update_failed', { booking_id: params.id, pi_id: typedBooking.stripe_payment_intent_id, error: String(stripeErr) })
       throw stripeErr
     }
 
+    log.info('booking.payment_method.success', { booking_id: params.id, pi_id: typedBooking.stripe_payment_intent_id, processing_fee, grand_total, method_key })
     return NextResponse.json({ processing_fee, grand_total })
   } catch (err) {
-    console.error('payment-method PATCH error:', err)
+    log.error('booking.payment_method.unhandled_error', { booking_id: params.id, error: String(err) })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

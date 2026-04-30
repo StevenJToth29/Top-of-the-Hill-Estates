@@ -6,6 +6,7 @@ import { isRoomAvailable } from '@/lib/availability'
 import { syncToGHL } from '@/lib/ghl'
 import { evaluateAndQueueEmails } from '@/lib/email-queue'
 import { checkRateLimit, getClientIp } from '@/lib/rate-limit'
+import { log } from '@/lib/logger'
 import type { Booking, BookingType, PaymentMethodConfig } from '@/types'
 
 function computeNightlySubtotal(
@@ -85,8 +86,10 @@ export async function POST(request: Request) {
       .eq('is_active', true)
       .single()
 
+    log.info('booking.create.start', { room_id, booking_type, check_in, check_out, guest_email })
+
     if (roomError || !room) {
-      console.error('Room lookup failed:', roomError)
+      log.error('booking.create.room_not_found', { room_id, error: roomError?.message })
       return NextResponse.json({ error: 'Room not found' }, { status: 404 })
     }
 
@@ -104,6 +107,7 @@ export async function POST(request: Request) {
       const checkInDate = new Date(check_in)
       const daysAhead = differenceInCalendarDays(checkInDate, todayUtc)
       if (daysAhead < 0 || daysAhead > advanceDays) {
+        log.warn('booking.create.outside_booking_window', { room_id, check_in, days_ahead: daysAhead, max_days: advanceDays })
         return NextResponse.json(
           { error: 'Check-in date is outside the allowed booking window for this room' },
           { status: 400 },
@@ -113,6 +117,7 @@ export async function POST(request: Request) {
 
     const available = await isRoomAvailable(room_id, check_in, check_out)
     if (!available) {
+      log.warn('booking.create.unavailable', { room_id, check_in, check_out })
       return NextResponse.json({ error: 'Room is not available for the selected dates' }, { status: 409 })
     }
 
@@ -124,7 +129,7 @@ export async function POST(request: Request) {
       .order('sort_order')
 
     if (configsError) {
-      console.error('Failed to fetch payment method configs:', configsError)
+      log.error('booking.create.payment_config_fetch_failed', { room_id, booking_type, error: configsError.message })
       return NextResponse.json({ error: 'Failed to fetch payment configuration' }, { status: 500 })
     }
 
@@ -145,7 +150,7 @@ export async function POST(request: Request) {
       .in('booking_type', [booking_type, 'both'])
 
     if (feesError) {
-      console.error('Failed to fetch room fees:', feesError)
+      log.error('booking.create.room_fees_fetch_failed', { room_id, error: feesError.message })
       return NextResponse.json({ error: 'Failed to fetch room fees' }, { status: 500 })
     }
 
@@ -227,15 +232,19 @@ export async function POST(request: Request) {
       { idempotencyKey: `booking-v2-${room_id}-${guest_email}-${check_in}-${check_out}` },
     )
 
+    log.info('booking.create.pi_created', { pi_id: paymentIntent.id, pi_status: paymentIntent.status, amount_cents: piParams.amount })
+
     // Stripe caches idempotency keys for 24 hours, so a rebook attempt within that
     // window can return a stale PaymentIntent. If it's in any state that can't be
     // updated (canceled, captured, succeeded, processing), create a fresh one.
     const updatableStatuses = new Set(['requires_payment_method', 'requires_confirmation', 'requires_action'])
     if (!updatableStatuses.has(paymentIntent.status)) {
+      log.warn('booking.create.stale_pi_detected', { stale_pi_id: paymentIntent.id, stale_status: paymentIntent.status, room_id, guest_email })
       paymentIntent = await stripe.paymentIntents.create(
         piParams,
         { idempotencyKey: `booking-v2-retry-${crypto.randomUUID()}` },
       )
+      log.info('booking.create.fresh_pi_created', { fresh_pi_id: paymentIntent.id })
     }
 
     const { data: booking, error } = await supabase
@@ -269,9 +278,11 @@ export async function POST(request: Request) {
       .single()
 
     if (error || !booking) {
-      console.error('Failed to create booking record:', error)
+      log.error('booking.create.db_insert_failed', { pi_id: paymentIntent.id, room_id, guest_email, error: error?.message })
       return NextResponse.json({ error: 'Failed to create booking' }, { status: 500 })
     }
+
+    log.info('booking.create.success', { booking_id: booking.id, pi_id: paymentIntent.id, total_amount, booking_type, room_id })
 
     // Snapshot applicable generic fees
     if (applicableFees.length > 0) {
@@ -283,14 +294,14 @@ export async function POST(request: Request) {
         }))
       )
       if (feesInsertError) {
-        console.error('Failed to snapshot booking fees:', feesInsertError)
+        log.error('booking.create.fees_snapshot_failed', { booking_id: booking.id, error: feesInsertError.message })
         return NextResponse.json({ error: 'Failed to record booking fees' }, { status: 500 })
       }
     }
 
     // Sync to GHL in the background — non-blocking so it doesn't delay the response
     syncToGHL(booking as Booking).catch((err) => {
-      console.error('GHL sync error on booking creation:', err)
+      log.error('booking.create.ghl_sync_failed', { booking_id: booking.id, error: String(err) })
     })
 
     evaluateAndQueueEmails('booking_pending', { type: 'booking', bookingId: booking.id }).catch(
@@ -304,7 +315,7 @@ export async function POST(request: Request) {
       available_payment_methods: enabledMethods,
     })
   } catch (err) {
-    console.error('POST /api/bookings error:', err)
+    log.error('booking.create.unhandled_error', { error: String(err) })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

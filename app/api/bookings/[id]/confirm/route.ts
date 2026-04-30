@@ -3,6 +3,7 @@ import { stripe } from '@/lib/stripe'
 import { createServiceRoleClient } from '@/lib/supabase'
 import { isRoomAvailableExcluding } from '@/lib/availability'
 import { evaluateAndQueueEmails } from '@/lib/email-queue'
+import { log } from '@/lib/logger'
 import type { Booking } from '@/types'
 
 export async function POST(
@@ -18,24 +19,32 @@ export async function POST(
       .eq('id', params.id)
       .single()
 
+    log.info('booking.confirm.start', { booking_id: params.id })
+
     if (fetchError || !booking) {
+      log.error('booking.confirm.booking_not_found', { booking_id: params.id, error: fetchError?.message })
       return NextResponse.json({ error: 'Booking not found' }, { status: 404 })
     }
 
     if (booking.status === 'pending_docs' || booking.status === 'confirmed') {
+      log.info('booking.confirm.already_confirmed', { booking_id: params.id, status: booking.status })
       return NextResponse.json({ status: 'pending_docs' })
     }
 
     if (booking.status !== 'pending' && booking.status !== 'pending_payment') {
+      log.warn('booking.confirm.invalid_status', { booking_id: params.id, status: booking.status })
       return NextResponse.json({ error: 'Booking cannot be confirmed' }, { status: 400 })
     }
 
     if (!booking.stripe_payment_intent_id) {
+      log.error('booking.confirm.no_pi', { booking_id: params.id })
       return NextResponse.json({ error: 'No payment intent on booking' }, { status: 400 })
     }
 
     // Verify with Stripe directly — never trust the client to claim payment succeeded
     const paymentIntent = await stripe.paymentIntents.retrieve(booking.stripe_payment_intent_id)
+
+    log.info('booking.confirm.pi_retrieved', { booking_id: params.id, pi_id: paymentIntent.id, pi_status: paymentIntent.status })
 
     // requires_capture = card authorized with manual capture (standard flow for approval-based bookings)
     // succeeded        = payment already captured (legacy / direct charge)
@@ -43,6 +52,7 @@ export async function POST(
     // requires_action  = micro-deposit verification pending before bank payment clears
     const validStatuses = ['requires_capture', 'succeeded', 'processing', 'requires_action']
     if (!validStatuses.includes(paymentIntent.status)) {
+      log.warn('booking.confirm.payment_not_authorized', { booking_id: params.id, pi_id: paymentIntent.id, pi_status: paymentIntent.status })
       return NextResponse.json(
         { error: 'Payment not yet authorized' },
         { status: 400 },
@@ -58,13 +68,15 @@ export async function POST(
       booking.id,
     )
     if (!available) {
+      log.warn('booking.confirm.dates_unavailable', { booking_id: params.id, room_id: booking.room_id, check_in: booking.check_in, check_out: booking.check_out })
       // Dates are no longer free — void the payment so the customer isn't charged.
       try {
         if (['requires_capture', 'requires_payment_method', 'requires_confirmation', 'requires_action'].includes(paymentIntent.status)) {
           await stripe.paymentIntents.cancel(booking.stripe_payment_intent_id)
+          log.info('booking.confirm.pi_voided_on_conflict', { booking_id: params.id, pi_id: paymentIntent.id })
         }
       } catch (cancelErr) {
-        console.error('Failed to cancel payment intent after availability conflict:', cancelErr)
+        log.error('booking.confirm.pi_void_failed', { booking_id: params.id, pi_id: paymentIntent.id, error: String(cancelErr) })
       }
       await supabase.from('bookings').update({ status: 'cancelled', cancellation_reason: 'dates_unavailable' }).eq('id', params.id)
       return NextResponse.json({ error: 'These dates are no longer available. Your payment has been voided.' }, { status: 409 })
@@ -82,9 +94,11 @@ export async function POST(
       .single()
 
     if (updateError || !confirmed) {
-      console.error('Failed to move booking to pending_docs:', updateError)
+      log.error('booking.confirm.db_update_failed', { booking_id: params.id, pi_id: paymentIntent.id, error: updateError?.message })
       return NextResponse.json({ error: 'Failed to confirm booking' }, { status: 500 })
     }
+
+    log.info('booking.confirm.success', { booking_id: params.id, pi_id: paymentIntent.id, pi_status: paymentIntent.status })
 
     evaluateAndQueueEmails('application_needed', {
       type: 'booking',
@@ -93,7 +107,7 @@ export async function POST(
 
     return NextResponse.json({ status: 'pending_docs' })
   } catch (err) {
-    console.error('POST /api/bookings/[id]/confirm error:', err)
+    log.error('booking.confirm.unhandled_error', { booking_id: params.id, error: String(err) })
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }
