@@ -1,4 +1,6 @@
 import { createServiceRoleClient } from '@/lib/supabase'
+import { sendEmail } from '@/lib/email'
+import { resolveVariables } from '@/lib/email-variables'
 import { OPEN_ENDED_DATE } from '@/lib/format'
 import { generateReviewToken } from '@/lib/review-token'
 import type {
@@ -256,9 +258,69 @@ export async function evaluateAndQueueEmails(
       }
     }
 
-    if (queueRows.length) {
-      const { error } = await supabase.from('email_queue').insert(queueRows)
-      if (error) console.error('email_queue insert error:', error)
+    if (!queueRows.length) return
+
+    const nowIso = now.toISOString()
+    const immediateRows = queueRows.filter((r) => (r.send_at as string) <= nowIso)
+    const scheduledRows = queueRows.filter((r) => (r.send_at as string) > nowIso)
+
+    // Future-dated reminders go into the queue as pending — cron picks them up
+    if (scheduledRows.length) {
+      const { error } = await supabase.from('email_queue').insert(scheduledRows)
+      if (error) console.error('email_queue insert error (scheduled):', error)
+    }
+
+    // Zero-delay emails: send right now, then record in queue for audit trail
+    if (immediateRows.length) {
+      const fromName = (emailSettings as { from_name?: string } | null)?.from_name ?? undefined
+      const fromEmail = (emailSettings as { from_email?: string } | null)?.from_email ?? undefined
+
+      const templateIds = [...new Set(immediateRows.map((r) => r.template_id as string))]
+      const { data: templates } = await supabase
+        .from('email_templates')
+        .select('id, subject, body')
+        .in('id', templateIds)
+
+      const templateMap = Object.fromEntries((templates ?? []).map((t) => [t.id, t]))
+      const sentAt = nowIso
+
+      await Promise.all(
+        immediateRows.map(async (row) => {
+          const template = templateMap[row.template_id as string] as { subject: string; body: string } | undefined
+          const variables = (row.resolved_variables ?? {}) as Record<string, string>
+
+          let status = 'failed'
+          let sentAtValue: string | undefined
+          let errorMsg: string | undefined
+
+          if (!template) {
+            errorMsg = 'Template not found'
+          } else {
+            const subject = resolveVariables(template.subject, variables)
+            const html = resolveVariables(template.body, variables)
+            try {
+              const result = await sendEmail({ to: row.recipient_email as string, subject, html, fromName, fromEmail })
+              if (result) {
+                status = 'sent'
+                sentAtValue = sentAt
+              } else {
+                errorMsg = 'Send failed'
+              }
+            } catch (err) {
+              console.error('evaluateAndQueueEmails: immediate send error:', err)
+              errorMsg = 'Send exception'
+            }
+          }
+
+          const { error } = await supabase.from('email_queue').insert({
+            ...row,
+            status,
+            ...(sentAtValue ? { sent_at: sentAtValue } : {}),
+            ...(errorMsg ? { error: errorMsg } : {}),
+          })
+          if (error) console.error('email_queue audit insert error:', error)
+        }),
+      )
     }
   } catch (err) {
     console.error('evaluateAndQueueEmails error:', err)
