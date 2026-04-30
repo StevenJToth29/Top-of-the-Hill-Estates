@@ -54,12 +54,20 @@ export async function PATCH(
       return NextResponse.json({ error: 'Booking payment session not found' }, { status: 409 })
     }
 
-    const { data: methodConfig, error: configError } = await supabase
-      .from('payment_method_configs')
-      .select('fee_percent, fee_flat, is_enabled')
-      .eq('booking_type', typedBooking.booking_type)
-      .eq('method_key', method_key)
-      .single()
+    const [{ data: methodConfig, error: configError }, { data: allMethodConfigs }] = await Promise.all([
+      supabase
+        .from('payment_method_configs')
+        .select('fee_percent, fee_flat, is_enabled')
+        .eq('booking_type', typedBooking.booking_type)
+        .eq('method_key', method_key)
+        .single(),
+      supabase
+        .from('payment_method_configs')
+        .select('method_key')
+        .eq('booking_type', typedBooking.booking_type)
+        .eq('is_enabled', true)
+        .order('sort_order'),
+    ])
 
     if (configError || !methodConfig) {
       return NextResponse.json({ error: 'Payment method not found' }, { status: 400 })
@@ -68,6 +76,8 @@ export async function PATCH(
     if (!methodConfig.is_enabled) {
       return NextResponse.json({ error: 'Payment method not available' }, { status: 400 })
     }
+
+    const allMethodKeys = (allMethodConfigs ?? []).map((m: { method_key: string }) => m.method_key)
 
     // Derive base amount so repeated PATCH calls (method changes) stay correct.
     // Round to 2 decimal places to avoid floating-point drift (e.g. 514.80 - 14.80).
@@ -124,7 +134,7 @@ export async function PATCH(
           const freshPI = await stripe.paymentIntents.create({
             amount: grand_total_cents,
             currency: 'usd',
-            payment_method_types: [method_key],
+            payment_method_types: allMethodKeys,
             payment_method_options: {
               card: { capture_method: 'manual' },
               cashapp: { capture_method: 'manual' },
