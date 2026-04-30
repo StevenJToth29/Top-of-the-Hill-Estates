@@ -117,13 +117,38 @@ export async function PATCH(
         .update({ processing_fee: typedBooking.processing_fee, total_amount: typedBooking.total_amount })
         .eq('id', params.id)
 
-      // PaymentIntent is canceled (session expired) — return a clear 409 so the
-      // client can show a human-readable message instead of a generic 500.
+      // The original PI is in a non-updatable state (canceled, captured, etc.).
+      // Create a replacement PI so the user can complete payment without starting over.
       if ((stripeErr as { code?: string }).code === 'payment_intent_unexpected_state') {
-        return NextResponse.json(
-          { error: 'This booking session has expired. Please start a new booking.' },
-          { status: 409 },
-        )
+        try {
+          const freshPI = await stripe.paymentIntents.create({
+            amount: grand_total_cents,
+            currency: 'usd',
+            payment_method_types: [method_key],
+            payment_method_options: {
+              card: { capture_method: 'manual' },
+              cashapp: { capture_method: 'manual' },
+              us_bank_account: { verification_method: 'instant' },
+            },
+            metadata: { booking_id: params.id },
+            ...(connectedAccountId && newAppFeeCents !== null && {
+              transfer_data: { destination: connectedAccountId },
+              application_fee_amount: newAppFeeCents,
+            }),
+          })
+          if (!freshPI.client_secret) throw new Error('No client_secret on fresh PI')
+          await supabase
+            .from('bookings')
+            .update({ stripe_payment_intent_id: freshPI.id, processing_fee, total_amount: grand_total })
+            .eq('id', params.id)
+          return NextResponse.json({ processing_fee, grand_total, newClientSecret: freshPI.client_secret })
+        } catch (freshErr) {
+          console.error('payment-method: failed to create replacement PI:', freshErr)
+          return NextResponse.json(
+            { error: 'This booking session has expired. Please start a new booking.' },
+            { status: 409 },
+          )
+        }
       }
 
       throw stripeErr

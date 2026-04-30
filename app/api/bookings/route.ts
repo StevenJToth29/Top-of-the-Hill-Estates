@@ -228,9 +228,10 @@ export async function POST(request: Request) {
     )
 
     // Stripe caches idempotency keys for 24 hours, so a rebook attempt within that
-    // window returns the same (now-canceled) PaymentIntent. Detect this and create
-    // a fresh PI under a unique key so the user can actually complete the payment.
-    if (paymentIntent.status === 'canceled') {
+    // window can return a stale PaymentIntent. If it's in any state that can't be
+    // updated (canceled, captured, succeeded, processing), create a fresh one.
+    const updatableStatuses = new Set(['requires_payment_method', 'requires_confirmation', 'requires_action'])
+    if (!updatableStatuses.has(paymentIntent.status)) {
       paymentIntent = await stripe.paymentIntents.create(
         piParams,
         { idempotencyKey: `booking-v2-retry-${crypto.randomUUID()}` },

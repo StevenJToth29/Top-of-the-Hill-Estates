@@ -118,8 +118,9 @@ export default function StripePaymentSection({
         setIsSubmitting(false)
         return
       }
-      const { processing_fee } = await feeRes.json()
-      onFeeConfirmed(processing_fee)
+      const feeData = await feeRes.json() as { processing_fee: number; newClientSecret?: string }
+      if (feeData.newClientSecret) clientSecret = feeData.newClientSecret
+      onFeeConfirmed(feeData.processing_fee)
     } catch (err) {
       ph?.captureException(err instanceof Error ? err : new Error(String(err)), { step: 'record_payment_method', room_id: bookingParams.room_id })
       onError('Network error. Please check your connection and try again.')
