@@ -275,7 +275,7 @@ export async function evaluateAndQueueEmails(
       const fromName = (emailSettings as { from_name?: string } | null)?.from_name ?? undefined
       const fromEmail = (emailSettings as { from_email?: string } | null)?.from_email ?? undefined
 
-      const templateIds = [...new Set(immediateRows.map((r) => r.template_id as string))]
+      const templateIds = Array.from(new Set(immediateRows.map((r) => r.template_id as string)))
       const { data: templates } = await supabase
         .from('email_templates')
         .select('id, subject, body')
