@@ -116,6 +116,16 @@ export async function PATCH(
         .from('bookings')
         .update({ processing_fee: typedBooking.processing_fee, total_amount: typedBooking.total_amount })
         .eq('id', params.id)
+
+      // PaymentIntent is canceled (session expired) — return a clear 409 so the
+      // client can show a human-readable message instead of a generic 500.
+      if ((stripeErr as { code?: string }).code === 'payment_intent_unexpected_state') {
+        return NextResponse.json(
+          { error: 'This booking session has expired. Please start a new booking.' },
+          { status: 409 },
+        )
+      }
+
       throw stripeErr
     }
 

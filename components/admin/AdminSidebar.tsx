@@ -5,6 +5,7 @@ import {
   ArrowRightOnRectangleIcon,
   BanknotesIcon,
   Bars3Icon,
+  BoltIcon,
   BuildingOfficeIcon,
   CalendarDaysIcon,
   CalendarIcon,
@@ -12,6 +13,7 @@ import {
   ClipboardDocumentListIcon,
   Cog6ToothIcon,
   EnvelopeIcon,
+  UserGroupIcon,
   XMarkIcon,
 } from '@heroicons/react/24/outline'
 import { useEffect, useRef } from 'react'
@@ -59,6 +61,11 @@ export const NAV_ITEMS = [
   { label: 'Tasks', href: '/admin/task-automations', icon: ClipboardDocumentListIcon },
   { label: 'Payout', href: '/admin/payout-accounts', icon: BanknotesIcon },
   { label: 'Email', href: '/admin/email/settings', icon: EnvelopeIcon },
+]
+
+export const SETTINGS_NAV_ITEMS = [
+  { label: 'People', href: '/admin/settings/people', icon: UserGroupIcon },
+  { label: 'Automations', href: '/admin/settings/automations', icon: BoltIcon },
   { label: 'Settings', href: '/admin/settings', icon: Cog6ToothIcon },
 ]
 
@@ -82,7 +89,8 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
   }
 
   function isActive(href: string) {
-    return href === '/admin' ? pathname === '/admin' : pathname.startsWith(href)
+    if (href === '/admin' || href === '/admin/settings') return pathname === href
+    return pathname.startsWith(href)
   }
 
   function navButton(
@@ -138,13 +146,16 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
 
       <div className="mx-4 mb-3 h-px bg-surface-high" />
 
-      <nav className="flex-1 space-y-1 px-3">
+      <nav className="flex-1 px-3 space-y-1">
         {NAV_ITEMS.map((item) =>
           navButton(item, {
             iconOnly: false,
             onNavigate: () => setOpen(false),
             badge: item.href === '/admin/bookings' ? pendingApplicationCount : undefined,
           }),
+        )}
+        {SETTINGS_NAV_ITEMS.map((item) =>
+          navButton(item, { iconOnly: false, onNavigate: () => setOpen(false) }),
         )}
       </nav>
 
@@ -193,12 +204,15 @@ export default function AdminSidebar({ logoUrl, logoSize = 52 }: AdminSidebarPro
 
           <div className="mx-4 mb-3 h-px bg-surface-high" />
 
-          <nav className="flex-1 space-y-1 px-2">
+          <nav className="flex-1 px-2 space-y-1">
             {NAV_ITEMS.map((item) =>
               navButton(item, {
                 iconOnly: collapsed,
                 badge: item.href === '/admin/bookings' ? pendingApplicationCount : undefined,
               }),
+            )}
+            {SETTINGS_NAV_ITEMS.map((item) =>
+              navButton(item, { iconOnly: collapsed }),
             )}
           </nav>
 

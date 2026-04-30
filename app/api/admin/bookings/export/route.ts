@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
     .select('*, room:rooms(name, property:properties(name))')
     .order('created_at', { ascending: false })
 
+  query = query.neq('status', 'pending_payment')
   if (status && status !== 'all') query = query.eq('status', status)
   if (type && type !== 'all') query = query.eq('booking_type', type)
   if (from) query = query.gte('check_in', from)

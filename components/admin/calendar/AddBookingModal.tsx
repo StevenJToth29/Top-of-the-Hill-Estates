@@ -227,7 +227,7 @@ export function AddBookingModal({
           <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
             <input type="checkbox" checked={smsConsent} onChange={(e) => setSmsConsent(e.target.checked)}
               className="accent-teal-500" />
-            SMS consent
+            SMS consent. Consent is not required as a condition of purchase.
           </label>
           <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
             <input type="checkbox" checked={marketingConsent} onChange={(e) => setMarketingConsent(e.target.checked)}

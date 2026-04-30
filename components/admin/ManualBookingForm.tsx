@@ -232,7 +232,7 @@ export default function ManualBookingForm({ onSuccess, onCancel }: Props) {
             className="mt-0.5 rounded"
           />
           <span className="text-sm text-on-surface-variant">
-            Guest consents to receive SMS communications (A2P)
+            Guest consents to receive SMS communications (A2P). Consent is not required as a condition of purchase.
           </span>
         </label>
         <label className="flex items-start gap-3 cursor-pointer">

@@ -66,9 +66,9 @@ export default function RoomCard({ room }: Props) {
         {/* Pricing + CTA */}
         <div className="mt-auto flex items-end justify-between pt-2 border-t border-surface">
           <div>
-            {(room.show_nightly_rate ?? true) && (
+            {(room.show_nightly_rate ?? true) && room.nightly_rate > 0 && (
               <p className="text-on-surface font-bold text-lg">
-                Variable rate
+                Avg ${room.nightly_rate.toLocaleString()}
                 <span className="text-on-surface-variant font-normal text-sm"> / night</span>
               </p>
             )}

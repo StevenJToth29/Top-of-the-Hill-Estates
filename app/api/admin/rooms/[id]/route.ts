@@ -36,7 +36,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   // Narrow allowlist: this route is used only by SmartPricingModal for price range / smart pricing updates.
   // Full room edits go through the room form at /admin/rooms/[id]/edit.
-  const allowed = ['price_min', 'price_max', 'smart_pricing_enabled', 'smart_pricing_aggressiveness']
+  const allowed = ['price_min', 'price_max', 'smart_pricing_enabled', 'smart_pricing_aggressiveness', 'is_active']
   const updates: Record<string, unknown> = {}
   for (const key of allowed) {
     if (key in body) updates[key] = body[key]

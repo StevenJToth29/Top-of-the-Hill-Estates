@@ -29,6 +29,7 @@ export default async function AdminBookingsPage({
          total_amount, amount_paid, processing_fee, source, created_at,
          room:rooms(name, property:properties(name))`,
       )
+      .neq('status', 'pending_payment')
       .order('created_at', { ascending: false })
       .limit(200),
     supabase

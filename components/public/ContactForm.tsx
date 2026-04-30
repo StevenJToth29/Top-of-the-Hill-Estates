@@ -154,7 +154,7 @@ export default function ContactForm() {
             By checking this box, I consent to receive non-marketing text messages from Top of
             the Hill Estates, LLC about wifi instructions, rental inquiry, application status,
             scheduling and account-related updates. Message frequency varies, message &amp; data
-            rates may apply. Carriers are not liable for delayed or undelivered messages. Text HELP for assistance, reply STOP to opt out.{' '}
+            rates may apply. Carriers are not liable for delayed or undelivered messages. Text HELP for assistance, reply STOP to opt out. Consent is not required as a condition of purchase.{' '}
             <a href="/privacypolicy" className="underline hover:text-secondary transition-colors duration-150">
               Privacy Policy
             </a>{' '}

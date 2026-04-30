@@ -449,7 +449,7 @@ export default function BookingWidget({ room, blockedDates, dateOverrides = {}, 
             {bookingType === 'long_term' ? 'Apply Now' : 'Book Now'}
           </button>
           <p className="text-center text-xs text-on-surface-variant mt-2">
-            Bookings require admin approval. You will not be charged until approved.
+            Quick Approval Process — Most booking requests approved within 2 hours during business hours. You won't be charged until we confirm availability.
           </p>
         </>
       )}

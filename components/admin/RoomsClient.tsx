@@ -13,6 +13,7 @@ import type { Room, Property, ICalSource } from '@/types'
 
 type RoomWithIcal = Room & { property: Property; ical_sources: ICalSource[] }
 type PropertySummary = Pick<Property, 'id' | 'name' | 'city' | 'state'>
+type PageSegment = { property: PropertySummary; rooms: RoomWithIcal[] }
 
 interface Filters {
   search: string
@@ -110,26 +111,46 @@ export default function RoomsClient({ rooms, properties, siteUrl }: Props) {
     [properties, filters.propertyId],
   )
 
-  // Pack filteredProperties into pages so each page holds ~PAGE_SIZE rooms.
-  // A property is never split across pages.
-  const propertyPageGroups = useMemo(() => {
-    if (filtered.length <= PAGE_SIZE) return [filteredProperties]
-    const pages: PropertySummary[][] = []
-    let current: PropertySummary[] = []
-    let count = 0
+  // Pack rooms into pages of PAGE_SIZE. Properties may be split across pages;
+  // the property header is repeated on each page where its rooms appear.
+  // Properties with no visible rooms (filtered out or truly empty) are still
+  // included in the page they fall into so the user sees contextual messages.
+  const propertyPageGroups = useMemo<PageSegment[][]>(() => {
+    const pages: PageSegment[][] = []
+    let currentPage: PageSegment[] = []
+    let currentCount = 0
+
     for (const p of filteredProperties) {
-      const n = Math.max(grouped[p.id]?.rooms.length ?? 0, 1)
-      if (count + n > PAGE_SIZE && current.length > 0) {
-        pages.push(current)
-        current = []
-        count = 0
+      const propRooms = grouped[p.id]?.rooms ?? []
+
+      if (propRooms.length === 0) {
+        // Keep the property visible (shows "hidden" or "no units" message) without
+        // consuming a room slot — flush the page first if already full.
+        if (currentCount >= PAGE_SIZE && currentPage.length > 0) {
+          pages.push(currentPage)
+          currentPage = []
+          currentCount = 0
+        }
+        currentPage.push({ property: p, rooms: [] })
+        continue
       }
-      current.push(p)
-      count += n
+
+      let remaining = [...propRooms]
+      while (remaining.length > 0) {
+        if (currentCount === PAGE_SIZE) {
+          pages.push(currentPage)
+          currentPage = []
+          currentCount = 0
+        }
+        const chunk = remaining.splice(0, PAGE_SIZE - currentCount)
+        currentPage.push({ property: p, rooms: chunk })
+        currentCount += chunk.length
+      }
     }
-    if (current.length > 0) pages.push(current)
+
+    if (currentPage.length > 0) pages.push(currentPage)
     return pages
-  }, [filteredProperties, grouped, filtered.length])
+  }, [filteredProperties, grouped])
 
   const [page, setPage] = useState(1)
 
@@ -137,7 +158,7 @@ export default function RoomsClient({ rooms, properties, siteUrl }: Props) {
 
   const totalPages = propertyPageGroups.length
 
-  const pagedProperties = propertyPageGroups[page - 1] ?? []
+  const pagedSegments = propertyPageGroups[page - 1] ?? []
 
   const hasProperties = properties.length > 0
   const activeFilters = [
@@ -306,10 +327,10 @@ export default function RoomsClient({ rooms, properties, siteUrl }: Props) {
       ) : (
         <>
           <div className="space-y-8">
-            {pagedProperties.map((p) => {
-              const propRooms = grouped[p.id]?.rooms ?? []
+            {pagedSegments.map((segment, idx) => {
+              const { property: p, rooms: propRooms } = segment
               return (
-                <div key={p.id}>
+                <div key={`${p.id}-${idx}`}>
                   <div className="flex items-center gap-3 mb-4">
                     <div>
                       <h2 className="font-display text-base font-bold text-on-surface">{p.name}</h2>

@@ -206,24 +206,36 @@ export async function POST(request: Request) {
     const connectedAccountId = roomWithProperty?.property?.stripe_account?.stripe_account_id
     const platformFeePercent = Number(roomWithProperty?.property?.platform_fee_percent ?? 0)
 
-    const paymentIntent = await stripe.paymentIntents.create(
-      {
-        amount: Math.round(total_amount * 100),
-        currency: 'usd',
-        payment_method_types: enabledMethods.map((m) => m.method_key),
-        metadata: { room_id, booking_type, guest_email },
-        payment_method_options: {
-          card: { capture_method: 'manual' },
-          cashapp: { capture_method: 'manual' },
-          us_bank_account: { verification_method: 'instant' },
-        },
-        ...(connectedAccountId && {
-          transfer_data: { destination: connectedAccountId },
-          application_fee_amount: Math.round(total_amount * (platformFeePercent / 100) * 100),
-        }),
+    const piParams = {
+      amount: Math.round(total_amount * 100),
+      currency: 'usd',
+      payment_method_types: enabledMethods.map((m) => m.method_key),
+      metadata: { room_id, booking_type, guest_email },
+      payment_method_options: {
+        card: { capture_method: 'manual' },
+        cashapp: { capture_method: 'manual' },
+        us_bank_account: { verification_method: 'instant' },
       },
+      ...(connectedAccountId && {
+        transfer_data: { destination: connectedAccountId },
+        application_fee_amount: Math.round(total_amount * (platformFeePercent / 100) * 100),
+      }),
+    } as const
+
+    let paymentIntent = await stripe.paymentIntents.create(
+      piParams,
       { idempotencyKey: `booking-v2-${room_id}-${guest_email}-${check_in}-${check_out}` },
     )
+
+    // Stripe caches idempotency keys for 24 hours, so a rebook attempt within that
+    // window returns the same (now-canceled) PaymentIntent. Detect this and create
+    // a fresh PI under a unique key so the user can actually complete the payment.
+    if (paymentIntent.status === 'canceled') {
+      paymentIntent = await stripe.paymentIntents.create(
+        piParams,
+        { idempotencyKey: `booking-v2-retry-${crypto.randomUUID()}` },
+      )
+    }
 
     const { data: booking, error } = await supabase
       .from('bookings')
@@ -282,9 +294,6 @@ export async function POST(request: Request) {
 
     evaluateAndQueueEmails('booking_pending', { type: 'booking', bookingId: booking.id }).catch(
       (err) => { console.error('email queue error on booking_pending:', err) },
-    )
-    evaluateAndQueueEmails('application_needed', { type: 'booking', bookingId: booking.id }).catch(
-      (err) => { console.error('email queue error on application_needed:', err) },
     )
 
     return NextResponse.json({

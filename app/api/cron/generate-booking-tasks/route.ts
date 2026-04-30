@@ -3,7 +3,7 @@ import { createServiceRoleClient } from '@/lib/supabase'
 import { generateTasksForDateTrigger, generateTasksForICalBlock } from '@/lib/task-automation'
 import { timingSafeCompare } from '@/lib/timing-safe-compare'
 
-const LOOKAHEAD_DAYS = 14
+const LOOKAHEAD_DAYS = 30
 
 export async function GET(request: NextRequest) {
   if (!timingSafeCompare(request.headers.get('Authorization') ?? '', `Bearer ${process.env.CRON_SECRET ?? ''}`)) {

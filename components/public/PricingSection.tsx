@@ -30,11 +30,11 @@ export default function PricingSection({
           <div className="p-4 rounded-xl border border-outline-variant/20 bg-surface-highest/40 space-y-1.5">
             <p className="text-xs uppercase tracking-widest text-on-surface-variant font-body">Short-term</p>
             <p className="font-display text-2xl font-bold text-on-surface">
-              Variable
+              {nightlyRate > 0 ? <>Avg ${nightlyRate.toLocaleString()}</> : 'Variable'}
               <span className="text-sm font-normal text-on-surface-variant"> /night</span>
             </p>
             <p className="text-xs text-on-surface-variant">
-              Min. {minNightsShortTerm} night{minNightsShortTerm !== 1 ? 's' : ''} · Rate set by calendar
+              Min. {minNightsShortTerm} night{minNightsShortTerm !== 1 ? 's' : ''} · Rate may vary by date
             </p>
             {cleaningFee ? (
               <span className="inline-block mt-1 px-2.5 py-1 rounded-lg bg-secondary/10 text-xs font-bold text-secondary">

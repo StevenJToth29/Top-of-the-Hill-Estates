@@ -17,10 +17,10 @@ export default function RoomStatusToggle({ roomId, isActive: initialActive }: Ro
     const next = !isActive
     setIsActive(next)
     startTransition(async () => {
-      await fetch('/api/admin/rooms', {
+      await fetch(`/api/admin/rooms/${roomId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: roomId, is_active: next }),
+        body: JSON.stringify({ is_active: next }),
       })
       router.refresh()
     })

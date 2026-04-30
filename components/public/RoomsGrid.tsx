@@ -110,7 +110,7 @@ function InlineRoomCard({
               </div>
             ) : (
               <span className="font-body font-bold text-primary">
-                Variable rate
+                Avg ${room.nightly_rate.toLocaleString()}
                 <span className="text-xs font-normal text-on-surface-variant ml-0.5">
                   /night
                 </span>

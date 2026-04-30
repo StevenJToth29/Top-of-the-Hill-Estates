@@ -56,7 +56,7 @@ export function RoomTaskAutomations({
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-gray-800">Unit Rules</h3>
-          <button className="px-3 py-1.5 text-sm rounded-lg bg-primary text-white" onClick={openNew}>
+          <button type="button" className="px-3 py-1.5 text-sm rounded-lg bg-primary text-white" onClick={openNew}>
             + Add Unit Rule
           </button>
         </div>
@@ -73,8 +73,8 @@ export function RoomTaskAutomations({
               <span className="text-xs text-gray-400 shrink-0">
                 {rule.day_offset === 0 ? 'Same day' : rule.day_offset > 0 ? `+${rule.day_offset}d` : `${rule.day_offset}d`}
               </span>
-              <button className="text-xs text-primary hover:underline shrink-0" onClick={() => openEdit(rule)}>Edit</button>
-              <button className="text-xs text-red-500 hover:underline shrink-0" onClick={() => handleDelete(rule.id)}>Delete</button>
+              <button type="button" className="text-xs text-primary hover:underline shrink-0" onClick={() => openEdit(rule)}>Edit</button>
+              <button type="button" className="text-xs text-red-500 hover:underline shrink-0" onClick={() => handleDelete(rule.id)}>Delete</button>
             </div>
           ))}
         </div>

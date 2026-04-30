@@ -1,7 +1,8 @@
 // components/admin/CalendarGrid.tsx
 'use client'
 
-import React, { useRef, useCallback, useMemo, useEffect } from 'react'
+import React, { useRef, useCallback, useMemo, useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { format, getDay } from 'date-fns'
 import { clsx } from 'clsx'
 import { HomeIcon, ChevronLeftIcon, ChevronRightIcon } from '@heroicons/react/16/solid'
@@ -201,6 +202,17 @@ export function CalendarGrid({
   const dragStartDate = useRef<string | null>(null)
   const dragRoomId = useRef<string | null>(null)
 
+  const [taskTooltip, setTaskTooltip] = useState<{ lines: string[]; x: number; y: number } | null>(null)
+
+  function showTooltip(e: React.MouseEvent, tasks: CalendarTask[]) {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setTaskTooltip({
+      lines: tasks.map(t => t.assignee ? `${t.title} → ${t.assignee.name}` : t.title),
+      x: rect.left + rect.width / 2,
+      y: rect.top - 6,
+    })
+  }
+
   const handleMouseDown = useCallback(
     (roomId: string, dateStr: string, status: CellStatus) => {
       if (status === 'booked-first' || status === 'booked-cont' || status === 'ical') return
@@ -301,6 +313,7 @@ export function CalendarGrid({
   const tableWidth = labelWidth + days.length * DAY_COL_WIDTH
 
   return (
+    <>
     <table
       className="border-collapse select-none"
       style={{ tableLayout: 'fixed', width: tableWidth, minWidth: tableWidth }}
@@ -667,30 +680,29 @@ export function CalendarGrid({
                                   const dateTasks = roomTasks.filter(t => t.due_date === colDate)
                                   if (dateTasks.length === 0) return null
                                   const firstTask = dateTasks[0]
-                                  const tooltip = dateTasks.map(t => t.title).join('\n')
                                   return (
                                     <div
                                       key={offset}
                                       role="button"
-                                      title={tooltip}
                                       onClick={(e) => { e.stopPropagation(); onTaskClick(firstTask) }}
+                                      onMouseEnter={(e) => showTooltip(e, dateTasks)}
+                                      onMouseLeave={() => setTaskTooltip(null)}
                                       style={{
                                         position: 'absolute',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        left: offset * DAY_COL_WIDTH + (DAY_COL_WIDTH - 16) / 2,
-                                        width: 16,
-                                        height: 16,
+                                        top: 3,
+                                        left: offset * DAY_COL_WIDTH + 3,
+                                        width: 10,
+                                        height: 10,
                                         borderRadius: '50%',
                                         background: '#EF4444',
-                                        zIndex: 4,
+                                        zIndex: 10,
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                       }}
                                     >
-                                      <span style={{ color: '#fff', fontSize: 9, fontWeight: 700, lineHeight: 1, pointerEvents: 'none' }}>
+                                      <span style={{ color: '#fff', fontSize: 7, fontWeight: 700, lineHeight: 1, pointerEvents: 'none' }}>
                                         {dateTasks.length > 9 ? '9+' : dateTasks.length}
                                       </span>
                                     </div>
@@ -812,30 +824,29 @@ export function CalendarGrid({
                                   const dateTasks = roomTasks.filter(t => t.due_date === colDate)
                                   if (dateTasks.length === 0) return null
                                   const firstTask = dateTasks[0]
-                                  const tooltip = dateTasks.map(t => t.title).join('\n')
                                   return (
                                     <div
                                       key={offset}
                                       role="button"
-                                      title={tooltip}
                                       onClick={(e) => { e.stopPropagation(); onTaskClick(firstTask) }}
+                                      onMouseEnter={(e) => showTooltip(e, dateTasks)}
+                                      onMouseLeave={() => setTaskTooltip(null)}
                                       style={{
                                         position: 'absolute',
-                                        top: '50%',
-                                        transform: 'translateY(-50%)',
-                                        left: offset * DAY_COL_WIDTH + (DAY_COL_WIDTH - 16) / 2,
-                                        width: 16,
-                                        height: 16,
+                                        top: 3,
+                                        left: offset * DAY_COL_WIDTH + 3,
+                                        width: 10,
+                                        height: 10,
                                         borderRadius: '50%',
                                         background: '#EF4444',
-                                        zIndex: 4,
+                                        zIndex: 10,
                                         cursor: 'pointer',
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'center',
                                       }}
                                     >
-                                      <span style={{ color: '#fff', fontSize: 9, fontWeight: 700, lineHeight: 1, pointerEvents: 'none' }}>
+                                      <span style={{ color: '#fff', fontSize: 7, fontWeight: 700, lineHeight: 1, pointerEvents: 'none' }}>
                                         {dateTasks.length > 9 ? '9+' : dateTasks.length}
                                       </span>
                                     </div>
@@ -909,29 +920,28 @@ export function CalendarGrid({
                               const dateTasks = roomTasks.filter(t => t.due_date === ds)
                               if (dateTasks.length === 0) return null
                               const firstTask = dateTasks[0]
-                              const tooltip = dateTasks.map(t => t.title).join('\n')
                               return (
                                 <div
                                   role="button"
-                                  title={tooltip}
                                   onClick={(e) => { e.stopPropagation(); onTaskClick(firstTask) }}
+                                  onMouseEnter={(e) => showTooltip(e, dateTasks)}
+                                  onMouseLeave={() => setTaskTooltip(null)}
                                   style={{
                                     position: 'absolute',
-                                    top: '50%',
-                                    left: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                    width: 16,
-                                    height: 16,
+                                    top: 3,
+                                    left: 3,
+                                    width: 10,
+                                    height: 10,
                                     borderRadius: '50%',
                                     background: '#EF4444',
-                                    zIndex: 4,
+                                    zIndex: 10,
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                   }}
                                 >
-                                  <span style={{ color: '#fff', fontSize: 9, fontWeight: 700, lineHeight: 1, pointerEvents: 'none' }}>
+                                  <span style={{ color: '#fff', fontSize: 7, fontWeight: 700, lineHeight: 1, pointerEvents: 'none' }}>
                                     {dateTasks.length > 9 ? '9+' : dateTasks.length}
                                   </span>
                                 </div>
@@ -963,5 +973,32 @@ export function CalendarGrid({
         ))}
       </tbody>
     </table>
+
+    {taskTooltip && typeof document !== 'undefined' && createPortal(
+      <div
+        style={{
+          position: 'fixed',
+          left: taskTooltip.x,
+          top: taskTooltip.y,
+          transform: 'translate(-50%, -100%)',
+          background: '#1E293B',
+          color: '#F8FAFC',
+          fontSize: 11,
+          fontWeight: 500,
+          lineHeight: 1.5,
+          padding: '5px 9px',
+          borderRadius: 6,
+          whiteSpace: 'pre',
+          zIndex: 9999,
+          pointerEvents: 'none',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.35)',
+          maxWidth: 240,
+        }}
+      >
+        {taskTooltip.lines.join('\n')}
+      </div>,
+      document.body,
+    )}
+  </>
   )
 }

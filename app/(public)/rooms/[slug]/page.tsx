@@ -104,7 +104,7 @@ export default async function RoomDetailPage({ params, searchParams }: Props) {
   if (!rawRoom) notFound()
 
   // iFrame ON = use iframe if available; hApp ON = restrict iframe to source=hApp only
-  const showIframe = showIFrame && !!rawRoom.iframe_booking_url && (!showHApp || searchParams.source === 'hApp')
+  const showIframe = showIFrame && !!rawRoom.iframe_booking_url && (!showHApp || searchParams.source?.toLowerCase() === 'happ')
 
   // Build URL → description lookup from property image library
   const propertyImages = (rawRoom.property?.images ?? []) as PropertyImage[]

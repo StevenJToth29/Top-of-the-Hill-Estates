@@ -85,6 +85,7 @@ export default async function AdminDashboardPage() {
     supabase
       .from('bookings')
       .select('*, room:rooms(name, property:properties(name))')
+      .neq('status', 'pending_payment')
       .order('created_at', { ascending: false })
       .limit(10),
 
